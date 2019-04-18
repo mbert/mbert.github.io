@@ -1,4 +1,4 @@
-<?xml version="1.0" encoding="UTF-8"?><!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Strict//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-strict.dtd"><html xmlns="http://www.w3.org/1999/xhtml" lang="en"><head><meta http-equiv="Content-Type" content="text/html;charset=UTF-8"/><link rel="stylesheet" href="../resources/report.css" type="text/css"/><link rel="shortcut icon" href="../resources/report.gif" type="image/gif"/><title>SimpleAccessorNameNotationCheck.java</title><link rel="stylesheet" href="../resources/prettify.css" type="text/css"/><script type="text/javascript" src="../resources/prettify.js"></script></head><body onload="window['PR_TAB_WIDTH']=4;prettyPrint()"><div class="breadcrumb" id="breadcrumb"><span class="info"><a href="../.sessions.html" class="el_session">Sessions</a></span><a href="../index.html" class="el_report">sevntu-checks</a> &gt; <a href="index.source.html" class="el_package">com.github.sevntu.checkstyle.checks.coding</a> &gt; <span class="el_source">SimpleAccessorNameNotationCheck.java</span></div><h1>SimpleAccessorNameNotationCheck.java</h1><pre class="source lang-java linenums">////////////////////////////////////////////////////////////////////////////////
+<?xml version="1.0" encoding="UTF-8"?><!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Strict//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-strict.dtd"><html xmlns="http://www.w3.org/1999/xhtml" lang="en"><head><meta http-equiv="Content-Type" content="text/html;charset=UTF-8"/><link rel="stylesheet" href="../.resources/report.css" type="text/css"/><link rel="shortcut icon" href="../.resources/report.gif" type="image/gif"/><title>SimpleAccessorNameNotationCheck.java</title><link rel="stylesheet" href="../.resources/prettify.css" type="text/css"/><script type="text/javascript" src="../.resources/prettify.js"></script></head><body onload="window['PR_TAB_WIDTH']=4;prettyPrint()"><div class="breadcrumb" id="breadcrumb"><span class="info"><a href="../.sessions.html" class="el_session">Sessions</a></span><a href="../index.html" class="el_report">sevntu-checks</a> &gt; <a href="index.source.html" class="el_package">com.github.sevntu.checkstyle.checks.coding</a> &gt; <span class="el_source">SimpleAccessorNameNotationCheck.java</span></div><h1>SimpleAccessorNameNotationCheck.java</h1><pre class="source lang-java linenums">////////////////////////////////////////////////////////////////////////////////
 // checkstyle: Checks Java source code for adherence to a set of rules.
 // Copyright (C) 2001-2019 the original author or authors.
 //
@@ -89,7 +89,7 @@ import com.puppycrawl.tools.checkstyle.api.TokenTypes;
     @Override
     public int[] getDefaultTokens() {
 <span class="fc" id="L91">        return new int[] {</span>
-<span class="fc" id="L92">            TokenTypes.METHOD_DEF,</span>
+            TokenTypes.METHOD_DEF,
         };
     }
 
@@ -108,16 +108,16 @@ import com.puppycrawl.tools.checkstyle.api.TokenTypes;
 <span class="fc bfc" id="L108" title="All 4 branches covered.">        if (hasBody(methodDef) &amp;&amp; !isMethodAtAnonymousClass(methodDef)) {</span>
 <span class="fc" id="L109">            final String methodName = methodDef.findFirstToken(TokenTypes.IDENT).getText();</span>
 <span class="fc bfc" id="L110" title="All 2 branches covered.">            if (methodName.startsWith(BOOLEAN_GETTER_PREFIX)) {</span>
-<span class="fc" id="L111">                if (!isGetterCorrect(methodDef,</span>
-<span class="fc bfc" id="L112" title="All 2 branches covered.">                        methodName.substring(BOOLEAN_GETTER_PREFIX.length()))) {</span>
+<span class="fc bfc" id="L111" title="All 2 branches covered.">                if (!isGetterCorrect(methodDef,</span>
+<span class="fc" id="L112">                        methodName.substring(BOOLEAN_GETTER_PREFIX.length()))) {</span>
 <span class="fc" id="L113">                    log(methodDef, MSG_KEY_GETTER);</span>
                 }
-<span class="fc" id="L115">            }</span>
+            }
 <span class="fc bfc" id="L116" title="All 2 branches covered.">            else if (methodName.startsWith(SETTER_PREFIX)) {</span>
 <span class="fc bfc" id="L117" title="All 2 branches covered.">                if (!isSetterCorrect(methodDef, methodName.substring(SETTER_PREFIX.length()))) {</span>
 <span class="fc" id="L118">                    log(methodDef, MSG_KEY_SETTER);</span>
                 }
-<span class="fc" id="L120">            }</span>
+            }
 <span class="fc bfc" id="L121" title="All 2 branches covered.">            else if (methodName.startsWith(GETTER_PREFIX)</span>
 <span class="fc bfc" id="L122" title="All 2 branches covered.">                    &amp;&amp; !isGetterCorrect(methodDef, methodName.substring(GETTER_PREFIX.length()))) {</span>
 <span class="fc" id="L123">                log(methodDef, MSG_KEY_GETTER);</span>
@@ -143,18 +143,18 @@ import com.puppycrawl.tools.checkstyle.api.TokenTypes;
 
 <span class="fc bfc" id="L144" title="All 2 branches covered.">            if (containsOnlyExpression(currentVerifiedTop)) {</span>
 <span class="fc" id="L145">                currentVerifiedTop = currentVerifiedTop.getFirstChild();</span>
-<span class="fc bfc" id="L146" title="All 2 branches covered.">                final boolean containsOnlyOneAssignment = currentVerifiedTop.getFirstChild()</span>
-<span class="fc" id="L147">                        .getType() == TokenTypes.ASSIGN;</span>
+<span class="fc" id="L146">                final boolean containsOnlyOneAssignment = currentVerifiedTop.getFirstChild()</span>
+<span class="fc bfc" id="L147" title="All 2 branches covered.">                        .getType() == TokenTypes.ASSIGN;</span>
 <span class="fc bfc" id="L148" title="All 2 branches covered.">                if (containsOnlyOneAssignment) {</span>
 <span class="fc" id="L149">                    currentVerifiedTop = currentVerifiedTop.getFirstChild();</span>
 <span class="fc" id="L150">                    final DetailAST parameters =</span>
 <span class="fc" id="L151">                            methodDef.findFirstToken(TokenTypes.PARAMETERS);</span>
 <span class="fc" id="L152">                    final String nameOfSettingField = getNameOfSettingField(</span>
-<span class="fc" id="L153">                            currentVerifiedTop, parameters);</span>
+                            currentVerifiedTop, parameters);
 
 <span class="fc bfc" id="L155" title="All 2 branches covered.">                    if (nameOfSettingField != null</span>
-<span class="fc" id="L156">                            &amp;&amp; verifyFieldAndMethodName(nameOfSettingField,</span>
-<span class="fc bfc" id="L157" title="All 2 branches covered.">                                    methodName)) {</span>
+<span class="fc bfc" id="L156" title="All 2 branches covered.">                            &amp;&amp; verifyFieldAndMethodName(nameOfSettingField,</span>
+                                    methodName)) {
 <span class="fc" id="L158">                        result = false;</span>
                     }
                 }
@@ -188,8 +188,8 @@ import com.puppycrawl.tools.checkstyle.api.TokenTypes;
 <span class="fc" id="L188">                    final String nameOfGettingField = getNameOfGettingField(currentVerifiedTop);</span>
 
 <span class="fc bfc" id="L190" title="All 2 branches covered.">                    if (nameOfGettingField != null</span>
-<span class="fc" id="L191">                            &amp;&amp; verifyFieldAndMethodName(nameOfGettingField,</span>
-<span class="fc bfc" id="L192" title="All 2 branches covered.">                                    methodName)) {</span>
+<span class="fc bfc" id="L191" title="All 2 branches covered.">                            &amp;&amp; verifyFieldAndMethodName(nameOfGettingField,</span>
+                                    methodName)) {
 <span class="fc" id="L193">                        result = false;</span>
                     }
                 }
@@ -237,7 +237,7 @@ import com.puppycrawl.tools.checkstyle.api.TokenTypes;
 <span class="fc bfc" id="L237" title="All 2 branches covered.">                if (checkNameOfParameters(parameters, nameOfSettingField)) {</span>
 <span class="fc" id="L238">                    nameOfSettingField = null;</span>
                 }
-<span class="fc" id="L240">            }</span>
+            }
 <span class="fc bfc" id="L241" title="All 2 branches covered.">            else if (assigningFirstChild.getType() == TokenTypes.DOT</span>
 <span class="fc bfc" id="L242" title="All 2 branches covered.">                    &amp;&amp; &quot;this&quot;.equals(assigningFirstChild.getFirstChild().getText())) {</span>
 <span class="fc" id="L243">                nameOfSettingField = assigningFirstChild.getLastChild()</span>
@@ -307,7 +307,7 @@ import com.puppycrawl.tools.checkstyle.api.TokenTypes;
 
 <span class="fc bfc" id="L308" title="All 2 branches covered.">            if (exprFirstChild.getType() == TokenTypes.IDENT) {</span>
 <span class="fc" id="L309">                nameOfGettingField = exprFirstChild.getText();</span>
-<span class="fc" id="L310">            }</span>
+            }
             else {
 <span class="fc bfc" id="L312" title="All 2 branches covered.">                if (exprFirstChild.getType() == TokenTypes.DOT</span>
 <span class="fc bfc" id="L313" title="All 2 branches covered.">                        &amp;&amp; exprFirstChild.getChildCount() == 2</span>

@@ -1,4 +1,4 @@
-<?xml version="1.0" encoding="UTF-8"?><!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Strict//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-strict.dtd"><html xmlns="http://www.w3.org/1999/xhtml" lang="en"><head><meta http-equiv="Content-Type" content="text/html;charset=UTF-8"/><link rel="stylesheet" href="../resources/report.css" type="text/css"/><link rel="shortcut icon" href="../resources/report.gif" type="image/gif"/><title>ForbidWildcardAsReturnTypeCheck.java</title><link rel="stylesheet" href="../resources/prettify.css" type="text/css"/><script type="text/javascript" src="../resources/prettify.js"></script></head><body onload="window['PR_TAB_WIDTH']=4;prettyPrint()"><div class="breadcrumb" id="breadcrumb"><span class="info"><a href="../.sessions.html" class="el_session">Sessions</a></span><a href="../index.html" class="el_report">sevntu-checks</a> &gt; <a href="index.source.html" class="el_package">com.github.sevntu.checkstyle.checks.design</a> &gt; <span class="el_source">ForbidWildcardAsReturnTypeCheck.java</span></div><h1>ForbidWildcardAsReturnTypeCheck.java</h1><pre class="source lang-java linenums">////////////////////////////////////////////////////////////////////////////////
+<?xml version="1.0" encoding="UTF-8"?><!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Strict//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-strict.dtd"><html xmlns="http://www.w3.org/1999/xhtml" lang="en"><head><meta http-equiv="Content-Type" content="text/html;charset=UTF-8"/><link rel="stylesheet" href="../.resources/report.css" type="text/css"/><link rel="shortcut icon" href="../.resources/report.gif" type="image/gif"/><title>ForbidWildcardAsReturnTypeCheck.java</title><link rel="stylesheet" href="../.resources/prettify.css" type="text/css"/><script type="text/javascript" src="../.resources/prettify.js"></script></head><body onload="window['PR_TAB_WIDTH']=4;prettyPrint()"><div class="breadcrumb" id="breadcrumb"><span class="info"><a href="../.sessions.html" class="el_session">Sessions</a></span><a href="../index.html" class="el_report">sevntu-checks</a> &gt; <a href="index.source.html" class="el_package">com.github.sevntu.checkstyle.checks.design</a> &gt; <span class="el_source">ForbidWildcardAsReturnTypeCheck.java</span></div><h1>ForbidWildcardAsReturnTypeCheck.java</h1><pre class="source lang-java linenums">////////////////////////////////////////////////////////////////////////////////
 // checkstyle: Checks Java source code for adherence to a set of rules.
 // Copyright (C) 2001-2019 the original author or authors.
 //
@@ -136,7 +136,7 @@ import com.puppycrawl.tools.checkstyle.utils.AnnotationUtil;
      * Ignore regexp for return type class names.
      */
 <span class="fc" id="L138">    private Pattern returnTypeClassNamesIgnoreRegex = Pattern.compile(</span>
-<span class="fc" id="L139">            &quot;^(Comparator|Comparable)$&quot;);</span>
+            &quot;^(Comparator|Comparable)$&quot;);
 
     /**
      * Setter for checkPublicMethods.
@@ -208,13 +208,13 @@ import com.puppycrawl.tools.checkstyle.utils.AnnotationUtil;
      */
     public void setReturnTypeClassNamesIgnoreRegex(String returnTypeClassNamesIgnoreRegex) {
 <span class="fc" id="L210">        this.returnTypeClassNamesIgnoreRegex = Pattern.compile(</span>
-<span class="fc" id="L211">                returnTypeClassNamesIgnoreRegex);</span>
+                returnTypeClassNamesIgnoreRegex);
 <span class="fc" id="L212">    }</span>
 
     @Override
     public int[] getDefaultTokens() {
 <span class="fc" id="L216">        return new int[] {</span>
-<span class="fc" id="L217">            TokenTypes.METHOD_DEF,</span>
+            TokenTypes.METHOD_DEF,
         };
     }
 
@@ -231,14 +231,14 @@ import com.puppycrawl.tools.checkstyle.utils.AnnotationUtil;
     @Override
     public void visitToken(DetailAST methodDefAst) {
 <span class="fc" id="L233">        final String methodScope = getVisibilityScope(methodDefAst);</span>
-<span class="fc bfc" id="L234" title="All 2 branches covered.">        if (isCheckableMethodScope(methodScope)</span>
-<span class="fc bfc" id="L235" title="All 2 branches covered.">                &amp;&amp; (checkOverrideMethods</span>
+<span class="fc bfc" id="L234" title="All 4 branches covered.">        if (isCheckableMethodScope(methodScope)</span>
+                &amp;&amp; (checkOverrideMethods
 <span class="fc bfc" id="L236" title="All 2 branches covered.">                        || !AnnotationUtil.containsAnnotation(methodDefAst, OVERRIDE)</span>
-<span class="fc bfc" id="L237" title="All 2 branches covered.">                            &amp;&amp; !AnnotationUtil.containsAnnotation(methodDefAst, FQ_OVERRIDE))</span>
-<span class="fc bfc" id="L238" title="All 2 branches covered.">                &amp;&amp; (checkDeprecatedMethods</span>
+<span class="fc bfc" id="L237" title="All 4 branches covered.">                            &amp;&amp; !AnnotationUtil.containsAnnotation(methodDefAst, FQ_OVERRIDE))</span>
+                &amp;&amp; (checkDeprecatedMethods
 <span class="fc bfc" id="L239" title="All 2 branches covered.">                        || !AnnotationUtil.containsAnnotation(methodDefAst, DEPRECATED)</span>
-<span class="fc" id="L240">                            &amp;&amp; !AnnotationUtil.containsAnnotation(methodDefAst,</span>
-<span class="fc bfc" id="L241" title="All 2 branches covered.">                                FQ_DEPRECATED))) {</span>
+<span class="fc bfc" id="L240" title="All 2 branches covered.">                            &amp;&amp; !AnnotationUtil.containsAnnotation(methodDefAst,</span>
+                                FQ_DEPRECATED))) {
 <span class="fc" id="L242">            final List&lt;DetailAST&gt; wildcardTypeArguments =</span>
 <span class="fc" id="L243">                    getWildcardArgumentsAsMethodReturnType(methodDefAst);</span>
 <span class="fc bfc" id="L244" title="All 2 branches covered.">            if (!wildcardTypeArguments.isEmpty()</span>
@@ -254,10 +254,10 @@ import com.puppycrawl.tools.checkstyle.utils.AnnotationUtil;
      * @return {@code true} if the method should be checked.
      */
     private boolean isCheckableMethodScope(String methodScope) {
-<span class="fc bfc" id="L257" title="All 4 branches covered.">        return checkPublicMethods &amp;&amp; &quot;public&quot;.equals(methodScope)</span>
+<span class="fc bfc" id="L257" title="All 6 branches covered.">        return checkPublicMethods &amp;&amp; &quot;public&quot;.equals(methodScope)</span>
 <span class="fc bfc" id="L258" title="All 4 branches covered.">                || checkPrivateMethods &amp;&amp; &quot;private&quot;.equals(methodScope)</span>
 <span class="fc bfc" id="L259" title="All 4 branches covered.">                || checkProtectedMethods &amp;&amp; &quot;protected&quot;.equals(methodScope)</span>
-<span class="fc bfc" id="L260" title="All 4 branches covered.">                || checkPackageMethods &amp;&amp; &quot;package&quot;.equals(methodScope);</span>
+<span class="fc bfc" id="L260" title="All 2 branches covered.">                || checkPackageMethods &amp;&amp; &quot;package&quot;.equals(methodScope);</span>
     }
 
     /**
@@ -269,10 +269,10 @@ import com.puppycrawl.tools.checkstyle.utils.AnnotationUtil;
 <span class="fc" id="L269">        String result = &quot;package&quot;;</span>
 <span class="fc bfc" id="L270" title="All 2 branches covered.">        if (isInsideInterfaceDefinition(methodDefAst)) {</span>
 <span class="fc" id="L271">            result = &quot;public&quot;;</span>
-<span class="fc" id="L272">        }</span>
+        }
         else {
 <span class="fc" id="L274">            final String[] visibilityScopeModifiers = {&quot;public&quot;, &quot;private&quot;,</span>
-<span class="fc" id="L275">                &quot;protected&quot;, };</span>
+                &quot;protected&quot;, };
 <span class="fc" id="L276">            final Set&lt;String&gt; methodModifiers = getModifiers(methodDefAst);</span>
 <span class="fc bfc" id="L277" title="All 2 branches covered.">            for (final String modifier : visibilityScopeModifiers) {</span>
 <span class="fc bfc" id="L278" title="All 2 branches covered.">                if (methodModifiers.contains(modifier)) {</span>
@@ -398,32 +398,32 @@ import com.puppycrawl.tools.checkstyle.utils.AnnotationUtil;
 <span class="fc" id="L398">        boolean result = false;</span>
 <span class="fc bfc" id="L399" title="All 2 branches covered.">        if (matchesIgnoreClassNames(methodDefAst)) {</span>
 <span class="fc" id="L400">            result = true;</span>
-<span class="fc" id="L401">        }</span>
+        }
         else {
 <span class="fc" id="L403">            final boolean hasExtendsWildcardAsReturnType =</span>
 <span class="fc" id="L404">                    hasBoundedWildcardAsReturnType(wildcardTypeArguments,</span>
-<span class="fc" id="L405">                            WILDCARD_EXTENDS_IDENT);</span>
+                            WILDCARD_EXTENDS_IDENT);
 <span class="fc" id="L406">            final boolean hasSuperWildcardAsReturnType =</span>
 <span class="fc" id="L407">                    hasBoundedWildcardAsReturnType(wildcardTypeArguments,</span>
-<span class="fc" id="L408">                            WILDCARD_SUPER_IDENT);</span>
-<span class="fc" id="L409">            final boolean hasOnlyExtendsWildcardAsReturnType =</span>
-<span class="fc bfc" id="L410" title="All 2 branches covered.">                    hasExtendsWildcardAsReturnType</span>
-<span class="fc bfc" id="L411" title="All 2 branches covered.">                    &amp;&amp; !hasSuperWildcardAsReturnType;</span>
-<span class="fc" id="L412">            final boolean hasOnlySuperWildcardAsReturnType =</span>
-<span class="fc bfc" id="L413" title="All 2 branches covered.">                    hasSuperWildcardAsReturnType</span>
-<span class="fc bfc" id="L414" title="All 2 branches covered.">                    &amp;&amp; !hasExtendsWildcardAsReturnType;</span>
-<span class="fc" id="L415">            final boolean hasBoundedWildcardAsReturnType =</span>
-<span class="fc bfc" id="L416" title="All 2 branches covered.">                    hasExtendsWildcardAsReturnType</span>
-<span class="fc bfc" id="L417" title="All 2 branches covered.">                    || hasSuperWildcardAsReturnType;</span>
-<span class="fc" id="L418">            final boolean isAllowedBoundedWildcards =</span>
-<span class="fc bfc" id="L419" title="All 2 branches covered.">                    allowReturnWildcardWithExtends</span>
-<span class="fc bfc" id="L420" title="All 2 branches covered.">                    &amp;&amp; allowReturnWildcardWithSuper;</span>
-<span class="fc bfc" id="L421" title="All 2 branches covered.">            result = isAllowedBoundedWildcards</span>
-<span class="fc bfc" id="L422" title="All 2 branches covered.">                            &amp;&amp; hasBoundedWildcardAsReturnType</span>
-<span class="fc bfc" id="L423" title="All 2 branches covered.">                    || allowReturnWildcardWithExtends</span>
-<span class="fc bfc" id="L424" title="All 2 branches covered.">                            &amp;&amp; hasOnlyExtendsWildcardAsReturnType</span>
-<span class="fc bfc" id="L425" title="All 2 branches covered.">                    || allowReturnWildcardWithSuper</span>
-<span class="fc bfc" id="L426" title="All 2 branches covered.">                            &amp;&amp; hasOnlySuperWildcardAsReturnType;</span>
+                            WILDCARD_SUPER_IDENT);
+<span class="fc bfc" id="L409" title="All 4 branches covered.">            final boolean hasOnlyExtendsWildcardAsReturnType =</span>
+                    hasExtendsWildcardAsReturnType
+                    &amp;&amp; !hasSuperWildcardAsReturnType;
+<span class="fc bfc" id="L412" title="All 4 branches covered.">            final boolean hasOnlySuperWildcardAsReturnType =</span>
+                    hasSuperWildcardAsReturnType
+                    &amp;&amp; !hasExtendsWildcardAsReturnType;
+<span class="fc bfc" id="L415" title="All 4 branches covered.">            final boolean hasBoundedWildcardAsReturnType =</span>
+                    hasExtendsWildcardAsReturnType
+                    || hasSuperWildcardAsReturnType;
+<span class="fc bfc" id="L418" title="All 4 branches covered.">            final boolean isAllowedBoundedWildcards =</span>
+                    allowReturnWildcardWithExtends
+                    &amp;&amp; allowReturnWildcardWithSuper;
+<span class="fc bfc" id="L421" title="All 12 branches covered.">            result = isAllowedBoundedWildcards</span>
+                            &amp;&amp; hasBoundedWildcardAsReturnType
+                    || allowReturnWildcardWithExtends
+                            &amp;&amp; hasOnlyExtendsWildcardAsReturnType
+                    || allowReturnWildcardWithSuper
+                            &amp;&amp; hasOnlySuperWildcardAsReturnType;
         }
 <span class="fc" id="L428">        return result;</span>
     }
@@ -456,7 +456,7 @@ import com.puppycrawl.tools.checkstyle.utils.AnnotationUtil;
 <span class="fc" id="L456">                result = true;</span>
 <span class="fc" id="L457">                break;</span>
             }
-        }
+<span class="fc" id="L459">        }</span>
 <span class="fc" id="L460">        return result;</span>
     }
 

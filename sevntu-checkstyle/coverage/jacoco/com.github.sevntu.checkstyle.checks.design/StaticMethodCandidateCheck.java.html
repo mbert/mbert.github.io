@@ -1,4 +1,4 @@
-<?xml version="1.0" encoding="UTF-8"?><!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Strict//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-strict.dtd"><html xmlns="http://www.w3.org/1999/xhtml" lang="en"><head><meta http-equiv="Content-Type" content="text/html;charset=UTF-8"/><link rel="stylesheet" href="../resources/report.css" type="text/css"/><link rel="shortcut icon" href="../resources/report.gif" type="image/gif"/><title>StaticMethodCandidateCheck.java</title><link rel="stylesheet" href="../resources/prettify.css" type="text/css"/><script type="text/javascript" src="../resources/prettify.js"></script></head><body onload="window['PR_TAB_WIDTH']=4;prettyPrint()"><div class="breadcrumb" id="breadcrumb"><span class="info"><a href="../.sessions.html" class="el_session">Sessions</a></span><a href="../index.html" class="el_report">sevntu-checks</a> &gt; <a href="index.source.html" class="el_package">com.github.sevntu.checkstyle.checks.design</a> &gt; <span class="el_source">StaticMethodCandidateCheck.java</span></div><h1>StaticMethodCandidateCheck.java</h1><pre class="source lang-java linenums">////////////////////////////////////////////////////////////////////////////////
+<?xml version="1.0" encoding="UTF-8"?><!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Strict//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-strict.dtd"><html xmlns="http://www.w3.org/1999/xhtml" lang="en"><head><meta http-equiv="Content-Type" content="text/html;charset=UTF-8"/><link rel="stylesheet" href="../.resources/report.css" type="text/css"/><link rel="shortcut icon" href="../.resources/report.gif" type="image/gif"/><title>StaticMethodCandidateCheck.java</title><link rel="stylesheet" href="../.resources/prettify.css" type="text/css"/><script type="text/javascript" src="../.resources/prettify.js"></script></head><body onload="window['PR_TAB_WIDTH']=4;prettyPrint()"><div class="breadcrumb" id="breadcrumb"><span class="info"><a href="../.sessions.html" class="el_session">Sessions</a></span><a href="../index.html" class="el_report">sevntu-checks</a> &gt; <a href="index.source.html" class="el_package">com.github.sevntu.checkstyle.checks.design</a> &gt; <span class="el_source">StaticMethodCandidateCheck.java</span></div><h1>StaticMethodCandidateCheck.java</h1><pre class="source lang-java linenums">////////////////////////////////////////////////////////////////////////////////
 // checkstyle: Checks Java source code for adherence to a set of rules.
 // Copyright (C) 2001-2019 the original author or authors.
 //
@@ -74,30 +74,30 @@ import com.puppycrawl.tools.checkstyle.utils.ScopeUtil;
 
     /** Default method names to skip during the check. */
 <span class="fc" id="L76">    private static final String[] DEFAULT_SKIPPED_METHODS = new String[] {</span>
-<span class="fc" id="L77">        &quot;writeObject&quot;,</span>
-<span class="fc" id="L78">        &quot;readObject&quot;,</span>
-<span class="fc" id="L79">        &quot;readObjectNoData&quot;,</span>
-<span class="fc" id="L80">        &quot;readResolve&quot;,</span>
-<span class="fc" id="L81">        &quot;writeReplace&quot;,</span>
+        &quot;writeObject&quot;,
+        &quot;readObject&quot;,
+        &quot;readObjectNoData&quot;,
+        &quot;readResolve&quot;,
+        &quot;writeReplace&quot;,
     };
 
     /** Array of tokens which are frames. */
 <span class="fc" id="L85">    private static final int[] FRAME_TOKENS = new int[] {</span>
-<span class="fc" id="L86">        TokenTypes.CLASS_DEF,</span>
-<span class="fc" id="L87">        TokenTypes.METHOD_DEF,</span>
-<span class="fc" id="L88">        TokenTypes.LITERAL_IF,</span>
-<span class="fc" id="L89">        TokenTypes.LITERAL_FOR,</span>
-<span class="fc" id="L90">        TokenTypes.LITERAL_WHILE,</span>
-<span class="fc" id="L91">        TokenTypes.LITERAL_DO,</span>
-<span class="fc" id="L92">        TokenTypes.LITERAL_CATCH,</span>
-<span class="fc" id="L93">        TokenTypes.LITERAL_TRY,</span>
-<span class="fc" id="L94">        TokenTypes.ENUM_DEF,</span>
-<span class="fc" id="L95">        TokenTypes.ENUM_CONSTANT_DEF,</span>
-<span class="fc" id="L96">        TokenTypes.STATIC_INIT,</span>
-<span class="fc" id="L97">        TokenTypes.INSTANCE_INIT,</span>
-<span class="fc" id="L98">        TokenTypes.CTOR_DEF,</span>
-<span class="fc" id="L99">        TokenTypes.INTERFACE_DEF,</span>
-<span class="fc" id="L100">    };</span>
+        TokenTypes.CLASS_DEF,
+        TokenTypes.METHOD_DEF,
+        TokenTypes.LITERAL_IF,
+        TokenTypes.LITERAL_FOR,
+        TokenTypes.LITERAL_WHILE,
+        TokenTypes.LITERAL_DO,
+        TokenTypes.LITERAL_CATCH,
+        TokenTypes.LITERAL_TRY,
+        TokenTypes.ENUM_DEF,
+        TokenTypes.ENUM_CONSTANT_DEF,
+        TokenTypes.STATIC_INIT,
+        TokenTypes.INSTANCE_INIT,
+        TokenTypes.CTOR_DEF,
+        TokenTypes.INTERFACE_DEF,
+    };
 
     /** Method names to skip during the check. */
 <span class="fc" id="L103">    private List&lt;String&gt; skippedMethods = Arrays.asList(DEFAULT_SKIPPED_METHODS);</span>
@@ -121,29 +121,29 @@ import com.puppycrawl.tools.checkstyle.utils.ScopeUtil;
     @Override
     public int[] getAcceptableTokens() {
 <span class="fc" id="L123">        return new int[] {</span>
-<span class="fc" id="L124">            TokenTypes.CLASS_DEF,</span>
-<span class="fc" id="L125">            TokenTypes.METHOD_DEF,</span>
-<span class="fc" id="L126">            TokenTypes.LITERAL_IF,</span>
-<span class="fc" id="L127">            TokenTypes.LITERAL_FOR,</span>
-<span class="fc" id="L128">            TokenTypes.LITERAL_WHILE,</span>
-<span class="fc" id="L129">            TokenTypes.LITERAL_DO,</span>
-<span class="fc" id="L130">            TokenTypes.LITERAL_CATCH,</span>
-<span class="fc" id="L131">            TokenTypes.LITERAL_TRY,</span>
-<span class="fc" id="L132">            TokenTypes.VARIABLE_DEF,</span>
-<span class="fc" id="L133">            TokenTypes.PARAMETER_DEF,</span>
-<span class="fc" id="L134">            TokenTypes.ENUM_DEF,</span>
-<span class="fc" id="L135">            TokenTypes.ENUM_CONSTANT_DEF,</span>
-<span class="fc" id="L136">            TokenTypes.EXPR,</span>
-<span class="fc" id="L137">            TokenTypes.STATIC_INIT,</span>
-<span class="fc" id="L138">            TokenTypes.INSTANCE_INIT,</span>
-<span class="fc" id="L139">            TokenTypes.LITERAL_NEW,</span>
-<span class="fc" id="L140">            TokenTypes.LITERAL_THIS,</span>
-<span class="fc" id="L141">            TokenTypes.CTOR_DEF,</span>
-<span class="fc" id="L142">            TokenTypes.TYPE,</span>
-<span class="fc" id="L143">            TokenTypes.TYPE_ARGUMENT,</span>
-<span class="fc" id="L144">            TokenTypes.TYPE_PARAMETER,</span>
-<span class="fc" id="L145">            TokenTypes.INTERFACE_DEF,</span>
-<span class="fc" id="L146">            TokenTypes.LITERAL_SUPER,</span>
+            TokenTypes.CLASS_DEF,
+            TokenTypes.METHOD_DEF,
+            TokenTypes.LITERAL_IF,
+            TokenTypes.LITERAL_FOR,
+            TokenTypes.LITERAL_WHILE,
+            TokenTypes.LITERAL_DO,
+            TokenTypes.LITERAL_CATCH,
+            TokenTypes.LITERAL_TRY,
+            TokenTypes.VARIABLE_DEF,
+            TokenTypes.PARAMETER_DEF,
+            TokenTypes.ENUM_DEF,
+            TokenTypes.ENUM_CONSTANT_DEF,
+            TokenTypes.EXPR,
+            TokenTypes.STATIC_INIT,
+            TokenTypes.INSTANCE_INIT,
+            TokenTypes.LITERAL_NEW,
+            TokenTypes.LITERAL_THIS,
+            TokenTypes.CTOR_DEF,
+            TokenTypes.TYPE,
+            TokenTypes.TYPE_ARGUMENT,
+            TokenTypes.TYPE_PARAMETER,
+            TokenTypes.INTERFACE_DEF,
+            TokenTypes.LITERAL_SUPER,
         };
     }
 
@@ -169,35 +169,35 @@ import com.puppycrawl.tools.checkstyle.utils.ScopeUtil;
 <span class="fc bfc" id="L169" title="All 9 branches covered.">        switch (ast.getType()) {</span>
             case TokenTypes.VARIABLE_DEF:
             case TokenTypes.PARAMETER_DEF:
-<span class="pc bpc" id="L172" title="1 of 2 branches missed.">                currentFrame.addField(ast);</span>
+<span class="fc" id="L172">                currentFrame.addField(ast);</span>
 <span class="fc" id="L173">                break;</span>
             case TokenTypes.EXPR:
-<span class="pc bpc" id="L175" title="1 of 2 branches missed.">                currentFrame.addExpr(ast);</span>
+<span class="fc" id="L175">                currentFrame.addExpr(ast);</span>
 <span class="fc" id="L176">                break;</span>
             case TokenTypes.LITERAL_SUPER:
             case TokenTypes.LITERAL_THIS:
-<span class="pc bpc" id="L179" title="1 of 2 branches missed.">                currentFrame.hasLiteralThisOrSuper = true;</span>
+<span class="fc" id="L179">                currentFrame.hasLiteralThisOrSuper = true;</span>
 <span class="fc" id="L180">                break;</span>
             case TokenTypes.TYPE:
             case TokenTypes.TYPE_ARGUMENT:
-<span class="pc bpc" id="L183" title="1 of 2 branches missed.">                final Optional&lt;DetailAST&gt; firstChild = Optional.fromNullable(ast.getFirstChild());</span>
+<span class="fc" id="L183">                final Optional&lt;DetailAST&gt; firstChild = Optional.fromNullable(ast.getFirstChild());</span>
 <span class="fc bfc" id="L184" title="All 2 branches covered.">                if (firstChild.isPresent()</span>
 <span class="fc bfc" id="L185" title="All 2 branches covered.">                        &amp;&amp; firstChild.get().getType() == TokenTypes.IDENT) {</span>
 <span class="fc" id="L186">                    currentFrame.addType(firstChild.get().getText());</span>
                 }
-<span class="fc" id="L188">                break;</span>
+                break;
             case TokenTypes.TYPE_PARAMETER:
-<span class="pc bpc" id="L190" title="1 of 2 branches missed.">                currentFrame.addTypeVariable(ast.getFirstChild().getText());</span>
+<span class="fc" id="L190">                currentFrame.addTypeVariable(ast.getFirstChild().getText());</span>
 <span class="fc" id="L191">                break;</span>
             case TokenTypes.METHOD_DEF:
-<span class="pc bpc" id="L193" title="1 of 2 branches missed.">                Frame frame = createMethodFrame(currentFrame, ast);</span>
+<span class="fc" id="L193">                Frame frame = createMethodFrame(currentFrame, ast);</span>
 
 <span class="fc" id="L195">                currentFrame.addMethod(ast);</span>
 <span class="fc" id="L196">                currentFrame.addChild(frame);</span>
 <span class="fc" id="L197">                currentFrame = frame;</span>
 <span class="fc" id="L198">                break;</span>
             case TokenTypes.LITERAL_NEW:
-<span class="pc bpc" id="L200" title="1 of 4 branches missed.">                if (isAnonymousClass(ast)) {</span>
+<span class="fc bfc" id="L200" title="All 2 branches covered.">                if (isAnonymousClass(ast)) {</span>
 <span class="fc" id="L201">                    frame = new Frame(currentFrame);</span>
                     // anonymous classes can't have static methods
 <span class="fc" id="L203">                    frame.isShouldBeChecked = false;</span>
@@ -205,9 +205,9 @@ import com.puppycrawl.tools.checkstyle.utils.ScopeUtil;
 <span class="fc" id="L205">                    currentFrame.addChild(frame);</span>
 <span class="fc" id="L206">                    currentFrame = frame;</span>
                 }
-<span class="fc" id="L208">                break;</span>
+                break;
             case TokenTypes.ENUM_CONSTANT_DEF:
-<span class="pc bpc" id="L210" title="1 of 2 branches missed.">                frame = new Frame(currentFrame);</span>
+<span class="fc" id="L210">                frame = new Frame(currentFrame);</span>
                 // ENUM_CONSTANT_DEF can't have static methods
 <span class="fc" id="L212">                frame.isShouldBeChecked = false;</span>
 
@@ -216,7 +216,7 @@ import com.puppycrawl.tools.checkstyle.utils.ScopeUtil;
 <span class="fc" id="L216">                currentFrame = frame;</span>
 <span class="fc" id="L217">                break;</span>
             default:
-<span class="pc bpc" id="L219" title="1 of 2 branches missed.">                frame = createFrame(currentFrame, ast);</span>
+<span class="fc" id="L219">                frame = createFrame(currentFrame, ast);</span>
 
 <span class="fc" id="L221">                currentFrame.addChild(frame);</span>
 <span class="fc" id="L222">                currentFrame = frame;</span>
@@ -254,7 +254,7 @@ import com.puppycrawl.tools.checkstyle.utils.ScopeUtil;
 <span class="fc" id="L254">            frame.isPrivateMethod = true;</span>
 <span class="fc" id="L255">            frame.ast = ast;</span>
 <span class="fc" id="L256">            frame.frameName = getIdentText(ast);</span>
-<span class="fc" id="L257">        }</span>
+        }
         else {
             // non-private or static methods are not checked and can't have static methods
             // because local classes cannot be declared as static
@@ -284,8 +284,8 @@ import com.puppycrawl.tools.checkstyle.utils.ScopeUtil;
     private static Frame createFrame(Frame parentFrame, DetailAST ast) {
 <span class="fc" id="L285">        final Frame frame = new Frame(parentFrame);</span>
 <span class="fc" id="L286">        final int astType = ast.getType();</span>
-<span class="fc bfc" id="L287" title="All 2 branches covered.">        if (astType == TokenTypes.CLASS_DEF</span>
-<span class="fc bfc" id="L288" title="All 2 branches covered.">                || astType == TokenTypes.ENUM_DEF) {</span>
+<span class="fc bfc" id="L287" title="All 4 branches covered.">        if (astType == TokenTypes.CLASS_DEF</span>
+                || astType == TokenTypes.ENUM_DEF) {
 <span class="fc bfc" id="L289" title="All 2 branches covered.">            if (astType == TokenTypes.CLASS_DEF</span>
 <span class="fc bfc" id="L290" title="All 2 branches covered.">                    &amp;&amp; !ScopeUtil.isOuterMostType(ast)</span>
 <span class="fc bfc" id="L291" title="All 2 branches covered.">                    &amp;&amp; !hasStaticModifier(ast)) {</span>
@@ -294,11 +294,11 @@ import com.puppycrawl.tools.checkstyle.utils.ScopeUtil;
             }
 <span class="fc" id="L295">            frame.frameName = getIdentText(ast);</span>
 <span class="fc" id="L296">            frame.isClassOrEnum = true;</span>
-<span class="fc" id="L297">        }</span>
-<span class="fc bfc" id="L298" title="All 2 branches covered.">        else if (astType == TokenTypes.STATIC_INIT</span>
-<span class="fc bfc" id="L299" title="All 2 branches covered.">                || astType == TokenTypes.INSTANCE_INIT</span>
-<span class="fc bfc" id="L300" title="All 2 branches covered.">                || astType == TokenTypes.CTOR_DEF</span>
-<span class="fc bfc" id="L301" title="All 2 branches covered.">                || astType == TokenTypes.INTERFACE_DEF) {</span>
+        }
+<span class="fc bfc" id="L298" title="All 8 branches covered.">        else if (astType == TokenTypes.STATIC_INIT</span>
+                || astType == TokenTypes.INSTANCE_INIT
+                || astType == TokenTypes.CTOR_DEF
+                || astType == TokenTypes.INTERFACE_DEF) {
 <span class="fc" id="L302">            frame.isShouldBeChecked = false;</span>
         }
 <span class="fc" id="L304">        return frame;</span>
@@ -335,13 +335,13 @@ import com.puppycrawl.tools.checkstyle.utils.ScopeUtil;
 <span class="fc bfc" id="L335" title="All 2 branches covered.">                        if (isStaticCandidate) {</span>
 <span class="fc" id="L336">                            log(frame.ast, MSG_KEY, frame.frameName);</span>
                         }
-<span class="fc" id="L338">                    }</span>
+                    }
 <span class="fc bfc" id="L339" title="All 2 branches covered.">                    else if (!isStaticCandidate) {</span>
 <span class="fc" id="L340">                        break;</span>
                     }
                 }
             }
-        }
+<span class="fc" id="L344">        }</span>
 <span class="fc" id="L345">        return isStaticCandidate;</span>
     }
 
@@ -360,8 +360,8 @@ import com.puppycrawl.tools.checkstyle.utils.ScopeUtil;
      * @return true if the ast has static modifier.
      */
     private static boolean hasStaticModifier(DetailAST ast) {
-<span class="fc bfc" id="L363" title="All 2 branches covered.">        return ast.findFirstToken(TokenTypes.MODIFIERS)</span>
-<span class="fc" id="L364">            .findFirstToken(TokenTypes.LITERAL_STATIC) != null;</span>
+<span class="fc" id="L363">        return ast.findFirstToken(TokenTypes.MODIFIERS)</span>
+<span class="fc bfc" id="L364" title="All 2 branches covered.">            .findFirstToken(TokenTypes.LITERAL_STATIC) != null;</span>
     }
 
     /**
@@ -412,16 +412,16 @@ import com.puppycrawl.tools.checkstyle.utils.ScopeUtil;
 <span class="fc" id="L412">        boolean isStaticCandidate = true;</span>
 <span class="fc bfc" id="L413" title="All 2 branches covered.">        if (expr.branchContains(TokenTypes.IDENT)) {</span>
 <span class="fc" id="L414">            DetailAST childAst = expr.getFirstChild();</span>
-<span class="fc bfc" id="L415" title="All 2 branches covered.">            while (childAst != null</span>
-<span class="fc bfc" id="L416" title="All 2 branches covered.">                    &amp;&amp; isStaticCandidate) {</span>
+<span class="fc bfc" id="L415" title="All 4 branches covered.">            while (childAst != null</span>
+                    &amp;&amp; isStaticCandidate) {
 <span class="fc bfc" id="L417" title="All 2 branches covered.">                if (childAst.getType() == TokenTypes.METHOD_CALL) {</span>
 <span class="fc bfc" id="L418" title="All 2 branches covered.">                    isStaticCandidate = isStaticMethod(frame, childAst)</span>
 <span class="fc bfc" id="L419" title="All 2 branches covered.">                            &amp;&amp; isExprAcceptable(frame, childAst);</span>
-<span class="fc" id="L420">                }</span>
+                }
 <span class="fc bfc" id="L421" title="All 2 branches covered.">                else if (childAst.getType() == TokenTypes.IDENT</span>
 <span class="fc bfc" id="L422" title="All 2 branches covered.">                        &amp;&amp; isIdentShouldBeChecked(expr)) {</span>
 <span class="fc" id="L423">                    isStaticCandidate = isStaticFieldOrLocalVariable(frame, childAst);</span>
-<span class="fc" id="L424">                }</span>
+                }
 <span class="fc bfc" id="L425" title="All 2 branches covered.">                else if (childAst.getType() == TokenTypes.LITERAL_NEW) {</span>
 <span class="fc" id="L426">                    final Optional&lt;Frame&gt; typeFrame = findFrameByName(</span>
 <span class="fc" id="L427">                            frame, childAst.getFirstChild().getText());</span>
@@ -453,7 +453,7 @@ import com.puppycrawl.tools.checkstyle.utils.ScopeUtil;
 <span class="fc" id="L453">                    result = Optional.of(child);</span>
 <span class="fc" id="L454">                    break;</span>
                 }
-            }
+<span class="fc" id="L456">            }</span>
 <span class="fc" id="L457">            parentFrame = Optional.fromNullable(parentFrame.get().parent);</span>
         }
 <span class="fc" id="L459">        return result;</span>
@@ -490,7 +490,7 @@ import com.puppycrawl.tools.checkstyle.utils.ScopeUtil;
 <span class="fc" id="L490">                final Optional&lt;DetailAST&gt; field = findField(frame, objCalledOn);</span>
 <span class="fc bfc" id="L491" title="All 2 branches covered.">                if (field.isPresent()) {</span>
 <span class="fc" id="L492">                    result = isAcceptableField(field.get());</span>
-<span class="fc" id="L493">                }</span>
+                }
 <span class="fc bfc" id="L494" title="All 2 branches covered.">                else if (findFrameByName(frame, objCalledOn.getText()).isPresent()) {</span>
 <span class="fc" id="L495">                    result = true;</span>
                 }
@@ -512,9 +512,9 @@ import com.puppycrawl.tools.checkstyle.utils.ScopeUtil;
      */
     private static boolean isIdentShouldBeChecked(DetailAST parentAst) {
 <span class="fc" id="L514">        final int parentAstType = parentAst.getType();</span>
-<span class="fc bfc" id="L515" title="All 2 branches covered.">        return parentAstType != TokenTypes.LITERAL_NEW</span>
-<span class="fc bfc" id="L516" title="All 2 branches covered.">                &amp;&amp; parentAstType != TokenTypes.TYPE</span>
-<span class="fc bfc" id="L517" title="All 2 branches covered.">                &amp;&amp; parentAstType != TokenTypes.METHOD_DEF;</span>
+<span class="fc bfc" id="L515" title="All 6 branches covered.">        return parentAstType != TokenTypes.LITERAL_NEW</span>
+                &amp;&amp; parentAstType != TokenTypes.TYPE
+                &amp;&amp; parentAstType != TokenTypes.METHOD_DEF;
     }
 
     /**
@@ -529,20 +529,20 @@ import com.puppycrawl.tools.checkstyle.utils.ScopeUtil;
 <span class="fc bfc" id="L529" title="All 2 branches covered.">        if (parentType == TokenTypes.DOT) {</span>
 <span class="fc bfc" id="L530" title="All 2 branches covered.">            if (identAst.getNextSibling() == null) {</span>
 <span class="fc" id="L531">                result = true;</span>
-<span class="fc" id="L532">            }</span>
+            }
             else {
 <span class="fc" id="L534">                final Optional&lt;DetailAST&gt; field = findField(frame, identAst);</span>
 <span class="fc bfc" id="L535" title="All 2 branches covered.">                if (field.isPresent()) {</span>
 <span class="fc" id="L536">                    result = isAcceptableField(field.get());</span>
-<span class="fc" id="L537">                }</span>
+                }
                 else {
 <span class="fc" id="L539">                    result = findFrameByName(frame, identAst.getText()).isPresent();</span>
                 }
-            }
-<span class="fc" id="L542">        }</span>
+<span class="fc" id="L541">            }</span>
+        }
 <span class="fc bfc" id="L543" title="All 2 branches covered.">        else if (parentType == TokenTypes.METHOD_CALL) {</span>
 <span class="fc" id="L544">            result = true;</span>
-<span class="fc" id="L545">        }</span>
+        }
         else {
 <span class="fc" id="L547">            final Optional&lt;DetailAST&gt; field = findField(frame, identAst);</span>
 <span class="fc bfc" id="L548" title="All 4 branches covered.">            result = field.isPresent() &amp;&amp; isAcceptableField(field.get());</span>
@@ -591,12 +591,12 @@ import com.puppycrawl.tools.checkstyle.utils.ScopeUtil;
 <span class="fc bfc" id="L591" title="All 2 branches covered.">                        || checkFieldLocation(field.get(), identAst)) {</span>
 <span class="fc" id="L592">                    result = field;</span>
                 }
-<span class="fc" id="L594">            }</span>
+            }
             else {
 <span class="fc" id="L596">                result = frame.get().findEnumConstInFrame(fieldName);</span>
             }
 <span class="fc" id="L598">            frame = Optional.fromNullable(frame.get().parent);</span>
-        }
+<span class="fc" id="L599">        }</span>
 <span class="fc" id="L600">        return result;</span>
     }
 
@@ -658,11 +658,11 @@ import com.puppycrawl.tools.checkstyle.utils.ScopeUtil;
 <span class="fc" id="L658">                        hasStaticMethod = true;</span>
                     }
                 }
-            }
+<span class="fc" id="L661">            }</span>
 <span class="fc" id="L662">            frame = Optional.fromNullable(frame.get().parent);</span>
         }
-<span class="fc bfc" id="L664" title="All 2 branches covered.">        return hasStaticMethod</span>
-<span class="fc bfc" id="L665" title="All 2 branches covered.">                &amp;&amp; !hasNonStaticMethod;</span>
+<span class="fc bfc" id="L664" title="All 4 branches covered.">        return hasStaticMethod</span>
+                &amp;&amp; !hasNonStaticMethod;
     }
 
     /**
@@ -672,8 +672,8 @@ import com.puppycrawl.tools.checkstyle.utils.ScopeUtil;
      */
     private static boolean isLocalVariable(DetailAST ast) {
 <span class="fc" id="L674">        final int parentType = ast.getParent().getParent().getType();</span>
-<span class="fc bfc" id="L675" title="All 2 branches covered.">        return parentType != TokenTypes.CLASS_DEF</span>
-<span class="fc bfc" id="L676" title="All 2 branches covered.">                &amp;&amp; parentType != TokenTypes.ENUM_DEF;</span>
+<span class="fc bfc" id="L675" title="All 4 branches covered.">        return parentType != TokenTypes.CLASS_DEF</span>
+                &amp;&amp; parentType != TokenTypes.ENUM_DEF;
     }
 
     /**

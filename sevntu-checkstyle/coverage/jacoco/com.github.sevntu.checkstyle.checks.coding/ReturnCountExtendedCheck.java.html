@@ -1,4 +1,4 @@
-<?xml version="1.0" encoding="UTF-8"?><!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Strict//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-strict.dtd"><html xmlns="http://www.w3.org/1999/xhtml" lang="en"><head><meta http-equiv="Content-Type" content="text/html;charset=UTF-8"/><link rel="stylesheet" href="../resources/report.css" type="text/css"/><link rel="shortcut icon" href="../resources/report.gif" type="image/gif"/><title>ReturnCountExtendedCheck.java</title><link rel="stylesheet" href="../resources/prettify.css" type="text/css"/><script type="text/javascript" src="../resources/prettify.js"></script></head><body onload="window['PR_TAB_WIDTH']=4;prettyPrint()"><div class="breadcrumb" id="breadcrumb"><span class="info"><a href="../.sessions.html" class="el_session">Sessions</a></span><a href="../index.html" class="el_report">sevntu-checks</a> &gt; <a href="index.source.html" class="el_package">com.github.sevntu.checkstyle.checks.coding</a> &gt; <span class="el_source">ReturnCountExtendedCheck.java</span></div><h1>ReturnCountExtendedCheck.java</h1><pre class="source lang-java linenums">////////////////////////////////////////////////////////////////////////////////
+<?xml version="1.0" encoding="UTF-8"?><!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Strict//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-strict.dtd"><html xmlns="http://www.w3.org/1999/xhtml" lang="en"><head><meta http-equiv="Content-Type" content="text/html;charset=UTF-8"/><link rel="stylesheet" href="../.resources/report.css" type="text/css"/><link rel="shortcut icon" href="../.resources/report.gif" type="image/gif"/><title>ReturnCountExtendedCheck.java</title><link rel="stylesheet" href="../.resources/prettify.css" type="text/css"/><script type="text/javascript" src="../.resources/prettify.js"></script></head><body onload="window['PR_TAB_WIDTH']=4;prettyPrint()"><div class="breadcrumb" id="breadcrumb"><span class="info"><a href="../.sessions.html" class="el_session">Sessions</a></span><a href="../index.html" class="el_report">sevntu-checks</a> &gt; <a href="index.source.html" class="el_package">com.github.sevntu.checkstyle.checks.coding</a> &gt; <span class="el_source">ReturnCountExtendedCheck.java</span></div><h1>ReturnCountExtendedCheck.java</h1><pre class="source lang-java linenums">////////////////////////////////////////////////////////////////////////////////
 // checkstyle: Checks Java source code for adherence to a set of rules.
 // Copyright (C) 2001-2019 the original author or authors.
 //
@@ -224,9 +224,9 @@ public class ReturnCountExtendedCheck extends AbstractCheck {
     @Override
     public int[] getDefaultTokens() {
 <span class="fc" id="L226">        return new int[] {</span>
-<span class="fc" id="L227">            TokenTypes.METHOD_DEF,</span>
-<span class="fc" id="L228">            TokenTypes.CTOR_DEF,</span>
-<span class="fc" id="L229">            TokenTypes.LAMBDA,</span>
+            TokenTypes.METHOD_DEF,
+            TokenTypes.CTOR_DEF,
+            TokenTypes.LAMBDA,
         };
     }
 
@@ -250,7 +250,7 @@ public class ReturnCountExtendedCheck extends AbstractCheck {
 <span class="fc" id="L250">            final DetailAST closingBrace = openingBrace.getLastChild();</span>
 
 <span class="fc" id="L252">            int curMethodLinesCount = getLinesCount(openingBrace,</span>
-<span class="fc" id="L253">                    closingBrace);</span>
+                    closingBrace);
 
 <span class="fc bfc" id="L255" title="All 2 branches covered.">            if (curMethodLinesCount != 0) {</span>
 <span class="fc" id="L256">                curMethodLinesCount--;</span>
@@ -258,7 +258,7 @@ public class ReturnCountExtendedCheck extends AbstractCheck {
 
 <span class="fc bfc" id="L259" title="All 2 branches covered.">            if (curMethodLinesCount &gt;= ignoreMethodLinesCount) {</span>
 <span class="fc" id="L260">                final int mCurReturnCount = getReturnCount(node,</span>
-<span class="fc" id="L261">                        openingBrace);</span>
+                        openingBrace);
 
 <span class="fc bfc" id="L263" title="All 2 branches covered.">                if (mCurReturnCount &gt; maxReturnCount) {</span>
 <span class="fc" id="L264">                    logViolation(node, nodeName, mCurReturnCount);</span>
@@ -277,7 +277,7 @@ public class ReturnCountExtendedCheck extends AbstractCheck {
 <span class="fc bfc" id="L277" title="All 2 branches covered.">        if (node.getType() == TokenTypes.LAMBDA) {</span>
             // lambdas have no name
 <span class="fc" id="L279">            log(node, MSG_KEY_LAMBDA, mCurReturnCount, maxReturnCount);</span>
-<span class="fc" id="L280">        }</span>
+        }
         else {
 <span class="fc" id="L282">            final DetailAST nodeNameToken = node</span>
 <span class="fc" id="L283">                    .findFirstToken(TokenTypes.IDENT);</span>
@@ -285,7 +285,7 @@ public class ReturnCountExtendedCheck extends AbstractCheck {
 
 <span class="fc bfc" id="L286" title="All 2 branches covered.">            if (node.getType() == TokenTypes.METHOD_DEF) {</span>
 <span class="fc" id="L287">                mKey = MSG_KEY_METHOD;</span>
-<span class="fc" id="L288">            }</span>
+            }
             else {
 <span class="fc" id="L290">                mKey = MSG_KEY_CTOR;</span>
             }
@@ -320,8 +320,8 @@ public class ReturnCountExtendedCheck extends AbstractCheck {
 <span class="fc bfc" id="L320" title="All 2 branches covered.">            if (curNode.getType() == TokenTypes.LITERAL_RETURN</span>
 <span class="fc bfc" id="L321" title="All 2 branches covered.">                    &amp;&amp; getDepth(methodDefNode, curNode) &lt; minIgnoreReturnDepth</span>
 <span class="fc bfc" id="L322" title="All 2 branches covered.">                    &amp;&amp; shouldEmptyReturnStatementBeCounted(curNode)</span>
-<span class="fc" id="L323">                    &amp;&amp; getLinesCount(methodOpeningBrace,</span>
-<span class="fc bfc" id="L324" title="All 2 branches covered.">                            curNode) &gt; topLinesToIgnoreCount) {</span>
+<span class="fc bfc" id="L323" title="All 2 branches covered.">                    &amp;&amp; getLinesCount(methodOpeningBrace,</span>
+                            curNode) &gt; topLinesToIgnoreCount) {
 <span class="fc" id="L325">                result++;</span>
             }
 
@@ -330,11 +330,11 @@ public class ReturnCountExtendedCheck extends AbstractCheck {
 
 <span class="fc" id="L331">            final int type = curNode.getType();</span>
             // skip nested methods (UI listeners, Runnable.run(), etc.)
-<span class="fc bfc" id="L333" title="All 2 branches covered.">            if (type == TokenTypes.METHOD_DEF</span>
+<span class="fc bfc" id="L333" title="All 6 branches covered.">            if (type == TokenTypes.METHOD_DEF</span>
                   // skip anonymous classes
-<span class="fc bfc" id="L335" title="All 2 branches covered.">                  || type == TokenTypes.CLASS_DEF</span>
+                  || type == TokenTypes.CLASS_DEF
                   // skip lambdas which is like an anonymous class/method
-<span class="fc bfc" id="L337" title="All 2 branches covered.">                  || type == TokenTypes.LAMBDA) {</span>
+                  || type == TokenTypes.LAMBDA) {
 <span class="fc" id="L338">                nextNode = curNode.getNextSibling();</span>
             }
 
@@ -346,7 +346,7 @@ public class ReturnCountExtendedCheck extends AbstractCheck {
                 }
             }
 <span class="fc" id="L348">            curNode = nextNode;</span>
-        }
+<span class="fc" id="L349">        }</span>
 <span class="fc" id="L350">        return result;</span>
     }
 
@@ -384,15 +384,15 @@ public class ReturnCountExtendedCheck extends AbstractCheck {
 <span class="fc bfc" id="L384" title="All 2 branches covered.">        while (!curNode.equals(methodDefNode)) {</span>
 <span class="fc" id="L385">            curNode = curNode.getParent();</span>
 <span class="fc" id="L386">            final int type = curNode.getType();</span>
-<span class="fc bfc" id="L387" title="All 2 branches covered.">            if (type == TokenTypes.LITERAL_IF</span>
-<span class="fc bfc" id="L388" title="All 2 branches covered.">                    || type == TokenTypes.LITERAL_SWITCH</span>
-<span class="fc bfc" id="L389" title="All 2 branches covered.">                    || type == TokenTypes.LITERAL_FOR</span>
-<span class="fc bfc" id="L390" title="All 2 branches covered.">                    || type == TokenTypes.LITERAL_DO</span>
-<span class="fc bfc" id="L391" title="All 2 branches covered.">                    || type == TokenTypes.LITERAL_WHILE</span>
-<span class="fc bfc" id="L392" title="All 2 branches covered.">                    || type == TokenTypes.LITERAL_TRY) {</span>
+<span class="fc bfc" id="L387" title="All 12 branches covered.">            if (type == TokenTypes.LITERAL_IF</span>
+                    || type == TokenTypes.LITERAL_SWITCH
+                    || type == TokenTypes.LITERAL_FOR
+                    || type == TokenTypes.LITERAL_DO
+                    || type == TokenTypes.LITERAL_WHILE
+                    || type == TokenTypes.LITERAL_TRY) {
 <span class="fc" id="L393">                result++;</span>
             }
-        }
+<span class="fc" id="L395">        }</span>
 <span class="fc" id="L396">        return result;</span>
     }
 
@@ -451,7 +451,7 @@ public class ReturnCountExtendedCheck extends AbstractCheck {
 <span class="fc" id="L451">                    result = true;</span>
 <span class="fc" id="L452">                    break;</span>
                 }
-            }
+<span class="fc" id="L454">            }</span>
         }
 <span class="fc" id="L456">        return result;</span>
     }

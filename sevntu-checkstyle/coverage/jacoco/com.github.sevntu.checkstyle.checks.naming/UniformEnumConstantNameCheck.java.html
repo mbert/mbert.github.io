@@ -1,4 +1,4 @@
-<?xml version="1.0" encoding="UTF-8"?><!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Strict//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-strict.dtd"><html xmlns="http://www.w3.org/1999/xhtml" lang="en"><head><meta http-equiv="Content-Type" content="text/html;charset=UTF-8"/><link rel="stylesheet" href="../resources/report.css" type="text/css"/><link rel="shortcut icon" href="../resources/report.gif" type="image/gif"/><title>UniformEnumConstantNameCheck.java</title><link rel="stylesheet" href="../resources/prettify.css" type="text/css"/><script type="text/javascript" src="../resources/prettify.js"></script></head><body onload="window['PR_TAB_WIDTH']=4;prettyPrint()"><div class="breadcrumb" id="breadcrumb"><span class="info"><a href="../.sessions.html" class="el_session">Sessions</a></span><a href="../index.html" class="el_report">sevntu-checks</a> &gt; <a href="index.source.html" class="el_package">com.github.sevntu.checkstyle.checks.naming</a> &gt; <span class="el_source">UniformEnumConstantNameCheck.java</span></div><h1>UniformEnumConstantNameCheck.java</h1><pre class="source lang-java linenums">////////////////////////////////////////////////////////////////////////////////
+<?xml version="1.0" encoding="UTF-8"?><!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Strict//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-strict.dtd"><html xmlns="http://www.w3.org/1999/xhtml" lang="en"><head><meta http-equiv="Content-Type" content="text/html;charset=UTF-8"/><link rel="stylesheet" href="../.resources/report.css" type="text/css"/><link rel="shortcut icon" href="../.resources/report.gif" type="image/gif"/><title>UniformEnumConstantNameCheck.java</title><link rel="stylesheet" href="../.resources/prettify.css" type="text/css"/><script type="text/javascript" src="../.resources/prettify.js"></script></head><body onload="window['PR_TAB_WIDTH']=4;prettyPrint()"><div class="breadcrumb" id="breadcrumb"><span class="info"><a href="../.sessions.html" class="el_session">Sessions</a></span><a href="../index.html" class="el_report">sevntu-checks</a> &gt; <a href="index.source.html" class="el_package">com.github.sevntu.checkstyle.checks.naming</a> &gt; <span class="el_source">UniformEnumConstantNameCheck.java</span></div><h1>UniformEnumConstantNameCheck.java</h1><pre class="source lang-java linenums">////////////////////////////////////////////////////////////////////////////////
 // checkstyle: Checks Java source code for adherence to a set of rules.
 // Copyright (C) 2001-2019 the original author or authors.
 //
@@ -100,9 +100,9 @@ public class UniformEnumConstantNameCheck extends AbstractCheck {
      * Default pattern for enumeration values.
      */
 <span class="fc" id="L102">    public static final String[] DEFAULT_PATTERN = {</span>
-<span class="fc" id="L103">        CAMEL_PATTERN,</span>
-<span class="fc" id="L104">        UPPERCASE_PATTERN,</span>
-<span class="fc" id="L105">    };</span>
+        CAMEL_PATTERN,
+        UPPERCASE_PATTERN,
+    };
 
     /**
      * Regular expression list to test Enumeration names against.
@@ -142,7 +142,7 @@ public class UniformEnumConstantNameCheck extends AbstractCheck {
     @Override
     public int[] getAcceptableTokens() {
 <span class="fc" id="L144">        return new int[] {</span>
-<span class="fc" id="L145">            TokenTypes.ENUM_DEF,</span>
+            TokenTypes.ENUM_DEF,
             };
     }
 
@@ -156,8 +156,8 @@ public class UniformEnumConstantNameCheck extends AbstractCheck {
 <span class="fc" id="L156">        final DetailAST objBlock = ast.findFirstToken(TokenTypes.OBJBLOCK);</span>
 <span class="fc" id="L157">        final BitSet conformedPatterns = new BitSet(patternCount);</span>
 <span class="fc" id="L158">        conformedPatterns.set(0, patternCount);</span>
-<span class="fc bfc" id="L159" title="All 2 branches covered.">        for (DetailAST member = objBlock.getFirstChild(); member != null</span>
-<span class="fc bfc" id="L160" title="All 2 branches covered.">                &amp;&amp; !conformedPatterns.isEmpty();</span>
+<span class="fc" id="L159">        for (DetailAST member = objBlock.getFirstChild(); member != null</span>
+<span class="fc bfc" id="L160" title="All 4 branches covered.">                &amp;&amp; !conformedPatterns.isEmpty();</span>
 <span class="fc" id="L161">                member = member.getNextSibling()) {</span>
 <span class="fc bfc" id="L162" title="All 2 branches covered.">            if (member.getType() != TokenTypes.ENUM_CONSTANT_DEF) {</span>
 <span class="fc" id="L163">                continue;</span>
@@ -189,7 +189,7 @@ public class UniformEnumConstantNameCheck extends AbstractCheck {
 <span class="fc" id="L189">            msgKey = MSG_NOT_VALID_SINGLE;</span>
 <span class="fc" id="L190">            patternsString = patterns.get(violated.nextSetBit(0))</span>
 <span class="fc" id="L191">                    .toString();</span>
-<span class="fc" id="L192">        }</span>
+        }
         else {
 <span class="fc" id="L194">            msgKey = MSG_NOT_VALID_MULTI;</span>
 <span class="fc" id="L195">            final Collection&lt;Pattern&gt; violatedPatterns = new ArrayList&lt;&gt;(</span>
@@ -202,7 +202,7 @@ public class UniformEnumConstantNameCheck extends AbstractCheck {
 <span class="fc" id="L202">            patternsString = violatedPatterns.toString();</span>
         }
 <span class="fc" id="L204">        log(member, msgKey, enumName,</span>
-<span class="fc" id="L205">                patternsString);</span>
+                patternsString);
 <span class="fc" id="L206">    }</span>
 
     /**

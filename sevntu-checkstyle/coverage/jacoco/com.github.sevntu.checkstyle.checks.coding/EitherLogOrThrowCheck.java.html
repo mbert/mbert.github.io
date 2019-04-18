@@ -1,4 +1,4 @@
-<?xml version="1.0" encoding="UTF-8"?><!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Strict//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-strict.dtd"><html xmlns="http://www.w3.org/1999/xhtml" lang="en"><head><meta http-equiv="Content-Type" content="text/html;charset=UTF-8"/><link rel="stylesheet" href="../resources/report.css" type="text/css"/><link rel="shortcut icon" href="../resources/report.gif" type="image/gif"/><title>EitherLogOrThrowCheck.java</title><link rel="stylesheet" href="../resources/prettify.css" type="text/css"/><script type="text/javascript" src="../resources/prettify.js"></script></head><body onload="window['PR_TAB_WIDTH']=4;prettyPrint()"><div class="breadcrumb" id="breadcrumb"><span class="info"><a href="../.sessions.html" class="el_session">Sessions</a></span><a href="../index.html" class="el_report">sevntu-checks</a> &gt; <a href="index.source.html" class="el_package">com.github.sevntu.checkstyle.checks.coding</a> &gt; <span class="el_source">EitherLogOrThrowCheck.java</span></div><h1>EitherLogOrThrowCheck.java</h1><pre class="source lang-java linenums">////////////////////////////////////////////////////////////////////////////////
+<?xml version="1.0" encoding="UTF-8"?><!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Strict//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-strict.dtd"><html xmlns="http://www.w3.org/1999/xhtml" lang="en"><head><meta http-equiv="Content-Type" content="text/html;charset=UTF-8"/><link rel="stylesheet" href="../.resources/report.css" type="text/css"/><link rel="shortcut icon" href="../.resources/report.gif" type="image/gif"/><title>EitherLogOrThrowCheck.java</title><link rel="stylesheet" href="../.resources/prettify.css" type="text/css"/><script type="text/javascript" src="../.resources/prettify.js"></script></head><body onload="window['PR_TAB_WIDTH']=4;prettyPrint()"><div class="breadcrumb" id="breadcrumb"><span class="info"><a href="../.sessions.html" class="el_session">Sessions</a></span><a href="../index.html" class="el_report">sevntu-checks</a> &gt; <a href="index.source.html" class="el_package">com.github.sevntu.checkstyle.checks.coding</a> &gt; <span class="el_source">EitherLogOrThrowCheck.java</span></div><h1>EitherLogOrThrowCheck.java</h1><pre class="source lang-java linenums">////////////////////////////////////////////////////////////////////////////////
 // checkstyle: Checks Java source code for adherence to a set of rules.
 // Copyright (C) 2001-2019 the original author or authors.
 //
@@ -203,11 +203,11 @@ import com.puppycrawl.tools.checkstyle.api.TokenTypes;
     @Override
     public int[] getDefaultTokens() {
 <span class="fc" id="L205">        return new int[] {</span>
-<span class="fc" id="L206">            TokenTypes.IMPORT,</span>
-<span class="fc" id="L207">            TokenTypes.CLASS_DEF,</span>
-<span class="fc" id="L208">            TokenTypes.LITERAL_CATCH,</span>
-<span class="fc" id="L209">            TokenTypes.VARIABLE_DEF,</span>
-<span class="fc" id="L210">            TokenTypes.METHOD_DEF, };</span>
+            TokenTypes.IMPORT,
+            TokenTypes.CLASS_DEF,
+            TokenTypes.LITERAL_CATCH,
+            TokenTypes.VARIABLE_DEF,
+            TokenTypes.METHOD_DEF, };
     }
 
     @Override
@@ -224,39 +224,39 @@ import com.puppycrawl.tools.checkstyle.api.TokenTypes;
     public void visitToken(final DetailAST ast) {
 <span class="pc bpc" id="L225" title="1 of 6 branches missed.">        switch (ast.getType()) {</span>
             case TokenTypes.IMPORT:
-<span class="pc bpc" id="L227" title="1 of 4 branches missed.">                if (!hasLoggerClassInImports</span>
+<span class="fc bfc" id="L227" title="All 2 branches covered.">                if (!hasLoggerClassInImports</span>
 <span class="fc bfc" id="L228" title="All 2 branches covered.">                    &amp;&amp; isLoggerImport(ast)) {</span>
 <span class="fc" id="L229">                    hasLoggerClassInImports = true;</span>
                 }
-<span class="fc" id="L231">                break;</span>
+                break;
             case TokenTypes.CLASS_DEF:
-<span class="pc bpc" id="L233" title="1 of 4 branches missed.">                if (!isInnerClass(ast)) {</span>
+<span class="fc bfc" id="L233" title="All 2 branches covered.">                if (!isInnerClass(ast)) {</span>
 <span class="fc" id="L234">                    currentClassDefAst = ast;</span>
 <span class="fc" id="L235">                    collectLoggerFieldNames(ast);</span>
                 }
-<span class="fc" id="L237">                break;</span>
+                break;
             case TokenTypes.METHOD_DEF:
-<span class="pc bpc" id="L239" title="1 of 4 branches missed.">                if (isMethodOfCurrentClass(ast)) {</span>
+<span class="fc bfc" id="L239" title="All 2 branches covered.">                if (isMethodOfCurrentClass(ast)) {</span>
 <span class="fc" id="L240">                    currentMethodDefAst = ast;</span>
 <span class="fc" id="L241">                    currentLocalLoggerVariableNames.clear();</span>
 <span class="fc" id="L242">                    final DetailAST parametersAst = currentMethodDefAst</span>
 <span class="fc" id="L243">                        .findFirstToken(TokenTypes.PARAMETERS);</span>
 <span class="fc" id="L244">                    collectLoggersFromParameters(parametersAst);</span>
-                }
-<span class="fc" id="L246">                break;</span>
+<span class="fc" id="L245">                }</span>
+                break;
             case TokenTypes.VARIABLE_DEF:
-<span class="pc bpc" id="L248" title="1 of 2 branches missed.">                final DetailAST methodDefAst = ast.getParent().getParent();</span>
+<span class="fc" id="L248">                final DetailAST methodDefAst = ast.getParent().getParent();</span>
 <span class="fc bfc" id="L249" title="All 2 branches covered.">                if (methodDefAst == currentMethodDefAst</span>
 <span class="pc bpc" id="L250" title="1 of 2 branches missed.">                    &amp;&amp; methodDefAst.getType() == TokenTypes.METHOD_DEF</span>
 <span class="pc bpc" id="L251" title="1 of 2 branches missed.">                    &amp;&amp; isLoggerVariableDefinition(ast)) {</span>
 <span class="fc" id="L252">                    currentLocalLoggerVariableNames.add(getIdentifier(ast));</span>
                 }
-<span class="fc" id="L254">                break;</span>
+                break;
             case TokenTypes.LITERAL_CATCH:
-<span class="pc bpc" id="L256" title="1 of 2 branches missed.">                processCatchNode(ast);</span>
+<span class="fc" id="L256">                processCatchNode(ast);</span>
 <span class="fc" id="L257">                break;</span>
             default:
-<span class="nc bnc" id="L259" title="All 2 branches missed.">                SevntuUtil.reportInvalidToken(ast.getType());</span>
+<span class="nc" id="L259">                SevntuUtil.reportInvalidToken(ast.getType());</span>
                 break;
         }
 <span class="fc" id="L262">    }</span>
@@ -309,7 +309,7 @@ import com.puppycrawl.tools.checkstyle.api.TokenTypes;
 <span class="fc" id="L309">                        .add(getIdentifier(currentParameterAst));</span>
             }
 <span class="fc" id="L311">            currentParameterAst = currentParameterAst.getNextSibling();</span>
-        }
+<span class="fc" id="L312">        }</span>
 <span class="fc" id="L313">    }</span>
 
     /**
@@ -360,17 +360,17 @@ import com.puppycrawl.tools.checkstyle.api.TokenTypes;
 <span class="fc bfc" id="L360" title="All 4 branches covered.">            switch (currentStatementAst.getType()) {</span>
                 // local logger or exception variable definition
                 case TokenTypes.VARIABLE_DEF:
-<span class="pc bpc" id="L363" title="1 of 4 branches missed.">                    if (isLoggerVariableDefinition(currentStatementAst)) {</span>
+<span class="fc bfc" id="L363" title="All 2 branches covered.">                    if (isLoggerVariableDefinition(currentStatementAst)) {</span>
 <span class="fc" id="L364">                        currentLocalLoggerVariableNames</span>
 <span class="fc" id="L365">                            .add(getIdentifier(currentStatementAst));</span>
-<span class="fc" id="L366">                    }</span>
+                    }
                     else {
 <span class="fc" id="L368">                        final DetailAST assignAst = currentStatementAst</span>
 <span class="fc" id="L369">                            .findFirstToken(TokenTypes.ASSIGN);</span>
 <span class="pc bpc" id="L370" title="1 of 2 branches missed.">                        if (assignAst != null</span>
-<span class="fc" id="L371">                            &amp;&amp; isInstanceCreationBasedOnException(</span>
+<span class="fc bfc" id="L371" title="All 2 branches covered.">                            &amp;&amp; isInstanceCreationBasedOnException(</span>
 <span class="fc" id="L372">                                assignAst.getFirstChild(),</span>
-<span class="fc bfc" id="L373" title="All 2 branches covered.">                                 catchParameterName)) {</span>
+                                 catchParameterName)) {
 <span class="fc" id="L374">                            exceptionVariableNames</span>
 <span class="fc" id="L375">                                .add(getIdentifier(currentStatementAst));</span>
                         }
@@ -378,32 +378,32 @@ import com.puppycrawl.tools.checkstyle.api.TokenTypes;
 <span class="fc" id="L378">                    break;</span>
                     // logging exception or printStackTrace
                 case TokenTypes.EXPR:
-<span class="pc bpc" id="L381" title="1 of 4 branches missed.">                    if (!isLoggingExceptionFound</span>
+<span class="fc bfc" id="L381" title="All 2 branches covered.">                    if (!isLoggingExceptionFound</span>
 <span class="fc bfc" id="L382" title="All 2 branches covered.">                        &amp;&amp; (isLoggingExceptionArgument(currentStatementAst, catchParameterName)</span>
 <span class="fc bfc" id="L383" title="All 2 branches covered.">                        || isPrintStackTrace(currentStatementAst, catchParameterName))) {</span>
 <span class="fc" id="L384">                        isLoggingExceptionFound = true;</span>
 <span class="fc" id="L385">                        loggingExceptionAst = currentStatementAst;</span>
                     }
-<span class="fc" id="L387">                    break;</span>
+                    break;
                     // throw exception
                 case TokenTypes.LITERAL_THROW:
-<span class="pc bpc" id="L390" title="1 of 4 branches missed.">                    if (isLoggingExceptionFound) {</span>
+<span class="fc bfc" id="L390" title="All 2 branches covered.">                    if (isLoggingExceptionFound) {</span>
 <span class="fc" id="L391">                        exceptionVariableNames.add(catchParameterName);</span>
 <span class="fc" id="L392">                        final DetailAST thrownExceptionAst = currentStatementAst</span>
 <span class="fc" id="L393">                            .getFirstChild();</span>
 <span class="fc bfc" id="L394" title="All 2 branches covered.">                        if (exceptionVariableNames.contains(getIdentifier(thrownExceptionAst))</span>
-<span class="fc" id="L395">                            || isInstanceCreationBasedOnException(</span>
-<span class="fc bfc" id="L396" title="All 2 branches covered.">                                thrownExceptionAst, catchParameterName)) {</span>
+<span class="fc bfc" id="L395" title="All 2 branches covered.">                            || isInstanceCreationBasedOnException(</span>
+                                thrownExceptionAst, catchParameterName)) {
 <span class="fc" id="L397">                            log(loggingExceptionAst, MSG_KEY);</span>
 <span class="fc" id="L398">                            break;</span>
                         }
-                    }
+<span class="fc" id="L400">                    }</span>
                     break;
                 default:
                     // rest tokens shall be skipped
                     break;
             }
-<span class="fc bfc" id="L406" title="All 2 branches covered.">            currentStatementAst = currentStatementAst.getNextSibling();</span>
+<span class="fc" id="L406">            currentStatementAst = currentStatementAst.getNextSibling();</span>
         }
 <span class="fc" id="L408">    }</span>
 
@@ -482,7 +482,7 @@ import com.puppycrawl.tools.checkstyle.api.TokenTypes;
 <span class="fc" id="L482">                    .findFirstToken(TokenTypes.ELIST);</span>
 <span class="pc bpc" id="L483" title="1 of 2 branches missed.">            if (parametersAst != null) {</span>
 <span class="fc" id="L484">                result = containsExceptionParameter(parametersAst,</span>
-<span class="fc" id="L485">                        exceptionArgumentName);</span>
+                        exceptionArgumentName);
             }
         }
 <span class="fc" id="L488">        return result;</span>
@@ -503,7 +503,7 @@ import com.puppycrawl.tools.checkstyle.api.TokenTypes;
 <span class="fc" id="L503">            final DetailAST loggerParametersAst =</span>
 <span class="fc" id="L504">                    loggingMethodCallAst.findFirstToken(TokenTypes.ELIST);</span>
 <span class="fc" id="L505">            result = containsExceptionParameter(</span>
-<span class="fc" id="L506">                    loggerParametersAst, exceptionVariableName);</span>
+                    loggerParametersAst, exceptionVariableName);
         }
 <span class="fc" id="L508">        return result;</span>
     }
@@ -548,11 +548,11 @@ import com.puppycrawl.tools.checkstyle.api.TokenTypes;
 
 <span class="fc bfc" id="L549" title="All 2 branches covered.">        while (parameterAst != null) {</span>
 <span class="fc bfc" id="L550" title="All 2 branches covered.">            if (exceptionVariableName.equals(getIdentifier(parameterAst))</span>
-<span class="fc" id="L551">                    || isInstanceMethodCall(exceptionVariableName,</span>
-<span class="fc bfc" id="L552" title="All 2 branches covered.">                            parameterAst.getFirstChild())) {</span>
+<span class="fc bfc" id="L551" title="All 2 branches covered.">                    || isInstanceMethodCall(exceptionVariableName,</span>
+<span class="fc" id="L552">                            parameterAst.getFirstChild())) {</span>
 <span class="fc" id="L553">                result = true;</span>
 <span class="fc" id="L554">                parameterAst = null;</span>
-<span class="fc" id="L555">            }</span>
+            }
             else {
 <span class="fc" id="L557">                parameterAst = parameterAst.getNextSibling();</span>
             }

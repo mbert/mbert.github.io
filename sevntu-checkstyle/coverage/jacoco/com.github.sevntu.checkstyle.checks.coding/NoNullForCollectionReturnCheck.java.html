@@ -1,4 +1,4 @@
-<?xml version="1.0" encoding="UTF-8"?><!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Strict//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-strict.dtd"><html xmlns="http://www.w3.org/1999/xhtml" lang="en"><head><meta http-equiv="Content-Type" content="text/html;charset=UTF-8"/><link rel="stylesheet" href="../resources/report.css" type="text/css"/><link rel="shortcut icon" href="../resources/report.gif" type="image/gif"/><title>NoNullForCollectionReturnCheck.java</title><link rel="stylesheet" href="../resources/prettify.css" type="text/css"/><script type="text/javascript" src="../resources/prettify.js"></script></head><body onload="window['PR_TAB_WIDTH']=4;prettyPrint()"><div class="breadcrumb" id="breadcrumb"><span class="info"><a href="../.sessions.html" class="el_session">Sessions</a></span><a href="../index.html" class="el_report">sevntu-checks</a> &gt; <a href="index.source.html" class="el_package">com.github.sevntu.checkstyle.checks.coding</a> &gt; <span class="el_source">NoNullForCollectionReturnCheck.java</span></div><h1>NoNullForCollectionReturnCheck.java</h1><pre class="source lang-java linenums">////////////////////////////////////////////////////////////////////////////////
+<?xml version="1.0" encoding="UTF-8"?><!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Strict//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-strict.dtd"><html xmlns="http://www.w3.org/1999/xhtml" lang="en"><head><meta http-equiv="Content-Type" content="text/html;charset=UTF-8"/><link rel="stylesheet" href="../.resources/report.css" type="text/css"/><link rel="shortcut icon" href="../.resources/report.gif" type="image/gif"/><title>NoNullForCollectionReturnCheck.java</title><link rel="stylesheet" href="../.resources/prettify.css" type="text/css"/><script type="text/javascript" src="../.resources/prettify.js"></script></head><body onload="window['PR_TAB_WIDTH']=4;prettyPrint()"><div class="breadcrumb" id="breadcrumb"><span class="info"><a href="../.sessions.html" class="el_session">Sessions</a></span><a href="../index.html" class="el_report">sevntu-checks</a> &gt; <a href="index.source.html" class="el_package">com.github.sevntu.checkstyle.checks.coding</a> &gt; <span class="el_source">NoNullForCollectionReturnCheck.java</span></div><h1>NoNullForCollectionReturnCheck.java</h1><pre class="source lang-java linenums">////////////////////////////////////////////////////////////////////////////////
 // checkstyle: Checks Java source code for adherence to a set of rules.
 // Copyright (C) 2001-2019 the original author or authors.
 //
@@ -121,8 +121,8 @@ public class NoNullForCollectionReturnCheck extends AbstractCheck {
     @Override
     public int[] getDefaultTokens() {
 <span class="fc" id="L123">        return new int[] {</span>
-<span class="fc" id="L124">            TokenTypes.METHOD_DEF,</span>
-<span class="fc" id="L125">            TokenTypes.LITERAL_RETURN,</span>
+            TokenTypes.METHOD_DEF,
+            TokenTypes.LITERAL_RETURN,
         };
     }
 
@@ -145,25 +145,25 @@ public class NoNullForCollectionReturnCheck extends AbstractCheck {
     public void visitToken(DetailAST detailAST) {
 <span class="pc bpc" id="L146" title="1 of 3 branches missed.">        switch (detailAST.getType()) {</span>
             case TokenTypes.METHOD_DEF:
-<span class="pc bpc" id="L148" title="1 of 4 branches missed.">                if (isReturnCollection(detailAST)) {</span>
+<span class="fc bfc" id="L148" title="All 2 branches covered.">                if (isReturnCollection(detailAST)) {</span>
 <span class="fc" id="L149">                    methodDefs.add(detailAST);</span>
                 }
-<span class="fc" id="L151">                break;</span>
+                break;
 
             case TokenTypes.LITERAL_RETURN:
-<span class="pc bpc" id="L154" title="1 of 4 branches missed.">                if (!methodDefs.isEmpty()) {</span>
+<span class="fc bfc" id="L154" title="All 2 branches covered.">                if (!methodDefs.isEmpty()) {</span>
 <span class="fc" id="L155">                    final DetailAST currentMethodDef = getMethodDef(detailAST);</span>
 <span class="fc bfc" id="L156" title="All 2 branches covered.">                    if (methodDefs.contains(currentMethodDef)</span>
-<span class="fc bfc" id="L157" title="All 2 branches covered.">                        &amp;&amp; (hasNullLiteralInReturn(detailAST)</span>
-<span class="fc bfc" id="L158" title="All 2 branches covered.">                            || searchThroughMethodBody</span>
+<span class="fc bfc" id="L157" title="All 4 branches covered.">                        &amp;&amp; (hasNullLiteralInReturn(detailAST)</span>
+                            || searchThroughMethodBody
 <span class="fc bfc" id="L159" title="All 2 branches covered.">                                &amp;&amp; isReturnedValueBeNull(detailAST))) {</span>
 <span class="fc" id="L160">                        log(detailAST, MSG_KEY);</span>
                     }
-                }
-<span class="fc" id="L163">                break;</span>
+<span class="fc" id="L162">                }</span>
+                break;
 
             default:
-<span class="nc bnc" id="L166" title="All 2 branches missed.">                SevntuUtil.reportInvalidToken(detailAST.getType());</span>
+<span class="nc" id="L166">                SevntuUtil.reportInvalidToken(detailAST.getType());</span>
                 break;
         }
 <span class="fc" id="L169">    }</span>
@@ -233,17 +233,17 @@ public class NoNullForCollectionReturnCheck extends AbstractCheck {
 <span class="fc bfc" id="L233" title="All 2 branches covered.">                        for (DetailAST expression : expressions) {</span>
 <span class="fc" id="L234">                            final DetailAST assign = expression.findFirstToken(TokenTypes.ASSIGN);</span>
 <span class="pc bpc" id="L235" title="1 of 2 branches missed.">                            if (assign != null</span>
-<span class="fc" id="L236">                                    &amp;&amp; variableName.equals(assign.findFirstToken(TokenTypes.IDENT)</span>
-<span class="pc bpc" id="L237" title="1 of 2 branches missed.">                                            .getText())</span>
+<span class="pc bpc" id="L236" title="1 of 2 branches missed.">                                    &amp;&amp; variableName.equals(assign.findFirstToken(TokenTypes.IDENT)</span>
+<span class="fc" id="L237">                                            .getText())</span>
 <span class="fc bfc" id="L238" title="All 2 branches covered.">                                    &amp;&amp; !assign.branchContains(TokenTypes.LITERAL_NULL)) {</span>
 <span class="fc" id="L239">                                result = false;</span>
 <span class="fc" id="L240">                                break;</span>
                             }
-                        }
+<span class="fc" id="L242">                        }</span>
 <span class="fc bfc" id="L243" title="All 2 branches covered.">                        if (!result) {</span>
 <span class="fc" id="L244">                            break;</span>
                         }
-                    }
+<span class="fc" id="L246">                    }</span>
                 }
             }
         }
@@ -267,7 +267,7 @@ public class NoNullForCollectionReturnCheck extends AbstractCheck {
 <span class="fc bfc" id="L267" title="All 2 branches covered.">            if (currentIf.getChildCount(TokenTypes.LITERAL_ELSE) &gt; 0) {</span>
 <span class="fc" id="L268">                elseBlocks.add(currentIf.findFirstToken(TokenTypes.LITERAL_ELSE));</span>
             }
-        }
+<span class="fc" id="L270">        }</span>
 <span class="fc bfc" id="L271" title="All 2 branches covered.">        if (!elseBlocks.isEmpty()) {</span>
 <span class="fc" id="L272">            subblocks.addAll(elseBlocks);</span>
         }
@@ -280,7 +280,7 @@ public class NoNullForCollectionReturnCheck extends AbstractCheck {
 <span class="pc bpc" id="L280" title="1 of 2 branches missed.">            if (currentSubblock.findFirstToken(TokenTypes.SLIST) != null) {</span>
 <span class="fc" id="L281">                nestedSubblocks.addAll(getAllSubblocks(currentSubblock));</span>
             }
-        }
+<span class="fc" id="L283">        }</span>
 <span class="fc" id="L284">        subblocks.addAll(nestedSubblocks);</span>
 <span class="fc" id="L285">        return subblocks;</span>
     }
@@ -309,7 +309,7 @@ public class NoNullForCollectionReturnCheck extends AbstractCheck {
 <span class="fc" id="L309">                    DetailAST variableValue = variableDef.findFirstToken(TokenTypes.ASSIGN);</span>
 <span class="fc bfc" id="L310" title="All 2 branches covered.">                    if (variableValue == null) {</span>
 <span class="fc" id="L311">                        result = true;</span>
-<span class="fc" id="L312">                    }</span>
+                    }
                     else {
 <span class="fc" id="L314">                        variableValue = variableValue.findFirstToken(TokenTypes.EXPR);</span>
 <span class="fc bfc" id="L315" title="All 2 branches covered.">                        result = variableValue.getFirstChild().getType() == TokenTypes.LITERAL_NULL;</span>
@@ -317,11 +317,11 @@ public class NoNullForCollectionReturnCheck extends AbstractCheck {
 <span class="fc" id="L317">                    isFinded = true;</span>
 <span class="fc" id="L318">                    break;</span>
                 }
-            }
+<span class="nc" id="L320">            }</span>
 <span class="pc bpc" id="L321" title="1 of 2 branches missed.">            if (isFinded) {</span>
 <span class="fc" id="L322">                break;</span>
             }
-        }
+<span class="nc" id="L324">        }</span>
 <span class="fc" id="L325">        return result;</span>
     }
 

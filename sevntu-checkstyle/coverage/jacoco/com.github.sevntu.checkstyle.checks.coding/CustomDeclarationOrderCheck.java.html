@@ -1,4 +1,4 @@
-<?xml version="1.0" encoding="UTF-8"?><!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Strict//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-strict.dtd"><html xmlns="http://www.w3.org/1999/xhtml" lang="en"><head><meta http-equiv="Content-Type" content="text/html;charset=UTF-8"/><link rel="stylesheet" href="../resources/report.css" type="text/css"/><link rel="shortcut icon" href="../resources/report.gif" type="image/gif"/><title>CustomDeclarationOrderCheck.java</title><link rel="stylesheet" href="../resources/prettify.css" type="text/css"/><script type="text/javascript" src="../resources/prettify.js"></script></head><body onload="window['PR_TAB_WIDTH']=4;prettyPrint()"><div class="breadcrumb" id="breadcrumb"><span class="info"><a href="../.sessions.html" class="el_session">Sessions</a></span><a href="../index.html" class="el_report">sevntu-checks</a> &gt; <a href="index.source.html" class="el_package">com.github.sevntu.checkstyle.checks.coding</a> &gt; <span class="el_source">CustomDeclarationOrderCheck.java</span></div><h1>CustomDeclarationOrderCheck.java</h1><pre class="source lang-java linenums">////////////////////////////////////////////////////////////////////////////////
+<?xml version="1.0" encoding="UTF-8"?><!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Strict//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-strict.dtd"><html xmlns="http://www.w3.org/1999/xhtml" lang="en"><head><meta http-equiv="Content-Type" content="text/html;charset=UTF-8"/><link rel="stylesheet" href="../.resources/report.css" type="text/css"/><link rel="shortcut icon" href="../.resources/report.gif" type="image/gif"/><title>CustomDeclarationOrderCheck.java</title><link rel="stylesheet" href="../.resources/prettify.css" type="text/css"/><script type="text/javascript" src="../.resources/prettify.js"></script></head><body onload="window['PR_TAB_WIDTH']=4;prettyPrint()"><div class="breadcrumb" id="breadcrumb"><span class="info"><a href="../.sessions.html" class="el_session">Sessions</a></span><a href="../index.html" class="el_report">sevntu-checks</a> &gt; <a href="index.source.html" class="el_package">com.github.sevntu.checkstyle.checks.coding</a> &gt; <span class="el_source">CustomDeclarationOrderCheck.java</span></div><h1>CustomDeclarationOrderCheck.java</h1><pre class="source lang-java linenums">////////////////////////////////////////////////////////////////////////////////
 // checkstyle: Checks Java source code for adherence to a set of rules.
 // Copyright (C) 2001-2019 the original author or authors.
 //
@@ -249,11 +249,11 @@ public class CustomDeclarationOrderCheck extends AbstractCheck {
         public int compare(DetailAST aObj1, DetailAST aObj2) {
 <span class="fc" id="L250">            return aObj1.getLineNo() - aObj2.getLineNo();</span>
         }
-<span class="fc" id="L252">    };</span>
+    };
 
     /** List of order declaration customizing by user. */
 <span class="fc" id="L255">    private final List&lt;FormatMatcher&gt; customOrderDeclaration =</span>
-<span class="fc" id="L256">        new ArrayList&lt;&gt;();</span>
+        new ArrayList&lt;&gt;();
 
     /** Save compile flags for further usage. */
     private int compileFlags;
@@ -294,12 +294,12 @@ public class CustomDeclarationOrderCheck extends AbstractCheck {
             try {
 <span class="fc" id="L295">                customOrderDeclaration</span>
 <span class="fc" id="L296">                        .add(parseInputDeclarationRule(currentState));</span>
-<span class="fc" id="L297">            }</span>
+            }
 <span class="nc" id="L298">            catch (StringIndexOutOfBoundsException exp) {</span>
                 //if the structure of the input rule isn't correct
 <span class="nc" id="L300">                throw new IllegalArgumentException(&quot;Unable to parse input rule: &quot;</span>
-<span class="nc" id="L301">                        + currentState, exp);</span>
-            }
+                        + currentState, exp);
+<span class="fc" id="L302">            }</span>
         }
 <span class="fc" id="L304">    }</span>
 
@@ -320,14 +320,14 @@ public class CustomDeclarationOrderCheck extends AbstractCheck {
         // 0 - case sensitive flag
 <span class="fc bfc" id="L321" title="All 2 branches covered.">        if (caseSensitive) {</span>
 <span class="fc" id="L322">            compileFlags = 0;</span>
-<span class="fc" id="L323">        }</span>
+        }
         else {
 <span class="fc" id="L325">            compileFlags = Pattern.CASE_INSENSITIVE;</span>
         }
 
 <span class="fc bfc" id="L328" title="All 2 branches covered.">        for (FormatMatcher currentRule : customOrderDeclaration) {</span>
 <span class="fc" id="L329">            currentRule.setCompileFlags(compileFlags);</span>
-        }
+<span class="fc" id="L330">        }</span>
 <span class="fc" id="L331">    }</span>
 
     @Override
@@ -341,7 +341,7 @@ public class CustomDeclarationOrderCheck extends AbstractCheck {
 
 <span class="fc bfc" id="L342" title="All 2 branches covered.">            if (currentRule.hasRule(INNER_CLASS_MACRO)) {</span>
 <span class="fc" id="L343">                checkInnerClasses = true;</span>
-<span class="fc" id="L344">            }</span>
+            }
 <span class="fc bfc" id="L345" title="All 2 branches covered.">            else if (currentRule.hasRule(GETTER_SETTER_MACRO)) {</span>
 <span class="fc" id="L346">                checkGettersSetters = true;</span>
             }
@@ -372,7 +372,7 @@ public class CustomDeclarationOrderCheck extends AbstractCheck {
 <span class="pc bpc" id="L372" title="1 of 2 branches missed.">                    if (position != -1) {</span>
 <span class="fc bfc" id="L373" title="All 2 branches covered.">                        if (isWrongPosition(position)) {</span>
 <span class="fc" id="L374">                            logWrongOrderedElement(ast, position);</span>
-<span class="fc" id="L375">                        }</span>
+                        }
                         else {
 <span class="fc" id="L377">                            classDetails.peek().setCurrentPosition(position);</span>
                         }
@@ -381,7 +381,7 @@ public class CustomDeclarationOrderCheck extends AbstractCheck {
 
 <span class="fc" id="L382">                classDetails.push(new ClassDetail());</span>
             }
-<span class="fc" id="L384">        }</span>
+        }
         else {
 <span class="fc" id="L386">            final DetailAST objBlockAst = ast.getParent();</span>
 <span class="pc bpc" id="L387" title="1 of 2 branches missed.">            if (objBlockAst != null</span>
@@ -399,7 +399,7 @@ public class CustomDeclarationOrderCheck extends AbstractCheck {
 <span class="fc bfc" id="L399" title="All 2 branches covered.">                    if (position != -1) {</span>
 <span class="fc bfc" id="L400" title="All 2 branches covered.">                        if (isWrongPosition(position)) {</span>
 <span class="fc" id="L401">                            logWrongOrderedElement(ast, position);</span>
-<span class="fc" id="L402">                        }</span>
+                        }
                         else {
 <span class="fc" id="L404">                            classDetails.peek().setCurrentPosition(position);</span>
                         }
@@ -472,21 +472,21 @@ public class CustomDeclarationOrderCheck extends AbstractCheck {
 <span class="fc bfc" id="L472" title="All 2 branches covered.">        if (FIELD_MACRO.equalsIgnoreCase(inputMemberName)</span>
 <span class="fc bfc" id="L473" title="All 2 branches covered.">                || ANON_CLASS_FIELD_MACRO.equalsIgnoreCase(inputMemberName)) {</span>
 <span class="fc" id="L474">            result = TokenTypes.VARIABLE_DEF;</span>
-<span class="fc" id="L475">        }</span>
+        }
 <span class="fc bfc" id="L476" title="All 2 branches covered.">        else if (GETTER_SETTER_MACRO.equalsIgnoreCase(inputMemberName)</span>
 <span class="fc bfc" id="L477" title="All 2 branches covered.">                || METHOD_MACRO.equalsIgnoreCase(inputMemberName)</span>
 <span class="fc bfc" id="L478" title="All 2 branches covered.">                || MAIN_METHOD_MACRO.equalsIgnoreCase(inputMemberName)) {</span>
 <span class="fc" id="L479">            result = TokenTypes.METHOD_DEF;</span>
-<span class="fc" id="L480">        }</span>
+        }
 <span class="fc bfc" id="L481" title="All 2 branches covered.">        else if (CTOR_MACRO.equalsIgnoreCase(inputMemberName)) {</span>
 <span class="fc" id="L482">            result = TokenTypes.CTOR_DEF;</span>
-<span class="fc" id="L483">        }</span>
+        }
 <span class="fc bfc" id="L484" title="All 2 branches covered.">        else if (INNER_CLASS_MACRO.equalsIgnoreCase(inputMemberName)) {</span>
 <span class="fc" id="L485">            result = TokenTypes.CLASS_DEF;</span>
-<span class="fc" id="L486">        }</span>
+        }
 <span class="fc bfc" id="L487" title="All 2 branches covered.">        else if (INNER_INTERFACE_MACRO.equalsIgnoreCase(inputMemberName)) {</span>
 <span class="fc" id="L488">            result = TokenTypes.INTERFACE_DEF;</span>
-<span class="fc" id="L489">        }</span>
+        }
 <span class="pc bpc" id="L490" title="1 of 2 branches missed.">        else if (INNER_ENUM_MACRO.equalsIgnoreCase(inputMemberName)) {</span>
 <span class="fc" id="L491">            result = TokenTypes.ENUM_DEF;</span>
         }
@@ -521,31 +521,31 @@ public class CustomDeclarationOrderCheck extends AbstractCheck {
 <span class="fc" id="L521">        String token = null;</span>
 <span class="pc bpc" id="L522" title="2 of 7 branches missed.">        switch (ast.getType()) {</span>
             case TokenTypes.VARIABLE_DEF:
-<span class="pc bpc" id="L524" title="1 of 2 branches missed.">                token = MSG_KEY_FIELD;</span>
+<span class="fc" id="L524">                token = MSG_KEY_FIELD;</span>
 <span class="fc" id="L525">                break;</span>
             case TokenTypes.METHOD_DEF:
-<span class="pc bpc" id="L527" title="1 of 2 branches missed.">                token = MSG_KEY_METHOD;</span>
+<span class="fc" id="L527">                token = MSG_KEY_METHOD;</span>
 <span class="fc" id="L528">                break;</span>
             case TokenTypes.CTOR_DEF:
-<span class="pc bpc" id="L530" title="1 of 2 branches missed.">                token = MSG_KEY_CONSTRUCTOR;</span>
+<span class="fc" id="L530">                token = MSG_KEY_CONSTRUCTOR;</span>
 <span class="fc" id="L531">                break;</span>
             case TokenTypes.CLASS_DEF:
-<span class="pc bpc" id="L533" title="1 of 2 branches missed.">                token = MSG_KEY_CLASS;</span>
+<span class="fc" id="L533">                token = MSG_KEY_CLASS;</span>
 <span class="fc" id="L534">                break;</span>
             case TokenTypes.INTERFACE_DEF:
-<span class="pc bpc" id="L536" title="1 of 2 branches missed.">                token = MSG_KEY_INTERFACE;</span>
+<span class="fc" id="L536">                token = MSG_KEY_INTERFACE;</span>
 <span class="fc" id="L537">                break;</span>
             case TokenTypes.ENUM_DEF:
-<span class="nc bnc" id="L539" title="All 2 branches missed.">                token = MSG_KEY_ENUM;</span>
+<span class="nc" id="L539">                token = MSG_KEY_ENUM;</span>
 <span class="nc" id="L540">                break;</span>
             default:
-<span class="nc bnc" id="L542" title="All 2 branches missed.">                SevntuUtil.reportInvalidToken(ast.getType());</span>
+<span class="nc" id="L542">                SevntuUtil.reportInvalidToken(ast.getType());</span>
                 break;
         }
 
 <span class="fc" id="L546">        final int expectedPosition = classDetails.peek().getCurrentPosition();</span>
 <span class="fc" id="L547">        log(ast,</span>
-<span class="fc" id="L548">                token,</span>
+                token,
 <span class="fc" id="L549">                customOrderDeclaration.get(position).getRule(),</span>
 <span class="fc" id="L550">                customOrderDeclaration.get(expectedPosition).getRule());</span>
 <span class="fc" id="L551">    }</span>
@@ -575,10 +575,10 @@ public class CustomDeclarationOrderCheck extends AbstractCheck {
 <span class="fc" id="L575">            final DetailAST getterAst = entry.getValue();</span>
 
 <span class="fc" id="L577">            log(setterAst,</span>
-<span class="fc" id="L578">                    MSG_KEY_INVALID_SETTER,</span>
+                    MSG_KEY_INVALID_SETTER,
 <span class="fc" id="L579">                    getIdentifier(setterAst),</span>
 <span class="fc" id="L580">                    getIdentifier(getterAst));</span>
-        }
+<span class="fc" id="L581">        }</span>
 <span class="fc" id="L582">    }</span>
 
     /**
@@ -593,12 +593,12 @@ public class CustomDeclarationOrderCheck extends AbstractCheck {
 <span class="fc bfc" id="L593" title="All 2 branches covered.">                if (isGetterCorrect(methodDefAst, GETTER_PREFIX)) {</span>
 <span class="fc" id="L594">                    classDetails.peek().addGetter(methodDefAst);</span>
                 }
-<span class="fc" id="L596">            }</span>
+            }
 <span class="fc bfc" id="L597" title="All 2 branches covered.">            else if (isBooleanGetterName(methodName)) {</span>
 <span class="fc bfc" id="L598" title="All 2 branches covered.">                if (isGetterCorrect(methodDefAst, BOOLEAN_GETTER_PREFIX)) {</span>
 <span class="fc" id="L599">                    classDetails.peek().addGetter(methodDefAst);</span>
                 }
-<span class="fc" id="L601">            }</span>
+            }
 <span class="fc bfc" id="L602" title="All 2 branches covered.">            else if (isSetterName(methodName)</span>
 <span class="fc bfc" id="L603" title="All 2 branches covered.">                    &amp;&amp; isSetterCorrect(methodDefAst, SETTER_PREFIX)) {</span>
 <span class="fc" id="L604">                classDetails.peek().addSetter(methodDefAst);</span>
@@ -723,11 +723,11 @@ public class CustomDeclarationOrderCheck extends AbstractCheck {
 <span class="fc" id="L723">                    final String returnedFieldName = getNameOfGetterField(exprAst);</span>
 <span class="fc" id="L724">                    final String methodName = getIdentifier(methodDef);</span>
 <span class="fc" id="L725">                    final String methodNameWithoutPrefix = getNameWithoutPrefix(methodName,</span>
-<span class="fc" id="L726">                            methodPrefix);</span>
+                            methodPrefix);
 <span class="pc bpc" id="L727" title="1 of 2 branches missed.">                    if (returnedFieldName != null</span>
 <span class="pc bpc" id="L728" title="1 of 2 branches missed.">                            &amp;&amp; !localVariableHidesField(statementsAst, returnedFieldName)</span>
-<span class="fc" id="L729">                            &amp;&amp; verifyFieldAndMethodName(returnedFieldName,</span>
-<span class="fc bfc" id="L730" title="All 2 branches covered.">                                    methodNameWithoutPrefix)) {</span>
+<span class="fc bfc" id="L729" title="All 2 branches covered.">                            &amp;&amp; verifyFieldAndMethodName(returnedFieldName,</span>
+                                    methodNameWithoutPrefix)) {
 <span class="fc" id="L731">                        result = true;</span>
                     }
                 }
@@ -852,7 +852,7 @@ public class CustomDeclarationOrderCheck extends AbstractCheck {
 <span class="fc" id="L852">                    modifiers.append('[');</span>
                 }
 <span class="fc" id="L854">                modifiers.append(astNode.getText());</span>
-<span class="fc" id="L855">            }</span>
+            }
             else {
 <span class="fc" id="L857">                modifiers.append(getModifiersAsText(astNode.getFirstChild()));</span>
             }
@@ -907,7 +907,7 @@ public class CustomDeclarationOrderCheck extends AbstractCheck {
 <span class="fc" id="L907">            String nameOfSetterField = null;</span>
 <span class="fc bfc" id="L908" title="All 2 branches covered.">            if (currentStatement.getType() == TokenTypes.ASSIGN) {</span>
 <span class="fc" id="L909">                nameOfSetterField = getNameOfAssignedField(currentStatement);</span>
-<span class="fc" id="L910">            }</span>
+            }
 <span class="fc bfc" id="L911" title="All 2 branches covered.">            else if (currentStatement.getType() == TokenTypes.METHOD_CALL) {</span>
 <span class="fc" id="L912">                nameOfSetterField = getNameOfSuperClassUpdatedField(currentStatement);</span>
             }
@@ -927,7 +927,7 @@ public class CustomDeclarationOrderCheck extends AbstractCheck {
             }
 
 <span class="fc" id="L929">            currentStatement = nextStatement;</span>
-        }
+<span class="fc" id="L930">        }</span>
 <span class="fc" id="L931">        return result;</span>
     }
 
@@ -1023,7 +1023,7 @@ public class CustomDeclarationOrderCheck extends AbstractCheck {
 
 <span class="fc bfc" id="L1024" title="All 2 branches covered.">            if (exprFirstChild.getType() == TokenTypes.IDENT) {</span>
 <span class="fc" id="L1025">                nameOfGetterField = exprFirstChild.getText();</span>
-<span class="fc" id="L1026">            }</span>
+            }
 <span class="pc bpc" id="L1027" title="1 of 2 branches missed.">            else if (exprFirstChild.getType() == TokenTypes.DOT</span>
 <span class="pc bpc" id="L1028" title="1 of 2 branches missed.">                    &amp;&amp; exprFirstChild.getChildCount() == 2</span>
 <span class="pc bpc" id="L1029" title="1 of 2 branches missed.">                    &amp;&amp; exprFirstChild.getFirstChild().getType() == TokenTypes.LITERAL_THIS</span>
@@ -1048,7 +1048,7 @@ public class CustomDeclarationOrderCheck extends AbstractCheck {
 <span class="pc bpc" id="L1048" title="1 of 2 branches missed.">            result = isVoidType(methodAST)</span>
 <span class="pc bpc" id="L1049" title="1 of 2 branches missed.">                    &amp;&amp; isMainMethodModifiers(methodAST)</span>
 <span class="pc bpc" id="L1050" title="1 of 2 branches missed.">                    &amp;&amp; isMainMethodParameters(methodAST);</span>
-<span class="fc" id="L1051">        }</span>
+        }
         else {
 <span class="fc" id="L1053">            result = false;</span>
         }
@@ -1099,7 +1099,7 @@ public class CustomDeclarationOrderCheck extends AbstractCheck {
 <span class="fc" id="L1099">        final DetailAST params =</span>
 <span class="fc" id="L1100">                methodAST.findFirstToken(TokenTypes.PARAMETERS);</span>
 <span class="pc bpc" id="L1101" title="1 of 2 branches missed.">        return hasOnlyStringArrayParameter(params)</span>
-<span class="nc bnc" id="L1102" title="All 2 branches missed.">                || hasOnlyStringEllipsisParameter(params);</span>
+<span class="pc bnc" id="L1102" title="All 2 branches missed.">                || hasOnlyStringEllipsisParameter(params);</span>
     }
 
     /**
@@ -1126,7 +1126,7 @@ public class CustomDeclarationOrderCheck extends AbstractCheck {
             else {
 <span class="nc" id="L1127">                result = false;</span>
             }
-<span class="nc" id="L1129">        }</span>
+<span class="fc" id="L1129">        }</span>
         else {
             // there is none or multiple parameters
 <span class="nc" id="L1132">            result = false;</span>
@@ -1197,8 +1197,8 @@ public class CustomDeclarationOrderCheck extends AbstractCheck {
          * @param inputRule input string with MemberDefinition and RegExp.
          * @param classMember the member of class
          */
-<span class="fc" id="L1200">        /* package */ FormatMatcher(final String inputRule,</span>
-                final int classMember) {
+        /* package */ FormatMatcher(final String inputRule,
+<span class="fc" id="L1201">                final int classMember) {</span>
 <span class="fc" id="L1202">            this.classMember = classMember;</span>
 <span class="fc" id="L1203">            rule = inputRule;</span>
 <span class="fc" id="L1204">        }</span>
@@ -1246,10 +1246,10 @@ public class CustomDeclarationOrderCheck extends AbstractCheck {
             try {
 <span class="fc" id="L1247">                regExp = Pattern.compile(newFormat, compileFlags);</span>
 <span class="fc" id="L1248">                this.format = newFormat;</span>
-<span class="fc" id="L1249">            }</span>
+            }
 <span class="nc" id="L1250">            catch (final PatternSyntaxException ex) {</span>
 <span class="nc" id="L1251">                throw new IllegalArgumentException(&quot;unable to parse &quot; + newFormat, ex);</span>
-            }
+<span class="fc" id="L1252">            }</span>
 <span class="fc" id="L1253">        }</span>
 
         /**
@@ -1345,10 +1345,10 @@ public class CustomDeclarationOrderCheck extends AbstractCheck {
 <span class="fc" id="L1345">            String getterField = null;</span>
 <span class="fc bfc" id="L1346" title="All 2 branches covered.">            if (isGetterName(getterName)) {</span>
 <span class="fc" id="L1347">                getterField = getNameWithoutPrefix(getIdentifier(getterAst), GETTER_PREFIX);</span>
-<span class="fc" id="L1348">            }</span>
+            }
 <span class="fc bfc" id="L1349" title="All 2 branches covered.">            else if (isBooleanGetterName(getterName)) {</span>
 <span class="fc" id="L1350">                getterField = getNameWithoutPrefix(getIdentifier(getterAst),</span>
-<span class="fc" id="L1351">                        BOOLEAN_GETTER_PREFIX);</span>
+                        BOOLEAN_GETTER_PREFIX);
             }
 <span class="fc" id="L1353">            final Map&lt;DetailAST, DetailAST&gt; result = new LinkedHashMap&lt;&gt;();</span>
 
@@ -1388,7 +1388,7 @@ public class CustomDeclarationOrderCheck extends AbstractCheck {
 <span class="fc bfc" id="L1388" title="All 2 branches covered.">                if (name.equals(methodName)) {</span>
 <span class="fc" id="L1389">                    result = true;</span>
                 }
-            }
+<span class="fc" id="L1391">            }</span>
 <span class="fc" id="L1392">            return result;</span>
         }
 
@@ -1404,7 +1404,7 @@ public class CustomDeclarationOrderCheck extends AbstractCheck {
 <span class="fc bfc" id="L1404" title="All 2 branches covered.">                if (name.equals(methodName)) {</span>
 <span class="fc" id="L1405">                    result = true;</span>
                 }
-            }
+<span class="fc" id="L1407">            }</span>
 <span class="fc" id="L1408">            return result;</span>
         }
 

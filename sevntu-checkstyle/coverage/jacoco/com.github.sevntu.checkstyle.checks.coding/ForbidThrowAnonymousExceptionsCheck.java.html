@@ -1,4 +1,4 @@
-<?xml version="1.0" encoding="UTF-8"?><!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Strict//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-strict.dtd"><html xmlns="http://www.w3.org/1999/xhtml" lang="en"><head><meta http-equiv="Content-Type" content="text/html;charset=UTF-8"/><link rel="stylesheet" href="../resources/report.css" type="text/css"/><link rel="shortcut icon" href="../resources/report.gif" type="image/gif"/><title>ForbidThrowAnonymousExceptionsCheck.java</title><link rel="stylesheet" href="../resources/prettify.css" type="text/css"/><script type="text/javascript" src="../resources/prettify.js"></script></head><body onload="window['PR_TAB_WIDTH']=4;prettyPrint()"><div class="breadcrumb" id="breadcrumb"><span class="info"><a href="../.sessions.html" class="el_session">Sessions</a></span><a href="../index.html" class="el_report">sevntu-checks</a> &gt; <a href="index.source.html" class="el_package">com.github.sevntu.checkstyle.checks.coding</a> &gt; <span class="el_source">ForbidThrowAnonymousExceptionsCheck.java</span></div><h1>ForbidThrowAnonymousExceptionsCheck.java</h1><pre class="source lang-java linenums">////////////////////////////////////////////////////////////////////////////////
+<?xml version="1.0" encoding="UTF-8"?><!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Strict//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-strict.dtd"><html xmlns="http://www.w3.org/1999/xhtml" lang="en"><head><meta http-equiv="Content-Type" content="text/html;charset=UTF-8"/><link rel="stylesheet" href="../.resources/report.css" type="text/css"/><link rel="shortcut icon" href="../.resources/report.gif" type="image/gif"/><title>ForbidThrowAnonymousExceptionsCheck.java</title><link rel="stylesheet" href="../.resources/prettify.css" type="text/css"/><script type="text/javascript" src="../.resources/prettify.js"></script></head><body onload="window['PR_TAB_WIDTH']=4;prettyPrint()"><div class="breadcrumb" id="breadcrumb"><span class="info"><a href="../.sessions.html" class="el_session">Sessions</a></span><a href="../index.html" class="el_report">sevntu-checks</a> &gt; <a href="index.source.html" class="el_package">com.github.sevntu.checkstyle.checks.coding</a> &gt; <span class="el_source">ForbidThrowAnonymousExceptionsCheck.java</span></div><h1>ForbidThrowAnonymousExceptionsCheck.java</h1><pre class="source lang-java linenums">////////////////////////////////////////////////////////////////////////////////
 // checkstyle: Checks Java source code for adherence to a set of rules.
 // Copyright (C) 2001-2019 the original author or authors.
 //
@@ -87,8 +87,8 @@ import com.puppycrawl.tools.checkstyle.api.TokenTypes;
     @Override
     public int[] getDefaultTokens() {
 <span class="fc" id="L89">        return new int[] {</span>
-<span class="fc" id="L90">            TokenTypes.LITERAL_THROW,</span>
-<span class="fc" id="L91">            TokenTypes.VARIABLE_DEF,</span>
+            TokenTypes.LITERAL_THROW,
+            TokenTypes.VARIABLE_DEF,
         };
     }
 
@@ -106,13 +106,13 @@ import com.puppycrawl.tools.checkstyle.api.TokenTypes;
     public void visitToken(DetailAST literalThrowOrVariableDefAst) {
 <span class="pc bpc" id="L107" title="1 of 3 branches missed.">        switch (literalThrowOrVariableDefAst.getType()) {</span>
             case TokenTypes.LITERAL_THROW:
-<span class="pc bpc" id="L109" title="1 of 2 branches missed.">                identifyThrowingAnonymousException(literalThrowOrVariableDefAst);</span>
+<span class="fc" id="L109">                identifyThrowingAnonymousException(literalThrowOrVariableDefAst);</span>
 <span class="fc" id="L110">                break;</span>
             case TokenTypes.VARIABLE_DEF:
-<span class="pc bpc" id="L112" title="1 of 2 branches missed.">                lookForAnonymousExceptionDefinition(literalThrowOrVariableDefAst);</span>
+<span class="fc" id="L112">                lookForAnonymousExceptionDefinition(literalThrowOrVariableDefAst);</span>
 <span class="fc" id="L113">                break;</span>
             default:
-<span class="nc bnc" id="L115" title="All 2 branches missed.">                SevntuUtil.reportInvalidToken(literalThrowOrVariableDefAst.getType());</span>
+<span class="nc" id="L115">                SevntuUtil.reportInvalidToken(literalThrowOrVariableDefAst.getType());</span>
                 break;
         }
 <span class="fc" id="L118">    }</span>
@@ -127,13 +127,13 @@ import com.puppycrawl.tools.checkstyle.api.TokenTypes;
 <span class="fc bfc" id="L127" title="All 2 branches covered.">        if (throwingLiteralNewAst != null</span>
 <span class="fc bfc" id="L128" title="All 2 branches covered.">                &amp;&amp; hasObjectBlock(throwingLiteralNewAst)) {</span>
 <span class="fc" id="L129">            log(throwDefAst, MSG_KEY);</span>
-<span class="fc" id="L130">        }</span>
+        }
 <span class="fc bfc" id="L131" title="All 2 branches covered.">        else if (throwingLiteralNewAst == null) {</span>
 <span class="fc" id="L132">            final DetailAST throwingExceptionNameAst = getThrowingExceptionNameAst(throwDefAst</span>
 <span class="fc" id="L133">                    .getFirstChild());</span>
 <span class="pc bpc" id="L134" title="1 of 2 branches missed.">            if (throwingExceptionNameAst != null</span>
-<span class="fc" id="L135">                    &amp;&amp; anonymousExceptions.contains(throwingExceptionNameAst</span>
-<span class="fc bfc" id="L136" title="All 2 branches covered.">                            .getText())) {</span>
+<span class="fc bfc" id="L135" title="All 2 branches covered.">                    &amp;&amp; anonymousExceptions.contains(throwingExceptionNameAst</span>
+<span class="fc" id="L136">                            .getText())) {</span>
 <span class="fc" id="L137">                log(throwDefAst, MSG_KEY);</span>
             }
         }
@@ -176,7 +176,7 @@ import com.puppycrawl.tools.checkstyle.api.TokenTypes;
     private static DetailAST
             getLiteralNew(DetailAST literalThrowOrVariableDefAst) {
 <span class="fc" id="L178">        return literalThrowOrVariableDefAst.getFirstChild().findFirstToken(</span>
-<span class="fc" id="L179">                TokenTypes.LITERAL_NEW);</span>
+                TokenTypes.LITERAL_NEW);
     }
 
     /**

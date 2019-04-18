@@ -1,4 +1,4 @@
-<?xml version="1.0" encoding="UTF-8"?><!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Strict//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-strict.dtd"><html xmlns="http://www.w3.org/1999/xhtml" lang="en"><head><meta http-equiv="Content-Type" content="text/html;charset=UTF-8"/><link rel="stylesheet" href="../resources/report.css" type="text/css"/><link rel="shortcut icon" href="../resources/report.gif" type="image/gif"/><title>OverridableMethodInConstructorCheck.java</title><link rel="stylesheet" href="../resources/prettify.css" type="text/css"/><script type="text/javascript" src="../resources/prettify.js"></script></head><body onload="window['PR_TAB_WIDTH']=4;prettyPrint()"><div class="breadcrumb" id="breadcrumb"><span class="info"><a href="../.sessions.html" class="el_session">Sessions</a></span><a href="../index.html" class="el_report">sevntu-checks</a> &gt; <a href="index.source.html" class="el_package">com.github.sevntu.checkstyle.checks.coding</a> &gt; <span class="el_source">OverridableMethodInConstructorCheck.java</span></div><h1>OverridableMethodInConstructorCheck.java</h1><pre class="source lang-java linenums">////////////////////////////////////////////////////////////////////////////////
+<?xml version="1.0" encoding="UTF-8"?><!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Strict//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-strict.dtd"><html xmlns="http://www.w3.org/1999/xhtml" lang="en"><head><meta http-equiv="Content-Type" content="text/html;charset=UTF-8"/><link rel="stylesheet" href="../.resources/report.css" type="text/css"/><link rel="shortcut icon" href="../.resources/report.gif" type="image/gif"/><title>OverridableMethodInConstructorCheck.java</title><link rel="stylesheet" href="../.resources/prettify.css" type="text/css"/><script type="text/javascript" src="../.resources/prettify.js"></script></head><body onload="window['PR_TAB_WIDTH']=4;prettyPrint()"><div class="breadcrumb" id="breadcrumb"><span class="info"><a href="../.sessions.html" class="el_session">Sessions</a></span><a href="../index.html" class="el_report">sevntu-checks</a> &gt; <a href="index.source.html" class="el_package">com.github.sevntu.checkstyle.checks.coding</a> &gt; <span class="el_source">OverridableMethodInConstructorCheck.java</span></div><h1>OverridableMethodInConstructorCheck.java</h1><pre class="source lang-java linenums">////////////////////////////////////////////////////////////////////////////////
 // checkstyle: Checks Java source code for adherence to a set of rules.
 // Copyright (C) 2001-2019 the original author or authors.
 //
@@ -278,27 +278,27 @@ import com.puppycrawl.tools.checkstyle.api.TokenTypes;
 <span class="fc bfc" id="L278" title="All 4 branches covered.">        if (classDef != null &amp;&amp; !hasModifier(classDef, TokenTypes.FINAL)) {</span>
 <span class="pc bpc" id="L279" title="1 of 3 branches missed.">            switch (detailAST.getType()) {</span>
                 case TokenTypes.CTOR_DEF:
-<span class="pc bpc" id="L281" title="1 of 2 branches missed.">                    logWarnings(detailAST, KEY_CTOR);</span>
+<span class="fc" id="L281">                    logWarnings(detailAST, KEY_CTOR);</span>
 <span class="fc" id="L282">                    break;</span>
 
                 case TokenTypes.METHOD_DEF:
 
-<span class="pc bpc" id="L286" title="1 of 2 branches missed.">                    final String methodName = detailAST.findFirstToken(</span>
+<span class="fc" id="L286">                    final String methodName = detailAST.findFirstToken(</span>
 <span class="fc" id="L287">                        TokenTypes.IDENT).getText();</span>
 
 <span class="fc bfc" id="L289" title="All 4 branches covered.">                    if (checkCloneMethod &amp;&amp; &quot;clone&quot;.equals(methodName)</span>
 <span class="fc bfc" id="L290" title="All 2 branches covered.">                        &amp;&amp; realizesAnInterface(classDef, Cloneable.class.getSimpleName())) {</span>
 <span class="fc" id="L291">                        logWarnings(detailAST, KEY_CLONE);</span>
-<span class="fc" id="L292">                    }</span>
+                    }
 <span class="fc bfc" id="L293" title="All 2 branches covered.">                    else if (checkReadObjectMethod</span>
 <span class="fc bfc" id="L294" title="All 2 branches covered.">                        &amp;&amp; &quot;readObject&quot;.equals(methodName)</span>
 <span class="fc bfc" id="L295" title="All 2 branches covered.">                        &amp;&amp; realizesAnInterface(classDef, Serializable.class.getSimpleName())) {</span>
 <span class="fc" id="L296">                        logWarnings(detailAST, KEY_READ_OBJECT);</span>
                     }
-<span class="fc" id="L298">                    break;</span>
+                    break;
 
                 default:
-<span class="nc bnc" id="L301" title="All 2 branches missed.">                    SevntuUtil.reportInvalidToken(detailAST.getType());</span>
+<span class="nc" id="L301">                    SevntuUtil.reportInvalidToken(detailAST.getType());</span>
                     break;
             }
         }
@@ -326,12 +326,12 @@ import com.puppycrawl.tools.checkstyle.api.TokenTypes;
 <span class="fc bfc" id="L326" title="All 2 branches covered.">                    || hasModifier(methodDef, TokenTypes.FINAL)) {</span>
 <span class="fc" id="L327">                log(omc.metCallAST, MSG_KEY_LEADS, getMethodName(omc.metCallAST),</span>
 <span class="fc" id="L328">                        key, omc.overridableMetName);</span>
-<span class="fc" id="L329">            }</span>
+            }
             else {
 <span class="fc" id="L331">                log(omc.metCallAST, MSG_KEY, getMethodName(omc.metCallAST),</span>
 <span class="fc" id="L332">                    key, omc.overridableMetName);</span>
             }
-        }
+<span class="fc" id="L334">        }</span>
 <span class="fc" id="L335">    }</span>
 
     /**
@@ -348,20 +348,20 @@ import com.puppycrawl.tools.checkstyle.api.TokenTypes;
      */
     private List&lt;OverridableMetCall&gt; getOverridables(final DetailAST parentAST) {
 <span class="fc" id="L350">        final List&lt;OverridableMetCall&gt; result =</span>
-<span class="fc" id="L351">            new LinkedList&lt;&gt;();</span>
+            new LinkedList&lt;&gt;();
 <span class="fc" id="L352">        final List&lt;DetailAST&gt; methodCallsList = getMethodCallsList(parentAST);</span>
 
 <span class="fc bfc" id="L354" title="All 2 branches covered.">        for (DetailAST curNode : methodCallsList) {</span>
 <span class="fc" id="L355">            visitedMethodCalls.clear();</span>
 <span class="fc" id="L356">            final DetailAST methodDef = getMethodDef(curNode);</span>
 <span class="fc bfc" id="L357" title="All 2 branches covered.">            if (methodDef != null</span>
-<span class="pc bpc" id="L358" title="1 of 2 branches missed.">                    &amp;&amp; getMethodParamsCount(curNode)</span>
-<span class="fc" id="L359">                        == getMethodParamsCount(methodDef)</span>
+<span class="fc" id="L358">                    &amp;&amp; getMethodParamsCount(curNode)</span>
+<span class="pc bpc" id="L359" title="1 of 2 branches missed.">                        == getMethodParamsCount(methodDef)</span>
 <span class="fc bfc" id="L360" title="All 2 branches covered.">                    &amp;&amp; isOverridableMethodCall(curNode)) {</span>
 <span class="fc" id="L361">                result.add(new OverridableMetCall(curNode,</span>
-<span class="fc" id="L362">                        curOverridableMetName));</span>
+                        curOverridableMetName));
             }
-        }
+<span class="fc" id="L364">        }</span>
 <span class="fc" id="L365">        return result;</span>
     }
 
@@ -381,19 +381,19 @@ import com.puppycrawl.tools.checkstyle.api.TokenTypes;
 <span class="fc" id="L381">        final String methodName = getMethodName(methodCallAST);</span>
 <span class="fc" id="L382">        final DetailAST methodDef = getMethodDef(methodCallAST);</span>
 
-<span class="fc bfc" id="L384" title="All 2 branches covered.">        if (methodName != null</span>
-<span class="fc bfc" id="L385" title="All 4 branches covered.">                &amp;&amp; methodDef != null &amp;&amp; !hasModifier(methodDef, TokenTypes.LITERAL_STATIC)) {</span>
+<span class="fc bfc" id="L384" title="All 4 branches covered.">        if (methodName != null</span>
+<span class="fc bfc" id="L385" title="All 2 branches covered.">                &amp;&amp; methodDef != null &amp;&amp; !hasModifier(methodDef, TokenTypes.LITERAL_STATIC)) {</span>
 <span class="fc bfc" id="L386" title="All 2 branches covered.">            if (hasModifier(methodDef, TokenTypes.LITERAL_PRIVATE)</span>
 <span class="fc bfc" id="L387" title="All 2 branches covered.">                || hasModifier(methodDef, TokenTypes.FINAL)) {</span>
 <span class="fc" id="L388">                final List&lt;DetailAST&gt; methodCallsList = getMethodCallsList(</span>
-<span class="fc" id="L389">                        methodDef);</span>
+                        methodDef);
 <span class="fc bfc" id="L390" title="All 2 branches covered.">                for (DetailAST curNode : methodCallsList) {</span>
 <span class="fc bfc" id="L391" title="All 2 branches covered.">                    if (!visitedMethodCalls.contains(curNode)</span>
 <span class="fc bfc" id="L392" title="All 2 branches covered.">                            &amp;&amp; isOverridableMethodCall(curNode)) {</span>
 <span class="fc" id="L393">                        result = true;</span>
 <span class="fc" id="L394">                        break;</span>
                     }
-                }
+<span class="fc" id="L396">                }</span>
 <span class="fc" id="L397">            }</span>
             else {
 <span class="fc" id="L399">                curOverridableMetName = methodName;</span>
@@ -419,12 +419,12 @@ import com.puppycrawl.tools.checkstyle.api.TokenTypes;
 <span class="fc bfc" id="L419" title="All 2 branches covered.">            if (curNode.getNumberOfChildren() &gt; 0) {</span>
 <span class="fc bfc" id="L420" title="All 2 branches covered.">                if (curNode.getType() == TokenTypes.METHOD_CALL) {</span>
 <span class="fc" id="L421">                    result.add(curNode);</span>
-<span class="fc" id="L422">                }</span>
+                }
                 else {
 <span class="fc" id="L424">                    result.addAll(getMethodCallsList(curNode));</span>
                 }
             }
-        }
+<span class="fc" id="L427">        }</span>
 <span class="fc" id="L428">        return result;</span>
     }
 
@@ -451,7 +451,7 @@ import com.puppycrawl.tools.checkstyle.api.TokenTypes;
 <span class="fc bfc" id="L451" title="All 2 branches covered.">                        || firstChild.getType() == TokenTypes.LPAREN</span>
 <span class="fc bfc" id="L452" title="All 2 branches covered.">                        || firstChild.getType() == TokenTypes.DOT) {</span>
 <span class="fc" id="L453">                    result = lastChild.getText();</span>
-<span class="fc" id="L454">                }</span>
+                }
 <span class="fc bfc" id="L455" title="All 2 branches covered.">                else if (firstChild.getType() == TokenTypes.IDENT</span>
 <span class="pc bpc" id="L456" title="1 of 2 branches missed.">                        &amp;&amp; lastChild.getType() == TokenTypes.IDENT) {</span>
 <span class="fc" id="L457">                    final String curClassName = getClassDef(methodCallAST)</span>
@@ -509,11 +509,11 @@ import com.puppycrawl.tools.checkstyle.api.TokenTypes;
 <span class="fc" id="L509">                        result = curMethodDef;</span>
 <span class="fc" id="L510">                        break;</span>
                     }
-                }
+<span class="fc" id="L512">                }</span>
 <span class="fc" id="L513">            }</span>
 <span class="fc bfc" id="L514" title="All 2 branches covered.">            else if (curMethodDefCount == 1) {</span>
 <span class="fc" id="L515">                result = curMethodDef;</span>
-<span class="fc" id="L516">            }</span>
+            }
             else {
 <span class="fc bfc" id="L518" title="All 2 branches covered.">                if (matchMethodsByArgCount) {</span>
 <span class="fc" id="L519">                    int sameDefinitionCounter = 0;</span>
@@ -524,7 +524,7 @@ import com.puppycrawl.tools.checkstyle.api.TokenTypes;
 <span class="fc" id="L524">                            result = currentDefinition;</span>
 <span class="fc" id="L525">                            sameDefinitionCounter++;</span>
                         }
-                    }
+<span class="fc" id="L527">                    }</span>
                     //you have a lot same method definitions and you can't
                     //select one of them and be sure that you are right
 <span class="fc bfc" id="L530" title="All 2 branches covered.">                    if (sameDefinitionCounter &gt; 1) {</span>
@@ -567,14 +567,14 @@ import com.puppycrawl.tools.checkstyle.api.TokenTypes;
 
 <span class="fc" id="L568">                final int type = curNode.getType();</span>
 
-<span class="fc bfc" id="L570" title="All 4 branches covered.">                if (type != TokenTypes.CLASS_DEF &amp;&amp; type != TokenTypes.CTOR_DEF</span>
-<span class="fc bfc" id="L571" title="All 2 branches covered.">                        &amp;&amp; type != TokenTypes.MODIFIERS</span>
-<span class="fc bfc" id="L572" title="All 2 branches covered.">                        &amp;&amp; type != TokenTypes.IMPLEMENTS_CLAUSE</span>
-<span class="fc bfc" id="L573" title="All 2 branches covered.">                        &amp;&amp; type != TokenTypes.METHOD_DEF) {</span>
+<span class="fc bfc" id="L570" title="All 10 branches covered.">                if (type != TokenTypes.CLASS_DEF &amp;&amp; type != TokenTypes.CTOR_DEF</span>
+                        &amp;&amp; type != TokenTypes.MODIFIERS
+                        &amp;&amp; type != TokenTypes.IMPLEMENTS_CLAUSE
+                        &amp;&amp; type != TokenTypes.METHOD_DEF) {
 <span class="fc" id="L574">                    definitionsList = getMethodDef(curNode, methodName);</span>
                 }
             }
-        }
+<span class="fc" id="L577">        }</span>
 <span class="fc" id="L578">        return definitionsList;</span>
     }
 
@@ -590,7 +590,7 @@ import com.puppycrawl.tools.checkstyle.api.TokenTypes;
 <span class="fc" id="L590">            final DetailAST dotChild = callsChild.getFirstChild();</span>
 <span class="fc bfc" id="L591" title="All 2 branches covered.">            if (dotChild.getType() == TokenTypes.LITERAL_THIS) {</span>
 <span class="fc" id="L592">                typeName = LITERAL_THIS;</span>
-<span class="fc" id="L593">            }</span>
+            }
 <span class="fc bfc" id="L594" title="All 2 branches covered.">            else if (callsChild.getChildCount(TokenTypes.TYPECAST) &gt; 0) {</span>
 <span class="fc" id="L595">                final DetailAST typeCast = callsChild</span>
 <span class="fc" id="L596">                        .findFirstToken(TokenTypes.TYPECAST);</span>
@@ -618,10 +618,10 @@ import com.puppycrawl.tools.checkstyle.api.TokenTypes;
 <span class="fc" id="L618">        boolean result = false;</span>
 <span class="fc bfc" id="L619" title="All 2 branches covered.">        if (objectTypeName.equals(className.getText())) {</span>
 <span class="fc" id="L620">            result = true;</span>
-<span class="fc" id="L621">        }</span>
+        }
         else {
 <span class="fc" id="L623">            DetailAST baseClass = classDefNode.findFirstToken(</span>
-<span class="fc" id="L624">                    TokenTypes.EXTENDS_CLAUSE);</span>
+                    TokenTypes.EXTENDS_CLAUSE);
 <span class="fc bfc" id="L625" title="All 2 branches covered.">            if (baseClass != null) {</span>
 <span class="fc" id="L626">                baseClass = baseClass.getFirstChild();</span>
 
@@ -662,7 +662,7 @@ import com.puppycrawl.tools.checkstyle.api.TokenTypes;
 <span class="fc bfc" id="L662" title="All 2 branches covered.">        if (methodDefOrCallAST.getType() == TokenTypes.METHOD_CALL) {</span>
 <span class="fc" id="L663">            paramsParentAST = methodDefOrCallAST</span>
 <span class="fc" id="L664">                    .findFirstToken(TokenTypes.ELIST);</span>
-<span class="fc" id="L665">        }</span>
+        }
 <span class="pc bpc" id="L666" title="1 of 2 branches missed.">        else if (methodDefOrCallAST.getType() == TokenTypes.METHOD_DEF) {</span>
 <span class="fc" id="L667">            paramsParentAST = methodDefOrCallAST</span>
 <span class="fc" id="L668">                    .findFirstToken(TokenTypes.PARAMETERS);</span>
@@ -673,7 +673,7 @@ import com.puppycrawl.tools.checkstyle.api.TokenTypes;
 <span class="fc bfc" id="L673" title="All 2 branches covered.">                if (curNode.getType() == TokenTypes.COMMA) {</span>
 <span class="fc" id="L674">                    result++;</span>
                 }
-            }
+<span class="fc" id="L676">            }</span>
 <span class="fc" id="L677">            result++;</span>
         }
 <span class="fc" id="L679">        return result;</span>
@@ -703,7 +703,7 @@ import com.puppycrawl.tools.checkstyle.api.TokenTypes;
 <span class="fc" id="L703">                    result = true;</span>
 <span class="fc" id="L704">                    break;</span>
                 }
-            }
+<span class="fc" id="L706">            }</span>
         }
 <span class="fc" id="L708">        return result;</span>
     }
@@ -757,7 +757,7 @@ import com.puppycrawl.tools.checkstyle.api.TokenTypes;
 <span class="fc bfc" id="L757" title="All 2 branches covered.">                            .equals(className)) {</span>
 <span class="fc" id="L758">                break;</span>
             }
-        }
+<span class="fc" id="L760">        }</span>
 <span class="fc" id="L761">        return curNode;</span>
     }
 
@@ -786,7 +786,7 @@ import com.puppycrawl.tools.checkstyle.api.TokenTypes;
 <span class="fc" id="L786">                result = true;</span>
 <span class="fc" id="L787">                break;</span>
             }
-        }
+<span class="fc" id="L789">        }</span>
 <span class="fc" id="L790">        return result;</span>
     }
 
@@ -813,7 +813,7 @@ import com.puppycrawl.tools.checkstyle.api.TokenTypes;
 <span class="fc" id="L813">                    result = true;</span>
 <span class="fc" id="L814">                    break;</span>
                 }
-            }
+<span class="fc" id="L816">            }</span>
         }
 <span class="fc" id="L818">        return result;</span>
     }
@@ -846,11 +846,11 @@ import com.puppycrawl.tools.checkstyle.api.TokenTypes;
                 // prevent infinite loop with similar named classes
 <span class="fc bfc" id="L847" title="All 2 branches covered.">                if (nextClass == curClass) {</span>
 <span class="fc" id="L848">                    curClass = null;</span>
-<span class="fc" id="L849">                }</span>
+                }
                 else {
 <span class="fc" id="L851">                    curClass = nextClass;</span>
                 }
-            }
+<span class="fc" id="L853">            }</span>
         }
 <span class="fc" id="L855">        return result;</span>
     }
@@ -872,7 +872,7 @@ import com.puppycrawl.tools.checkstyle.api.TokenTypes;
 <span class="fc bfc" id="L872" title="All 2 branches covered.">            if (dot == null) {</span>
 <span class="fc" id="L873">                result = extendsClause.findFirstToken(TokenTypes.IDENT)</span>
 <span class="fc" id="L874">                        .getText();</span>
-<span class="fc" id="L875">            }</span>
+            }
             else {
 <span class="fc" id="L877">                result = dot.findFirstToken(TokenTypes.IDENT).getText();</span>
             }
@@ -924,7 +924,7 @@ import com.puppycrawl.tools.checkstyle.api.TokenTypes;
          * @param overridableMetName
          *            The name of an overridable method.
          */
-<span class="fc" id="L927">        /* package */ OverridableMetCall(DetailAST methodCallAST,</span>
+        /* package */ OverridableMetCall(DetailAST methodCallAST,
 <span class="fc" id="L928">                String overridableMetName) {</span>
 <span class="fc" id="L929">            this.metCallAST = methodCallAST;</span>
 <span class="fc" id="L930">            this.overridableMetName = overridableMetName;</span>

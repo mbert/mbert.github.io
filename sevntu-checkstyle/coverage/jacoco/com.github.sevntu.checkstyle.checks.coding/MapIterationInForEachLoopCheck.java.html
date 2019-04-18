@@ -1,4 +1,4 @@
-<?xml version="1.0" encoding="UTF-8"?><!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Strict//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-strict.dtd"><html xmlns="http://www.w3.org/1999/xhtml" lang="en"><head><meta http-equiv="Content-Type" content="text/html;charset=UTF-8"/><link rel="stylesheet" href="../resources/report.css" type="text/css"/><link rel="shortcut icon" href="../resources/report.gif" type="image/gif"/><title>MapIterationInForEachLoopCheck.java</title><link rel="stylesheet" href="../resources/prettify.css" type="text/css"/><script type="text/javascript" src="../resources/prettify.js"></script></head><body onload="window['PR_TAB_WIDTH']=4;prettyPrint()"><div class="breadcrumb" id="breadcrumb"><span class="info"><a href="../.sessions.html" class="el_session">Sessions</a></span><a href="../index.html" class="el_report">sevntu-checks</a> &gt; <a href="index.source.html" class="el_package">com.github.sevntu.checkstyle.checks.coding</a> &gt; <span class="el_source">MapIterationInForEachLoopCheck.java</span></div><h1>MapIterationInForEachLoopCheck.java</h1><pre class="source lang-java linenums">////////////////////////////////////////////////////////////////////////////////
+<?xml version="1.0" encoding="UTF-8"?><!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Strict//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-strict.dtd"><html xmlns="http://www.w3.org/1999/xhtml" lang="en"><head><meta http-equiv="Content-Type" content="text/html;charset=UTF-8"/><link rel="stylesheet" href="../.resources/report.css" type="text/css"/><link rel="shortcut icon" href="../.resources/report.gif" type="image/gif"/><title>MapIterationInForEachLoopCheck.java</title><link rel="stylesheet" href="../.resources/prettify.css" type="text/css"/><script type="text/javascript" src="../.resources/prettify.js"></script></head><body onload="window['PR_TAB_WIDTH']=4;prettyPrint()"><div class="breadcrumb" id="breadcrumb"><span class="info"><a href="../.sessions.html" class="el_session">Sessions</a></span><a href="../index.html" class="el_report">sevntu-checks</a> &gt; <a href="index.source.html" class="el_package">com.github.sevntu.checkstyle.checks.coding</a> &gt; <span class="el_source">MapIterationInForEachLoopCheck.java</span></div><h1>MapIterationInForEachLoopCheck.java</h1><pre class="source lang-java linenums">////////////////////////////////////////////////////////////////////////////////
 // checkstyle: Checks Java source code for adherence to a set of rules.
 // Copyright (C) 2001-2019 the original author or authors.
 //
@@ -212,9 +212,9 @@ public class MapIterationInForEachLoopCheck extends AbstractCheck {
      */
 <span class="fc" id="L213">    public MapIterationInForEachLoopCheck() {</span>
 <span class="fc" id="L214">        setSupportedMapImplQualifiedNames(new String[] {</span>
-<span class="fc" id="L215">            &quot;java.util.Map&quot;,</span>
-<span class="fc" id="L216">            &quot;java.util.TreeMap&quot;,</span>
-<span class="fc" id="L217">            &quot;java.util.HashMap&quot;,</span>
+            &quot;java.util.Map&quot;,
+            &quot;java.util.TreeMap&quot;,
+            &quot;java.util.HashMap&quot;,
         });
 <span class="fc" id="L219">    }</span>
 
@@ -296,14 +296,14 @@ public class MapIterationInForEachLoopCheck extends AbstractCheck {
     public void visitToken(DetailAST ast) {
 <span class="pc bpc" id="L297" title="1 of 4 branches missed.">        switch (ast.getType()) {</span>
             case TokenTypes.IMPORT:
-<span class="pc bpc" id="L299" title="1 of 2 branches missed.">                final String qualifiedMapImportText = getMapImportQualifiedName(ast);</span>
+<span class="fc" id="L299">                final String qualifiedMapImportText = getMapImportQualifiedName(ast);</span>
 <span class="fc bfc" id="L300" title="All 2 branches covered.">                if (qualifiedMapImportText != null) {</span>
 <span class="fc" id="L301">                    qualifiedImportList.add(qualifiedMapImportText);</span>
                 }
-<span class="fc" id="L303">                break;</span>
+                break;
 
             case TokenTypes.VARIABLE_DEF:
-<span class="pc bpc" id="L306" title="2 of 6 branches missed.">                if (!qualifiedImportList.isEmpty() &amp;&amp; isMapVariable(ast)) {</span>
+<span class="pc bpc" id="L306" title="1 of 4 branches missed.">                if (!qualifiedImportList.isEmpty() &amp;&amp; isMapVariable(ast)) {</span>
 <span class="fc" id="L307">                    final DetailAST mapIdentNode = ast.findFirstToken(TokenTypes.TYPE)</span>
 <span class="fc" id="L308">                            .getNextSibling();</span>
 <span class="fc" id="L309">                    final String mapName = mapIdentNode.getText();</span>
@@ -311,20 +311,20 @@ public class MapIterationInForEachLoopCheck extends AbstractCheck {
 <span class="fc bfc" id="L311" title="All 2 branches covered.">                    if (!mapNamesList.contains(mapName)) {</span>
 <span class="fc" id="L312">                        mapNamesList.add(mapIdentNode.getText());</span>
                     }
-                }
-<span class="fc" id="L315">                break;</span>
+<span class="fc" id="L314">                }</span>
+                break;
 
             case TokenTypes.LITERAL_FOR:
-<span class="pc bpc" id="L318" title="2 of 6 branches missed.">                if (!qualifiedImportList.isEmpty() &amp;&amp; isForEach(ast)) {</span>
+<span class="pc bpc" id="L318" title="1 of 4 branches missed.">                if (!qualifiedImportList.isEmpty() &amp;&amp; isForEach(ast)) {</span>
 <span class="fc" id="L319">                    final String warningMessageKey = validate(ast);</span>
 <span class="fc bfc" id="L320" title="All 2 branches covered.">                    if (warningMessageKey != null) {</span>
 <span class="fc" id="L321">                        log(ast, warningMessageKey);</span>
                     }
-                }
-<span class="fc" id="L324">                break;</span>
+<span class="fc" id="L323">                }</span>
+                break;
 
             default:
-<span class="nc bnc" id="L327" title="All 2 branches missed.">                SevntuUtil.reportInvalidToken(ast.getType());</span>
+<span class="nc" id="L327">                SevntuUtil.reportInvalidToken(ast.getType());</span>
                 break;
         }
 <span class="fc" id="L330">    }</span>
@@ -344,15 +344,15 @@ public class MapIterationInForEachLoopCheck extends AbstractCheck {
 <span class="fc" id="L344">                getKeySetOrEntrySetNode(forEachNode);</span>
         // Search for keySet or entrySet
 <span class="fc bfc" id="L346" title="All 2 branches covered.">        if (keySetOrEntrySetNode != null) {</span>
-<span class="fc bfc" id="L347" title="All 2 branches covered.">            final boolean isMapClassField = keySetOrEntrySetNode.getPreviousSibling()</span>
-<span class="fc" id="L348">                    .getChildCount() != 0;</span>
+<span class="fc" id="L347">            final boolean isMapClassField = keySetOrEntrySetNode.getPreviousSibling()</span>
+<span class="fc bfc" id="L348" title="All 2 branches covered.">                    .getChildCount() != 0;</span>
 
             final String currentMapVariableName;
 
 <span class="fc bfc" id="L352" title="All 2 branches covered.">            if (isMapClassField) {</span>
 <span class="fc" id="L353">                currentMapVariableName = keySetOrEntrySetNode.getPreviousSibling().getLastChild()</span>
 <span class="fc" id="L354">                        .getText();</span>
-<span class="fc" id="L355">            }</span>
+            }
             else {
 <span class="fc" id="L357">                currentMapVariableName = keySetOrEntrySetNode.getPreviousSibling().getText();</span>
             }
@@ -363,15 +363,15 @@ public class MapIterationInForEachLoopCheck extends AbstractCheck {
 <span class="fc" id="L363">                final String keyOrEntryVariableName = variableDefNode.getLastChild().getText();</span>
 
 <span class="pc bpc" id="L365" title="1 of 2 branches missed.">                if (proposeKeySetUsage</span>
-<span class="fc" id="L366">                        &amp;&amp; KEY_SET_METHOD_NAME.equals(</span>
-<span class="fc bfc" id="L367" title="All 2 branches covered.">                                keySetOrEntrySetNode.getText())) {</span>
+<span class="fc bfc" id="L366" title="All 2 branches covered.">                        &amp;&amp; KEY_SET_METHOD_NAME.equals(</span>
+<span class="fc" id="L367">                                keySetOrEntrySetNode.getText())) {</span>
 <span class="fc" id="L368">                    warningMessageKey =</span>
 <span class="fc" id="L369">                            checkForWrongKeySetUsage(forEachOpeningBrace,</span>
-<span class="fc" id="L370">                            keyOrEntryVariableName, currentMapVariableName, isMapClassField);</span>
-<span class="fc" id="L371">                }</span>
+                            keyOrEntryVariableName, currentMapVariableName, isMapClassField);
+                }
 <span class="pc bpc" id="L372" title="1 of 2 branches missed.">                else if (proposeEntrySetUsage) {</span>
 <span class="fc" id="L373">                    warningMessageKey = checkForWrongEntrySetUsage(forEachOpeningBrace,</span>
-<span class="fc" id="L374">                            keyOrEntryVariableName);</span>
+                            keyOrEntryVariableName);
                 }
             }
         }
@@ -396,14 +396,14 @@ public class MapIterationInForEachLoopCheck extends AbstractCheck {
      */
     private DetailAST getKeySetOrEntrySetNode(DetailAST forEachNode) {
 <span class="fc" id="L398">        final List&lt;DetailAST&gt; identAndThisNodesList = getSubTreeNodesOfType(forEachNode,</span>
-<span class="fc" id="L399">                TokenTypes.IDENT, TokenTypes.LITERAL_THIS);</span>
+                TokenTypes.IDENT, TokenTypes.LITERAL_THIS);
 <span class="fc" id="L400">        boolean isMapClassField = false;</span>
 <span class="fc bfc" id="L401" title="All 2 branches covered.">        for (DetailAST thisNode : identAndThisNodesList) {</span>
 <span class="fc bfc" id="L402" title="All 2 branches covered.">            if (thisNode.getType() == TokenTypes.LITERAL_THIS) {</span>
 <span class="fc" id="L403">                isMapClassField = true;</span>
 <span class="fc" id="L404">                break;</span>
             }
-        }
+<span class="fc" id="L406">        }</span>
 <span class="fc" id="L407">        DetailAST keySetOrEntrySetNode = null;</span>
 <span class="fc bfc" id="L408" title="All 2 branches covered.">        for (DetailAST identNode : identAndThisNodesList) {</span>
 <span class="fc bfc" id="L409" title="All 2 branches covered.">            if (KEY_SET_METHOD_NAME.equals(identNode.getText())</span>
@@ -413,7 +413,7 @@ public class MapIterationInForEachLoopCheck extends AbstractCheck {
 <span class="fc" id="L413">                    final DetailAST lastChild = identNode.getPreviousSibling().getLastChild();</span>
 <span class="fc bfc" id="L414" title="All 2 branches covered.">                    if (lastChild == null) {</span>
 <span class="fc" id="L415">                        mapClassName = null;</span>
-<span class="fc" id="L416">                    }</span>
+                    }
                     else {
 <span class="fc" id="L418">                        mapClassName = lastChild.getText();</span>
                     }
@@ -422,7 +422,7 @@ public class MapIterationInForEachLoopCheck extends AbstractCheck {
 <span class="fc" id="L422">                    final DetailAST previousSibling = identNode.getPreviousSibling();</span>
 <span class="fc bfc" id="L423" title="All 2 branches covered.">                    if (previousSibling == null) {</span>
 <span class="fc" id="L424">                        mapClassName = null;</span>
-<span class="fc" id="L425">                    }</span>
+                    }
                     else {
 <span class="fc" id="L427">                        mapClassName = previousSibling.getText();</span>
                     }
@@ -432,7 +432,7 @@ public class MapIterationInForEachLoopCheck extends AbstractCheck {
 <span class="fc" id="L432">                    break;</span>
                 }
             }
-        }
+<span class="fc" id="L435">        }</span>
 <span class="fc" id="L436">        return keySetOrEntrySetNode;</span>
     }
 
@@ -446,13 +446,13 @@ public class MapIterationInForEachLoopCheck extends AbstractCheck {
     private boolean isMapPassedIntoAnyMethod(DetailAST forEachOpeningBraceNode) {
 <span class="fc" id="L447">        boolean result = false;</span>
 <span class="fc" id="L448">        final List&lt;DetailAST&gt; methodCallNodeList = getSubTreeNodesOfType(</span>
-<span class="fc" id="L449">                forEachOpeningBraceNode, TokenTypes.METHOD_CALL);</span>
+                forEachOpeningBraceNode, TokenTypes.METHOD_CALL);
 <span class="fc bfc" id="L450" title="All 2 branches covered.">        for (DetailAST methodCallNode : methodCallNodeList) {</span>
 <span class="fc bfc" id="L451" title="All 2 branches covered.">            if (hasMapAsParameter(methodCallNode)) {</span>
 <span class="fc" id="L452">                result = true;</span>
 <span class="fc" id="L453">                break;</span>
             }
-        }
+<span class="fc" id="L455">        }</span>
 <span class="fc" id="L456">        return result;</span>
     }
 
@@ -465,15 +465,15 @@ public class MapIterationInForEachLoopCheck extends AbstractCheck {
     private boolean hasMapAsParameter(DetailAST methodCallNode) {
 <span class="fc" id="L466">        boolean result = false;</span>
 <span class="fc" id="L467">        final List&lt;DetailAST&gt; identNodesList = getSubTreeNodesOfType(methodCallNode,</span>
-<span class="fc" id="L468">                TokenTypes.IDENT);</span>
+                TokenTypes.IDENT);
 <span class="fc bfc" id="L469" title="All 2 branches covered.">        for (String mapName : mapNamesList) {</span>
 <span class="fc bfc" id="L470" title="All 2 branches covered.">            for (DetailAST identNode : identNodesList) {</span>
 <span class="fc bfc" id="L471" title="All 2 branches covered.">                if (mapName.equals(identNode.getText())</span>
 <span class="fc bfc" id="L472" title="All 2 branches covered.">                        &amp;&amp; identNode.getParent().getType() == TokenTypes.EXPR) {</span>
 <span class="fc" id="L473">                    result = true;</span>
                 }
-            }
-        }
+<span class="fc" id="L475">            }</span>
+<span class="fc" id="L476">        }</span>
 <span class="fc" id="L477">        return result;</span>
     }
 
@@ -494,7 +494,7 @@ public class MapIterationInForEachLoopCheck extends AbstractCheck {
 
 <span class="fc" id="L495">        final List&lt;DetailAST&gt; identAndLiteralIfNodesList =</span>
 <span class="fc" id="L496">                getSubTreeNodesOfType(forEachOpeningBraceNode,</span>
-<span class="fc" id="L497">                        TokenTypes.IDENT, TokenTypes.LITERAL_IF);</span>
+                        TokenTypes.IDENT, TokenTypes.LITERAL_IF);
 <span class="fc" id="L498">        int methodGetCallCount = 0;</span>
 <span class="fc" id="L499">        int keyIdentCount = 0;</span>
 <span class="fc bfc" id="L500" title="All 2 branches covered.">        for (DetailAST identOrLiteralIfNode : identAndLiteralIfNodesList) {</span>
@@ -510,16 +510,16 @@ public class MapIterationInForEachLoopCheck extends AbstractCheck {
 <span class="fc bfc" id="L510" title="All 2 branches covered.">            if (keyName.equals(identOrLiteralIfNode.getText())) {</span>
 <span class="fc" id="L511">                keyIdentCount++;</span>
             }
-        }
+<span class="fc" id="L513">        }</span>
 
 <span class="pc bpc" id="L515" title="1 of 4 branches missed.">        if (methodGetCallCount != 0 &amp;&amp; keyIdentCount != 0) {</span>
 <span class="fc bfc" id="L516" title="All 4 branches covered.">            if (proposeValuesUsage &amp;&amp; methodGetCallCount == keyIdentCount) {</span>
 <span class="fc" id="L517">                result = MSG_KEY_VALUES;</span>
-<span class="fc" id="L518">            }</span>
-<span class="fc bfc" id="L519" title="All 2 branches covered.">            else if (methodGetCallCount &lt; keyIdentCount</span>
-<span class="pc bpc" id="L520" title="1 of 2 branches missed.">                    &amp;&amp; methodGetCallCount &gt; 0</span>
+            }
+<span class="pc bpc" id="L519" title="1 of 4 branches missed.">            else if (methodGetCallCount &lt; keyIdentCount</span>
+                    &amp;&amp; methodGetCallCount &gt; 0
 <span class="fc bfc" id="L521" title="All 2 branches covered.">                    &amp;&amp; getMethodGetCallInsideIfCount(identAndLiteralIfNodesList, mapName,</span>
-<span class="fc" id="L522">                            isMapClassField) != methodGetCallCount) {</span>
+                            isMapClassField) != methodGetCallCount) {
 <span class="fc" id="L523">                result = MSG_KEY_ENTRYSET;</span>
             }
         }
@@ -537,7 +537,7 @@ public class MapIterationInForEachLoopCheck extends AbstractCheck {
             String mapName, boolean isMapClassField) {
 <span class="fc" id="L538">        final DetailAST literalIfNode =</span>
 <span class="fc" id="L539">                getFirstNodeOfType(identAndLiteralIfNodesList,</span>
-<span class="fc" id="L540">                        TokenTypes.LITERAL_IF);</span>
+                        TokenTypes.LITERAL_IF);
 <span class="fc" id="L541">        int result = 0;</span>
 <span class="fc bfc" id="L542" title="All 2 branches covered.">        if (literalIfNode != null) {</span>
 <span class="fc bfc" id="L543" title="All 2 branches covered.">            for (DetailAST node : getSubTreeNodesOfType(literalIfNode, TokenTypes.IDENT)) {</span>
@@ -550,7 +550,7 @@ public class MapIterationInForEachLoopCheck extends AbstractCheck {
 <span class="pc bpc" id="L550" title="1 of 2 branches missed.">                        &amp;&amp; mapName.equals(mapIdentNode.getText())) {</span>
 <span class="fc" id="L551">                    result++;</span>
                 }
-            }
+<span class="fc" id="L553">            }</span>
         }
 <span class="fc" id="L555">        return result;</span>
     }
@@ -567,7 +567,7 @@ public class MapIterationInForEachLoopCheck extends AbstractCheck {
 <span class="fc" id="L567">        String result = null;</span>
 
 <span class="fc" id="L569">        final List&lt;DetailAST&gt; identNodesList = getSubTreeNodesOfType(</span>
-<span class="fc" id="L570">                forEachOpeningBraceNode, TokenTypes.IDENT);</span>
+                forEachOpeningBraceNode, TokenTypes.IDENT);
 <span class="fc" id="L571">        int methodGetKeyCallCount = 0;</span>
 <span class="fc" id="L572">        int methodGetValueCallCount = 0;</span>
 <span class="fc bfc" id="L573" title="All 2 branches covered.">        for (DetailAST identNode : identNodesList) {</span>
@@ -582,12 +582,12 @@ public class MapIterationInForEachLoopCheck extends AbstractCheck {
 <span class="fc bfc" id="L582" title="All 2 branches covered.">                    &amp;&amp; entryName.equals(entryNode.getText())) {</span>
 <span class="fc" id="L583">                methodGetValueCallCount++;</span>
             }
-        }
+<span class="fc" id="L585">        }</span>
 
-<span class="fc bfc" id="L587" title="All 2 branches covered.">        if (proposeValuesUsage</span>
-<span class="pc bpc" id="L588" title="1 of 4 branches missed.">                &amp;&amp; methodGetKeyCallCount == 0 &amp;&amp; methodGetValueCallCount &gt; 0) {</span>
+<span class="pc bpc" id="L587" title="1 of 6 branches missed.">        if (proposeValuesUsage</span>
+                &amp;&amp; methodGetKeyCallCount == 0 &amp;&amp; methodGetValueCallCount &gt; 0) {
 <span class="fc" id="L589">            result = MSG_KEY_VALUES;</span>
-<span class="fc" id="L590">        }</span>
+        }
 <span class="pc bpc" id="L591" title="1 of 4 branches missed.">        else if (methodGetKeyCallCount &gt; 0 &amp;&amp; methodGetValueCallCount == 0) {</span>
 <span class="fc" id="L592">            result = MSG_KEY_KEYSET;</span>
         }
@@ -604,7 +604,7 @@ public class MapIterationInForEachLoopCheck extends AbstractCheck {
 <span class="fc" id="L604">        boolean result = false;</span>
 <span class="fc" id="L605">        final List&lt;DetailAST&gt; literalNewNodeslList =</span>
 <span class="fc" id="L606">                getSubTreeNodesOfType(variableDefNode,</span>
-<span class="fc" id="L607">                        TokenTypes.LITERAL_NEW, TokenTypes.ASSIGN);</span>
+                        TokenTypes.LITERAL_NEW, TokenTypes.ASSIGN);
 <span class="fc" id="L608">        final String className = getClassName(literalNewNodeslList);</span>
 <span class="fc bfc" id="L609" title="All 2 branches covered.">        if (className != null</span>
 <span class="pc bpc" id="L610" title="1 of 2 branches missed.">                &amp;&amp; getFirstNodeOfType(literalNewNodeslList, TokenTypes.ASSIGN) != null) {</span>
@@ -637,13 +637,13 @@ public class MapIterationInForEachLoopCheck extends AbstractCheck {
 <span class="fc bfc" id="L637" title="All 2 branches covered.">            if (supportedMapName.endsWith(className)) {</span>
 <span class="fc" id="L638">                final int lastDotIndex = supportedMapName.lastIndexOf(PATH_SEPARATOR) + 1;</span>
 <span class="fc" id="L639">                final String packageName = supportedMapName.substring(0, lastDotIndex)</span>
-<span class="fc" id="L640">                        + PATH_WILDCARD;</span>
+                        + PATH_WILDCARD;
 <span class="fc bfc" id="L641" title="All 2 branches covered.">                if (qualifiedImportList.contains(packageName)) {</span>
 <span class="fc" id="L642">                    result = true;</span>
 <span class="fc" id="L643">                    break;</span>
                 }
             }
-        }
+<span class="fc" id="L646">        }</span>
 <span class="fc" id="L647">        return result;</span>
     }
 
@@ -661,7 +661,7 @@ public class MapIterationInForEachLoopCheck extends AbstractCheck {
 <span class="fc" id="L661">                result = true;</span>
 <span class="fc" id="L662">                break;</span>
             }
-        }
+<span class="fc" id="L664">        }</span>
 <span class="fc" id="L665">        return result;</span>
     }
 
@@ -680,7 +680,7 @@ public class MapIterationInForEachLoopCheck extends AbstractCheck {
 <span class="fc" id="L680">                result = literalNewNode.getFirstChild().getText();</span>
 <span class="fc" id="L681">                break;</span>
             }
-        }
+<span class="fc" id="L683">        }</span>
 <span class="fc" id="L684">        return result;</span>
     }
 
@@ -701,7 +701,7 @@ public class MapIterationInForEachLoopCheck extends AbstractCheck {
 <span class="fc" id="L701">                result = node;</span>
 <span class="fc" id="L702">                break;</span>
             }
-        }
+<span class="fc" id="L704">        }</span>
 <span class="fc" id="L705">        return result;</span>
     }
 
@@ -721,7 +721,7 @@ public class MapIterationInForEachLoopCheck extends AbstractCheck {
 <span class="fc" id="L721">                result = mapClassQualifiedName;</span>
 <span class="fc" id="L722">                break;</span>
             }
-        }
+<span class="fc" id="L724">        }</span>
 <span class="fc" id="L725">        return result;</span>
     }
 
@@ -739,7 +739,7 @@ public class MapIterationInForEachLoopCheck extends AbstractCheck {
         final DetailAST finishNode;
 <span class="fc bfc" id="L740" title="All 2 branches covered.">        if (rootNode.getNextSibling() == null) {</span>
 <span class="fc" id="L741">            finishNode = rootNode.getLastChild();</span>
-<span class="fc" id="L742">        }</span>
+        }
         else {
 <span class="fc" id="L744">            finishNode = rootNode.getNextSibling();</span>
         }
@@ -758,7 +758,7 @@ public class MapIterationInForEachLoopCheck extends AbstractCheck {
                 }
             }
 <span class="fc" id="L760">            curNode = toVisit;</span>
-        }
+<span class="fc" id="L761">        }</span>
 <span class="fc" id="L762">        return result;</span>
     }
 

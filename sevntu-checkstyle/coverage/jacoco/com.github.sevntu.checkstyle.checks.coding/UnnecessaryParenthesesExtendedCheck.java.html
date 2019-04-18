@@ -1,4 +1,4 @@
-<?xml version="1.0" encoding="UTF-8"?><!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Strict//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-strict.dtd"><html xmlns="http://www.w3.org/1999/xhtml" lang="en"><head><meta http-equiv="Content-Type" content="text/html;charset=UTF-8"/><link rel="stylesheet" href="../resources/report.css" type="text/css"/><link rel="shortcut icon" href="../resources/report.gif" type="image/gif"/><title>UnnecessaryParenthesesExtendedCheck.java</title><link rel="stylesheet" href="../resources/prettify.css" type="text/css"/><script type="text/javascript" src="../resources/prettify.js"></script></head><body onload="window['PR_TAB_WIDTH']=4;prettyPrint()"><div class="breadcrumb" id="breadcrumb"><span class="info"><a href="../.sessions.html" class="el_session">Sessions</a></span><a href="../index.html" class="el_report">sevntu-checks</a> &gt; <a href="index.source.html" class="el_package">com.github.sevntu.checkstyle.checks.coding</a> &gt; <span class="el_source">UnnecessaryParenthesesExtendedCheck.java</span></div><h1>UnnecessaryParenthesesExtendedCheck.java</h1><pre class="source lang-java linenums">////////////////////////////////////////////////////////////////////////////////
+<?xml version="1.0" encoding="UTF-8"?><!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Strict//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-strict.dtd"><html xmlns="http://www.w3.org/1999/xhtml" lang="en"><head><meta http-equiv="Content-Type" content="text/html;charset=UTF-8"/><link rel="stylesheet" href="../.resources/report.css" type="text/css"/><link rel="shortcut icon" href="../.resources/report.gif" type="image/gif"/><title>UnnecessaryParenthesesExtendedCheck.java</title><link rel="stylesheet" href="../.resources/prettify.css" type="text/css"/><script type="text/javascript" src="../.resources/prettify.js"></script></head><body onload="window['PR_TAB_WIDTH']=4;prettyPrint()"><div class="breadcrumb" id="breadcrumb"><span class="info"><a href="../.sessions.html" class="el_session">Sessions</a></span><a href="../index.html" class="el_report">sevntu-checks</a> &gt; <a href="index.source.html" class="el_package">com.github.sevntu.checkstyle.checks.coding</a> &gt; <span class="el_source">UnnecessaryParenthesesExtendedCheck.java</span></div><h1>UnnecessaryParenthesesExtendedCheck.java</h1><pre class="source lang-java linenums">////////////////////////////////////////////////////////////////////////////////
 // checkstyle: Checks Java source code for adherence to a set of rules.
 // Copyright (C) 2001-2019 the original author or authors.
 //
@@ -73,40 +73,40 @@ import com.puppycrawl.tools.checkstyle.api.TokenTypes;
 
     /** Token types for literals. */
 <span class="fc" id="L75">    private static final int[] LITERALS = {</span>
-<span class="fc" id="L76">        TokenTypes.NUM_DOUBLE,</span>
-<span class="fc" id="L77">        TokenTypes.NUM_FLOAT,</span>
-<span class="fc" id="L78">        TokenTypes.NUM_INT,</span>
-<span class="fc" id="L79">        TokenTypes.NUM_LONG,</span>
-<span class="fc" id="L80">        TokenTypes.STRING_LITERAL,</span>
-<span class="fc" id="L81">        TokenTypes.LITERAL_NULL,</span>
-<span class="fc" id="L82">        TokenTypes.LITERAL_FALSE,</span>
-<span class="fc" id="L83">        TokenTypes.LITERAL_TRUE,</span>
+        TokenTypes.NUM_DOUBLE,
+        TokenTypes.NUM_FLOAT,
+        TokenTypes.NUM_INT,
+        TokenTypes.NUM_LONG,
+        TokenTypes.STRING_LITERAL,
+        TokenTypes.LITERAL_NULL,
+        TokenTypes.LITERAL_FALSE,
+        TokenTypes.LITERAL_TRUE,
     };
 
     /** Token types for assignment operations. */
 <span class="fc" id="L87">    private static final int[] ASSIGNMENTS = {</span>
-<span class="fc" id="L88">        TokenTypes.ASSIGN,</span>
-<span class="fc" id="L89">        TokenTypes.BAND_ASSIGN,</span>
-<span class="fc" id="L90">        TokenTypes.BOR_ASSIGN,</span>
-<span class="fc" id="L91">        TokenTypes.BSR_ASSIGN,</span>
-<span class="fc" id="L92">        TokenTypes.BXOR_ASSIGN,</span>
-<span class="fc" id="L93">        TokenTypes.DIV_ASSIGN,</span>
-<span class="fc" id="L94">        TokenTypes.MINUS_ASSIGN,</span>
-<span class="fc" id="L95">        TokenTypes.MOD_ASSIGN,</span>
-<span class="fc" id="L96">        TokenTypes.PLUS_ASSIGN,</span>
-<span class="fc" id="L97">        TokenTypes.SL_ASSIGN,</span>
-<span class="fc" id="L98">        TokenTypes.SR_ASSIGN,</span>
-<span class="fc" id="L99">        TokenTypes.STAR_ASSIGN,</span>
+        TokenTypes.ASSIGN,
+        TokenTypes.BAND_ASSIGN,
+        TokenTypes.BOR_ASSIGN,
+        TokenTypes.BSR_ASSIGN,
+        TokenTypes.BXOR_ASSIGN,
+        TokenTypes.DIV_ASSIGN,
+        TokenTypes.MINUS_ASSIGN,
+        TokenTypes.MOD_ASSIGN,
+        TokenTypes.PLUS_ASSIGN,
+        TokenTypes.SL_ASSIGN,
+        TokenTypes.SR_ASSIGN,
+        TokenTypes.STAR_ASSIGN,
     };
 
     /** Token types equals operations. */
 <span class="fc" id="L103">    private static final int[] EQUALS = {</span>
-<span class="fc" id="L104">        TokenTypes.EQUAL,</span>
-<span class="fc" id="L105">        TokenTypes.NOT_EQUAL,</span>
-<span class="fc" id="L106">        TokenTypes.LOR,</span>
-<span class="fc" id="L107">        TokenTypes.LAND,</span>
-<span class="fc" id="L108">        TokenTypes.BOR,</span>
-<span class="fc" id="L109">    };</span>
+        TokenTypes.EQUAL,
+        TokenTypes.NOT_EQUAL,
+        TokenTypes.LOR,
+        TokenTypes.LAND,
+        TokenTypes.BOR,
+    };
 
     /** Used to ignore unnecessary parentheses check
      *  in calculation of boolean. */
@@ -129,28 +129,28 @@ import com.puppycrawl.tools.checkstyle.api.TokenTypes;
     @Override
     public int[] getDefaultTokens() {
 <span class="fc" id="L131">        return new int[] {</span>
-<span class="fc" id="L132">            TokenTypes.EXPR,</span>
-<span class="fc" id="L133">            TokenTypes.IDENT,</span>
-<span class="fc" id="L134">            TokenTypes.NUM_DOUBLE,</span>
-<span class="fc" id="L135">            TokenTypes.NUM_FLOAT,</span>
-<span class="fc" id="L136">            TokenTypes.NUM_INT,</span>
-<span class="fc" id="L137">            TokenTypes.NUM_LONG,</span>
-<span class="fc" id="L138">            TokenTypes.STRING_LITERAL,</span>
-<span class="fc" id="L139">            TokenTypes.LITERAL_NULL,</span>
-<span class="fc" id="L140">            TokenTypes.LITERAL_FALSE,</span>
-<span class="fc" id="L141">            TokenTypes.LITERAL_TRUE,</span>
-<span class="fc" id="L142">            TokenTypes.ASSIGN,</span>
-<span class="fc" id="L143">            TokenTypes.BAND_ASSIGN,</span>
-<span class="fc" id="L144">            TokenTypes.BOR_ASSIGN,</span>
-<span class="fc" id="L145">            TokenTypes.BSR_ASSIGN,</span>
-<span class="fc" id="L146">            TokenTypes.BXOR_ASSIGN,</span>
-<span class="fc" id="L147">            TokenTypes.DIV_ASSIGN,</span>
-<span class="fc" id="L148">            TokenTypes.MINUS_ASSIGN,</span>
-<span class="fc" id="L149">            TokenTypes.MOD_ASSIGN,</span>
-<span class="fc" id="L150">            TokenTypes.PLUS_ASSIGN,</span>
-<span class="fc" id="L151">            TokenTypes.SL_ASSIGN,</span>
-<span class="fc" id="L152">            TokenTypes.SR_ASSIGN,</span>
-<span class="fc" id="L153">            TokenTypes.STAR_ASSIGN,</span>
+            TokenTypes.EXPR,
+            TokenTypes.IDENT,
+            TokenTypes.NUM_DOUBLE,
+            TokenTypes.NUM_FLOAT,
+            TokenTypes.NUM_INT,
+            TokenTypes.NUM_LONG,
+            TokenTypes.STRING_LITERAL,
+            TokenTypes.LITERAL_NULL,
+            TokenTypes.LITERAL_FALSE,
+            TokenTypes.LITERAL_TRUE,
+            TokenTypes.ASSIGN,
+            TokenTypes.BAND_ASSIGN,
+            TokenTypes.BOR_ASSIGN,
+            TokenTypes.BSR_ASSIGN,
+            TokenTypes.BXOR_ASSIGN,
+            TokenTypes.DIV_ASSIGN,
+            TokenTypes.MINUS_ASSIGN,
+            TokenTypes.MOD_ASSIGN,
+            TokenTypes.PLUS_ASSIGN,
+            TokenTypes.SL_ASSIGN,
+            TokenTypes.SR_ASSIGN,
+            TokenTypes.STAR_ASSIGN,
         };
     }
 
@@ -178,18 +178,18 @@ import com.puppycrawl.tools.checkstyle.api.TokenTypes;
 <span class="fc bfc" id="L178" title="All 4 branches covered.">            if (surrounded &amp;&amp; type == TokenTypes.IDENT) {</span>
 <span class="fc" id="L179">                parentToSkip = ast.getParent();</span>
 <span class="fc" id="L180">                log(ast, MSG_KEY_IDENT, ast.getText());</span>
-<span class="fc" id="L181">            }</span>
+            }
             // A literal (numeric or string) surrounded by parentheses.
 <span class="fc bfc" id="L183" title="All 4 branches covered.">            else if (surrounded &amp;&amp; inTokenList(type, LITERALS)) {</span>
 <span class="fc" id="L184">                parentToSkip = ast.getParent();</span>
 <span class="fc bfc" id="L185" title="All 2 branches covered.">                if (type == TokenTypes.STRING_LITERAL) {</span>
 <span class="fc" id="L186">                    log(ast, MSG_KEY_STRING,</span>
 <span class="fc" id="L187">                        chopString(ast.getText()));</span>
-<span class="fc" id="L188">                }</span>
+                }
                 else {
 <span class="fc" id="L190">                    log(ast, MSG_KEY_LITERAL, ast.getText());</span>
                 }
-<span class="fc" id="L192">            }</span>
+            }
             // The rhs of an assignment surrounded by parentheses.
 <span class="fc bfc" id="L194" title="All 2 branches covered.">            else if (inTokenList(type, ASSIGNMENTS)) {</span>
 <span class="fc" id="L195">                assignDepth++;</span>
@@ -198,8 +198,8 @@ import com.puppycrawl.tools.checkstyle.api.TokenTypes;
 <span class="fc" id="L198">                    final DetailAST subtree = ast.getFirstChild().getNextSibling()</span>
 <span class="fc" id="L199">                        .getNextSibling();</span>
 <span class="fc" id="L200">                    final int subtreeType = subtree.getType();</span>
-<span class="fc bfc" id="L201" title="All 2 branches covered.">                    if (!ignoreCalculationOfBooleanVariables || !inTokenList(</span>
-<span class="fc bfc" id="L202" title="All 2 branches covered.">                        subtreeType, EQUALS)) {</span>
+<span class="fc bfc" id="L201" title="All 4 branches covered.">                    if (!ignoreCalculationOfBooleanVariables || !inTokenList(</span>
+                        subtreeType, EQUALS)) {
 <span class="fc" id="L203">                        log(ast, MSG_KEY_ASSIGN);</span>
                     }
                 }
@@ -220,7 +220,7 @@ import com.puppycrawl.tools.checkstyle.api.TokenTypes;
 <span class="fc" id="L220">                leaveTokenExpression(ast);</span>
 
 <span class="fc" id="L222">                parentToSkip = null;</span>
-<span class="fc" id="L223">            }</span>
+            }
 <span class="fc bfc" id="L224" title="All 2 branches covered.">            else if (inTokenList(type, ASSIGNMENTS)) {</span>
 <span class="fc" id="L225">                assignDepth--;</span>
             }
@@ -240,28 +240,28 @@ import com.puppycrawl.tools.checkstyle.api.TokenTypes;
 
 <span class="fc bfc" id="L241" title="All 4 branches covered.">        if (parentToSkip != ast &amp;&amp; exprSurrounded(ast)) {</span>
 <span class="fc bfc" id="L242" title="All 2 branches covered.">            if (assignDepth &gt;= 1) {</span>
-<span class="fc bfc" id="L243" title="All 2 branches covered.">                if (!ignoreCalculationOfBooleanVariables || !inTokenList(</span>
-<span class="fc bfc" id="L244" title="All 2 branches covered.">                    subtreeType(ast), EQUALS)) {</span>
+<span class="fc bfc" id="L243" title="All 4 branches covered.">                if (!ignoreCalculationOfBooleanVariables || !inTokenList(</span>
+<span class="fc" id="L244">                    subtreeType(ast), EQUALS)) {</span>
 <span class="fc" id="L245">                    log(ast, MSG_KEY_ASSIGN);</span>
                 }
-<span class="fc" id="L247">            }</span>
+            }
 <span class="fc bfc" id="L248" title="All 2 branches covered.">            else if (ast.getParent().getType()</span>
-<span class="fc" id="L249">                == TokenTypes.LITERAL_RETURN) {</span>
+                == TokenTypes.LITERAL_RETURN) {
 <span class="fc bfc" id="L250" title="All 2 branches covered.">                if (!ignoreCalculationOfBooleanVariablesWithReturn</span>
 <span class="fc bfc" id="L251" title="All 2 branches covered.">                        || !inTokenList(subtreeType(ast), EQUALS)) {</span>
 <span class="fc" id="L252">                    log(ast, MSG_KEY_RETURN);</span>
                 }
-<span class="fc" id="L254">            }</span>
+            }
 <span class="fc bfc" id="L255" title="All 2 branches covered.">            else if (ast.getParent().getType()</span>
-<span class="fc" id="L256">                    == TokenTypes.LITERAL_ASSERT) {</span>
+                    == TokenTypes.LITERAL_ASSERT) {
 <span class="fc bfc" id="L257" title="All 2 branches covered.">                if (!ignoreCalculationOfBooleanVariablesWithAssert</span>
 <span class="fc bfc" id="L258" title="All 2 branches covered.">                        || !inTokenList(subtreeType(ast), EQUALS)) {</span>
 <span class="fc" id="L259">                    log(ast, MSG_KEY_EXPR);</span>
                 }
-<span class="fc" id="L261">            }</span>
+            }
             else {
-<span class="fc bfc" id="L263" title="All 2 branches covered.">                if (!ignoreCalculationOfBooleanVariables || !inTokenList(</span>
-<span class="fc bfc" id="L264" title="All 2 branches covered.">                    subtreeType(ast), EQUALS)) {</span>
+<span class="fc bfc" id="L263" title="All 4 branches covered.">                if (!ignoreCalculationOfBooleanVariables || !inTokenList(</span>
+<span class="fc" id="L264">                    subtreeType(ast), EQUALS)) {</span>
 <span class="fc" id="L265">                    log(ast, MSG_KEY_EXPR);</span>
                 }
             }
@@ -330,7 +330,7 @@ import com.puppycrawl.tools.checkstyle.api.TokenTypes;
         final String result;
 <span class="fc bfc" id="L331" title="All 2 branches covered.">        if (string.length() &gt; MAX_QUOTED_LENGTH) {</span>
 <span class="fc" id="L332">            result = string.substring(0, MAX_QUOTED_LENGTH) + &quot;...\&quot;&quot;;</span>
-<span class="fc" id="L333">        }</span>
+        }
         else {
 <span class="fc" id="L335">            result = string;</span>
         }
@@ -360,7 +360,7 @@ import com.puppycrawl.tools.checkstyle.api.TokenTypes;
     public final void setIgnoreCalculationOfBooleanVariables(
             final boolean ignoreCalculationOfBooleanVariables) {
 <span class="fc" id="L362">        this.ignoreCalculationOfBooleanVariables =</span>
-<span class="fc" id="L363">            ignoreCalculationOfBooleanVariables;</span>
+            ignoreCalculationOfBooleanVariables;
 <span class="fc" id="L364">    }</span>
 
     /**
@@ -373,7 +373,7 @@ import com.puppycrawl.tools.checkstyle.api.TokenTypes;
     public final void setIgnoreCalculationOfBooleanVariablesWithReturn(
             final boolean ignoreCalculationOfBooleanVariablesWithReturn) {
 <span class="fc" id="L375">        this.ignoreCalculationOfBooleanVariablesWithReturn =</span>
-<span class="fc" id="L376">            ignoreCalculationOfBooleanVariablesWithReturn;</span>
+            ignoreCalculationOfBooleanVariablesWithReturn;
 <span class="fc" id="L377">    }</span>
 
     /**
@@ -386,7 +386,7 @@ import com.puppycrawl.tools.checkstyle.api.TokenTypes;
     public final void setIgnoreCalculationOfBooleanVariablesWithAssert(
             final boolean ignoreCalculationOfBooleanVariablesWithAssert) {
 <span class="fc" id="L388">        this.ignoreCalculationOfBooleanVariablesWithAssert =</span>
-<span class="fc" id="L389">            ignoreCalculationOfBooleanVariablesWithAssert;</span>
+            ignoreCalculationOfBooleanVariablesWithAssert;
 <span class="fc" id="L390">    }</span>
 
 }

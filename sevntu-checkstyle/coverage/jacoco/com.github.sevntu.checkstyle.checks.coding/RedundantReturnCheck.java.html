@@ -1,4 +1,4 @@
-<?xml version="1.0" encoding="UTF-8"?><!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Strict//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-strict.dtd"><html xmlns="http://www.w3.org/1999/xhtml" lang="en"><head><meta http-equiv="Content-Type" content="text/html;charset=UTF-8"/><link rel="stylesheet" href="../resources/report.css" type="text/css"/><link rel="shortcut icon" href="../resources/report.gif" type="image/gif"/><title>RedundantReturnCheck.java</title><link rel="stylesheet" href="../resources/prettify.css" type="text/css"/><script type="text/javascript" src="../resources/prettify.js"></script></head><body onload="window['PR_TAB_WIDTH']=4;prettyPrint()"><div class="breadcrumb" id="breadcrumb"><span class="info"><a href="../.sessions.html" class="el_session">Sessions</a></span><a href="../index.html" class="el_report">sevntu-checks</a> &gt; <a href="index.source.html" class="el_package">com.github.sevntu.checkstyle.checks.coding</a> &gt; <span class="el_source">RedundantReturnCheck.java</span></div><h1>RedundantReturnCheck.java</h1><pre class="source lang-java linenums">////////////////////////////////////////////////////////////////////////////////
+<?xml version="1.0" encoding="UTF-8"?><!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Strict//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-strict.dtd"><html xmlns="http://www.w3.org/1999/xhtml" lang="en"><head><meta http-equiv="Content-Type" content="text/html;charset=UTF-8"/><link rel="stylesheet" href="../.resources/report.css" type="text/css"/><link rel="shortcut icon" href="../.resources/report.gif" type="image/gif"/><title>RedundantReturnCheck.java</title><link rel="stylesheet" href="../.resources/prettify.css" type="text/css"/><script type="text/javascript" src="../.resources/prettify.js"></script></head><body onload="window['PR_TAB_WIDTH']=4;prettyPrint()"><div class="breadcrumb" id="breadcrumb"><span class="info"><a href="../.sessions.html" class="el_session">Sessions</a></span><a href="../index.html" class="el_report">sevntu-checks</a> &gt; <a href="index.source.html" class="el_package">com.github.sevntu.checkstyle.checks.coding</a> &gt; <span class="el_source">RedundantReturnCheck.java</span></div><h1>RedundantReturnCheck.java</h1><pre class="source lang-java linenums">////////////////////////////////////////////////////////////////////////////////
 // checkstyle: Checks Java source code for adherence to a set of rules.
 // Copyright (C) 2001-2019 the original author or authors.
 //
@@ -102,8 +102,8 @@ import com.puppycrawl.tools.checkstyle.api.TokenTypes;
     @Override
     public int[] getDefaultTokens() {
 <span class="fc" id="L104">        return new int[] {</span>
-<span class="fc" id="L105">            TokenTypes.CTOR_DEF,</span>
-<span class="fc" id="L106">            TokenTypes.METHOD_DEF,</span>
+            TokenTypes.CTOR_DEF,
+            TokenTypes.METHOD_DEF,
         };
     }
 
@@ -121,23 +121,23 @@ import com.puppycrawl.tools.checkstyle.api.TokenTypes;
     public void visitToken(DetailAST ast) {
 <span class="fc" id="L122">        final DetailAST blockAst = ast.getLastChild();</span>
 
-<span class="fc bfc" id="L124" title="All 3 branches covered.">        switch (ast.getType()) {</span>
+<span class="pc bpc" id="L124" title="1 of 3 branches missed.">        switch (ast.getType()) {</span>
             case TokenTypes.CTOR_DEF:
-<span class="pc bpc" id="L126" title="1 of 6 branches missed.">                if (!ignoreLonelyReturn(blockAst) &amp;&amp; hasNonEmptyBody(ast)) {</span>
+<span class="fc bfc" id="L126" title="All 4 branches covered.">                if (!ignoreLonelyReturn(blockAst) &amp;&amp; hasNonEmptyBody(ast)) {</span>
 <span class="fc" id="L127">                    final List&lt;DetailAST&gt; redundantReturns = getRedundantReturns(blockAst);</span>
 <span class="fc" id="L128">                    log(redundantReturns);</span>
-                }
-<span class="fc" id="L130">                break;</span>
+<span class="fc" id="L129">                }</span>
+                break;
 
             case TokenTypes.METHOD_DEF:
-<span class="pc bpc" id="L133" title="1 of 6 branches missed.">                if (!ignoreLonelyReturn(blockAst) &amp;&amp; isVoidMethodWithNonEmptyBody(ast)) {</span>
+<span class="fc bfc" id="L133" title="All 4 branches covered.">                if (!ignoreLonelyReturn(blockAst) &amp;&amp; isVoidMethodWithNonEmptyBody(ast)) {</span>
 <span class="fc" id="L134">                    final List&lt;DetailAST&gt; redundantReturns = getRedundantReturns(blockAst);</span>
 <span class="fc" id="L135">                    log(redundantReturns);</span>
-                }
-<span class="fc" id="L137">                break;</span>
+<span class="fc" id="L136">                }</span>
+                break;
 
             default:
-<span class="pc bpc" id="L140" title="1 of 2 branches missed.">                SevntuUtil.reportInvalidToken(ast.getType());</span>
+<span class="nc" id="L140">                SevntuUtil.reportInvalidToken(ast.getType());</span>
                 break;
         }
 <span class="fc" id="L143">    }</span>
@@ -152,7 +152,7 @@ import com.puppycrawl.tools.checkstyle.api.TokenTypes;
 <span class="fc bfc" id="L152" title="All 2 branches covered.">        return allowReturnInEmptyMethodsAndConstructors</span>
 <span class="fc bfc" id="L153" title="All 2 branches covered.">                    &amp;&amp; objectBlockAst.getFirstChild() != null</span>
 <span class="fc bfc" id="L154" title="All 2 branches covered.">                    &amp;&amp; objectBlockAst.getFirstChild().getType()</span>
-<span class="fc" id="L155">                        == TokenTypes.LITERAL_RETURN;</span>
+                        == TokenTypes.LITERAL_RETURN;
     }
 
     /**
@@ -171,8 +171,8 @@ import com.puppycrawl.tools.checkstyle.api.TokenTypes;
      */
     private static boolean isVoidMethodWithNonEmptyBody(DetailAST methodDefAst) {
 <span class="fc bfc" id="L173" title="All 2 branches covered.">        return methodDefAst.getLastChild().getType() == TokenTypes.SLIST</span>
-<span class="fc bfc" id="L174" title="All 2 branches covered.">                    &amp;&amp; methodDefAst.findFirstToken(TokenTypes.TYPE)</span>
-<span class="fc" id="L175">                        .findFirstToken(TokenTypes.LITERAL_VOID) != null</span>
+<span class="fc" id="L174">                    &amp;&amp; methodDefAst.findFirstToken(TokenTypes.TYPE)</span>
+<span class="fc bfc" id="L175" title="All 2 branches covered.">                        .findFirstToken(TokenTypes.LITERAL_VOID) != null</span>
 <span class="fc bfc" id="L176" title="All 2 branches covered.">                    &amp;&amp; hasNonEmptyBody(methodDefAst);</span>
     }
 
@@ -184,7 +184,7 @@ import com.puppycrawl.tools.checkstyle.api.TokenTypes;
     private void log(List&lt;DetailAST&gt; redundantReturnsAst) {
 <span class="fc bfc" id="L185" title="All 2 branches covered.">        for (DetailAST redundantLiteralReturnAst : redundantReturnsAst) {</span>
 <span class="fc" id="L186">            log(redundantLiteralReturnAst, MSG_KEY);</span>
-        }
+<span class="fc" id="L187">        }</span>
 <span class="fc" id="L188">    }</span>
 
     /**
@@ -232,7 +232,7 @@ import com.puppycrawl.tools.checkstyle.api.TokenTypes;
 
 <span class="fc bfc" id="L233" title="All 2 branches covered.">        if (tryAst.getFirstChild().getType() == TokenTypes.RESOURCE_SPECIFICATION) {</span>
 <span class="fc" id="L234">            tryBlockAst = tryAst.getFirstChild().getNextSibling();</span>
-<span class="fc" id="L235">        }</span>
+        }
         else {
 <span class="fc" id="L237">            tryBlockAst = tryAst.getFirstChild();</span>
         }
@@ -305,7 +305,7 @@ import com.puppycrawl.tools.checkstyle.api.TokenTypes;
 <span class="fc bfc" id="L305" title="All 2 branches covered.">        if (statementAst != null) {</span>
 <span class="fc bfc" id="L306" title="All 2 branches covered.">            if (statementAst.getType() == TokenTypes.LITERAL_RETURN) {</span>
 <span class="fc" id="L307">                redundantReturnAst = statementAst;</span>
-<span class="fc" id="L308">            }</span>
+            }
             else {
 <span class="fc bfc" id="L310" title="All 2 branches covered.">                if (statementAst.getFirstChild() != null) {</span>
 <span class="fc" id="L311">                    final DetailAST foundRedundantReturnAst =</span>
@@ -337,7 +337,7 @@ import com.puppycrawl.tools.checkstyle.api.TokenTypes;
 <span class="fc" id="L337">                    toVisitAst = toVisitAst.getParent();</span>
                 }
 <span class="fc" id="L339">                toVisitAst = toVisitAst.getNextSibling();</span>
-<span class="fc" id="L340">            }</span>
+            }
 <span class="fc bfc" id="L341" title="All 2 branches covered.">            else if (isFinalReturn(toVisitAst)) {</span>
 <span class="fc" id="L342">                returnAst = toVisitAst;</span>
 
@@ -357,7 +357,7 @@ import com.puppycrawl.tools.checkstyle.api.TokenTypes;
         }
 
 <span class="fc" id="L359">        currentNodeAst = SevntuUtil.getNextSubTreeNode(currentNodeAst,</span>
-<span class="fc" id="L360">                lastStatementInCatchBlockAst);</span>
+                lastStatementInCatchBlockAst);
 <span class="fc" id="L361">        return redundantReturnAst;</span>
     }
 
@@ -369,7 +369,7 @@ import com.puppycrawl.tools.checkstyle.api.TokenTypes;
     private static boolean isFinalReturn(DetailAST ast) {
 <span class="fc bfc" id="L370" title="All 2 branches covered.">        return (ast.getParent().getParent().getNextSibling() == null</span>
 <span class="fc bfc" id="L371" title="All 2 branches covered.">                    || ast.getParent().getParent().getNextSibling().getType()</span>
-<span class="fc" id="L372">                    == TokenTypes.RCURLY)</span>
+                    == TokenTypes.RCURLY)
 <span class="fc bfc" id="L373" title="All 2 branches covered.">                &amp;&amp; ast.getType() == TokenTypes.LITERAL_RETURN</span>
 <span class="fc bfc" id="L374" title="All 2 branches covered.">                &amp;&amp; ast.getParent().getNextSibling() == null;</span>
     }

@@ -1,4 +1,4 @@
-<?xml version="1.0" encoding="UTF-8"?><!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Strict//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-strict.dtd"><html xmlns="http://www.w3.org/1999/xhtml" lang="en"><head><meta http-equiv="Content-Type" content="text/html;charset=UTF-8"/><link rel="stylesheet" href="../resources/report.css" type="text/css"/><link rel="shortcut icon" href="../resources/report.gif" type="image/gif"/><title>ChildBlockLengthCheck.java</title><link rel="stylesheet" href="../resources/prettify.css" type="text/css"/><script type="text/javascript" src="../resources/prettify.js"></script></head><body onload="window['PR_TAB_WIDTH']=4;prettyPrint()"><div class="breadcrumb" id="breadcrumb"><span class="info"><a href="../.sessions.html" class="el_session">Sessions</a></span><a href="../index.html" class="el_report">sevntu-checks</a> &gt; <a href="index.source.html" class="el_package">com.github.sevntu.checkstyle.checks.design</a> &gt; <span class="el_source">ChildBlockLengthCheck.java</span></div><h1>ChildBlockLengthCheck.java</h1><pre class="source lang-java linenums">////////////////////////////////////////////////////////////////////////////////
+<?xml version="1.0" encoding="UTF-8"?><!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Strict//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-strict.dtd"><html xmlns="http://www.w3.org/1999/xhtml" lang="en"><head><meta http-equiv="Content-Type" content="text/html;charset=UTF-8"/><link rel="stylesheet" href="../.resources/report.css" type="text/css"/><link rel="shortcut icon" href="../.resources/report.gif" type="image/gif"/><title>ChildBlockLengthCheck.java</title><link rel="stylesheet" href="../.resources/prettify.css" type="text/css"/><script type="text/javascript" src="../.resources/prettify.js"></script></head><body onload="window['PR_TAB_WIDTH']=4;prettyPrint()"><div class="breadcrumb" id="breadcrumb"><span class="info"><a href="../.sessions.html" class="el_session">Sessions</a></span><a href="../index.html" class="el_report">sevntu-checks</a> &gt; <a href="index.source.html" class="el_package">com.github.sevntu.checkstyle.checks.design</a> &gt; <span class="el_source">ChildBlockLengthCheck.java</span></div><h1>ChildBlockLengthCheck.java</h1><pre class="source lang-java linenums">////////////////////////////////////////////////////////////////////////////////
 // checkstyle: Checks Java source code for adherence to a set of rules.
 // Copyright (C) 2001-2019 the original author or authors.
 //
@@ -133,7 +133,7 @@ import com.puppycrawl.tools.checkstyle.utils.TokenUtil;
         final int[] result;
 <span class="fc bfc" id="L134" title="All 2 branches covered.">        if (blockTypes == null) {</span>
 <span class="fc" id="L135">            result = null;</span>
-<span class="fc" id="L136">        }</span>
+        }
         else {
 <span class="fc" id="L138">            result = Arrays.copyOf(blockTypes, blockTypes.length);</span>
         }
@@ -162,25 +162,25 @@ import com.puppycrawl.tools.checkstyle.utils.TokenUtil;
 
 <span class="fc bfc" id="L163" title="All 2 branches covered.">            if (parentBlockSize &gt; ignoreBlockLinesCount) {</span>
 <span class="fc" id="L164">                final List&lt;DetailAST&gt; childBlocks = getChildBlocks(</span>
-<span class="fc" id="L165">                        aOpeningBrace, aClosingBrace);</span>
+                        aOpeningBrace, aClosingBrace);
 
 <span class="fc" id="L167">                final List&lt;DetailAST&gt; badChildBlocks = getBadChildBlocks(</span>
-<span class="fc" id="L168">                        childBlocks, parentBlockSize);</span>
+                        childBlocks, parentBlockSize);
 
 <span class="fc bfc" id="L170" title="All 2 branches covered.">                if (badChildBlocks.isEmpty()) {</span>
 <span class="fc bfc" id="L171" title="All 2 branches covered.">                    for (DetailAST childBlock : childBlocks) {</span>
 <span class="fc" id="L172">                        visitToken(childBlock);</span>
-                    }
-<span class="fc" id="L174">                }</span>
+<span class="fc" id="L173">                    }</span>
+                }
                 else {
 <span class="fc bfc" id="L176" title="All 2 branches covered.">                    for (DetailAST badBlock : badChildBlocks) {</span>
 <span class="fc" id="L177">                        final int blockSize = linesCount(badBlock);</span>
 
 <span class="fc" id="L179">                        final double allowedBlockSize = (int) (parentBlockSize</span>
-<span class="fc" id="L180">                                * maxChildBlockPercentage / PERCENTS_FACTOR);</span>
+                                * maxChildBlockPercentage / PERCENTS_FACTOR);
 
 <span class="fc" id="L182">                        log(badBlock, MSG_KEY, blockSize, allowedBlockSize);</span>
-                    }
+<span class="fc" id="L183">                    }</span>
                 }
             }
         }
@@ -211,8 +211,8 @@ import com.puppycrawl.tools.checkstyle.utils.TokenUtil;
 
 <span class="fc" id="L212">            final int type = curNode.getType();</span>
             // skip anonymous classes and nested methods
-<span class="fc bfc" id="L214" title="All 2 branches covered.">            if (type == TokenTypes.METHOD_DEF</span>
-<span class="fc bfc" id="L215" title="All 2 branches covered.">                    || type == TokenTypes.CLASS_DEF) {</span>
+<span class="fc bfc" id="L214" title="All 4 branches covered.">            if (type == TokenTypes.METHOD_DEF</span>
+                    || type == TokenTypes.CLASS_DEF) {
 <span class="fc" id="L216">                nextNode = curNode.getNextSibling();</span>
             }
 
@@ -224,7 +224,7 @@ import com.puppycrawl.tools.checkstyle.utils.TokenUtil;
                 }
             }
 <span class="fc" id="L226">            curNode = nextNode;</span>
-        }
+<span class="fc" id="L227">        }</span>
 <span class="fc" id="L228">        return childBlocks;</span>
     }
 
@@ -261,7 +261,7 @@ import com.puppycrawl.tools.checkstyle.utils.TokenUtil;
 <span class="fc bfc" id="L261" title="All 2 branches covered.">            if (isChildBlockBad(block, parentBlockSize)) {</span>
 <span class="fc" id="L262">                result.add(block);</span>
             }
-        }
+<span class="fc" id="L264">        }</span>
 <span class="fc" id="L265">        return result;</span>
     }
 
@@ -298,7 +298,7 @@ import com.puppycrawl.tools.checkstyle.utils.TokenUtil;
     private boolean getPercentage(int parentBlockSize,
             final int childBlockSize) {
 <span class="fc" id="L300">        final double percentage =</span>
-<span class="fc" id="L301">                ((double) childBlockSize / (double) parentBlockSize) * 100.0;</span>
+                ((double) childBlockSize / (double) parentBlockSize) * 100.0;
 <span class="fc bfc" id="L302" title="All 2 branches covered.">        return percentage &gt; maxChildBlockPercentage;</span>
     }
 
@@ -312,7 +312,7 @@ import com.puppycrawl.tools.checkstyle.utils.TokenUtil;
         final int searchType;
 <span class="fc bfc" id="L313" title="All 2 branches covered.">        if (parentBlock.getType() == TokenTypes.LITERAL_SWITCH) {</span>
 <span class="fc" id="L314">            searchType = TokenTypes.LCURLY;</span>
-<span class="fc" id="L315">        }</span>
+        }
         else {
 <span class="fc" id="L317">            searchType = TokenTypes.SLIST;</span>
         }
@@ -330,7 +330,7 @@ import com.puppycrawl.tools.checkstyle.utils.TokenUtil;
         final DetailAST result;
 <span class="fc bfc" id="L331" title="All 2 branches covered.">        if (aParentBlockType == TokenTypes.LITERAL_SWITCH) {</span>
 <span class="fc" id="L332">            result = parentBlockNode.getLastChild();</span>
-<span class="fc" id="L333">        }</span>
+        }
         else {
 <span class="fc" id="L335">            result = openingBrace(parentBlockNode).getLastChild();</span>
         }
