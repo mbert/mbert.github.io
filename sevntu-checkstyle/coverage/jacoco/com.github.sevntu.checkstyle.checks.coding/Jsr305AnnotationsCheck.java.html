@@ -1,0 +1,1016 @@
+<?xml version="1.0" encoding="UTF-8"?><!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Strict//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-strict.dtd"><html xmlns="http://www.w3.org/1999/xhtml" lang="en"><head><meta http-equiv="Content-Type" content="text/html;charset=UTF-8"/><link rel="stylesheet" href="../.resources/report.css" type="text/css"/><link rel="shortcut icon" href="../.resources/report.gif" type="image/gif"/><title>Jsr305AnnotationsCheck.java</title><link rel="stylesheet" href="../.resources/prettify.css" type="text/css"/><script type="text/javascript" src="../.resources/prettify.js"></script></head><body onload="window['PR_TAB_WIDTH']=4;prettyPrint()"><div class="breadcrumb" id="breadcrumb"><span class="info"><a href="../.sessions.html" class="el_session">Sessions</a></span><a href="../index.html" class="el_report">sevntu-checks</a> &gt; <a href="index.source.html" class="el_package">com.github.sevntu.checkstyle.checks.coding</a> &gt; <span class="el_source">Jsr305AnnotationsCheck.java</span></div><h1>Jsr305AnnotationsCheck.java</h1><pre class="source lang-java linenums"><span class="pc" id="L1">////////////////////////////////////////////////////////////////////////////////</span>
+// checkstyle: Checks Java source code for adherence to a set of rules.
+// Copyright (C) 2001-2019 the original author or authors.
+//
+// This library is free software; you can redistribute it and/or
+// modify it under the terms of the GNU Lesser General Public
+// License as published by the Free Software Foundation; either
+// version 2.1 of the License, or (at your option) any later version.
+//
+// This library is distributed in the hope that it will be useful,
+// but WITHOUT ANY WARRANTY; without even the implied warranty of
+// MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the GNU
+// Lesser General Public License for more details.
+//
+// You should have received a copy of the GNU Lesser General Public
+// License along with this library; if not, write to the Free Software
+// Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA
+////////////////////////////////////////////////////////////////////////////////
+
+package com.github.sevntu.checkstyle.checks.coding;
+
+import java.util.Arrays;
+import java.util.Collections;
+import java.util.HashMap;
+import java.util.HashSet;
+import java.util.Map;
+import java.util.Set;
+
+import antlr.collections.AST;
+import com.github.sevntu.checkstyle.SevntuUtil;
+import com.puppycrawl.tools.checkstyle.api.AbstractCheck;
+import com.puppycrawl.tools.checkstyle.api.DetailAST;
+import com.puppycrawl.tools.checkstyle.api.FullIdent;
+import com.puppycrawl.tools.checkstyle.api.TokenTypes;
+
+/**
+ * &lt;p&gt;
+ * The &lt;a href=&quot;https://jcp.org/en/jsr/detail?id=305&quot;&gt;Jsr305 annotations&lt;/a&gt; (annotations for
+ * software defect detection) contain a subset of &quot;nullness&quot; annotations that can be used to mark
+ * parameters as possibly null ({@code @Nullable}) or always non-null ({@code @Nonnull}), function
+ * return values as to be checked for null ({@code @CheckForNull}) or always non-null
+ * ({@code @Nonnull}) including defaults on class level ({@code @ParametersAreNonnullByDefault},
+ * {@code @ParametersAreNullableByDefault}, {@code @ReturnValuesAreNonnullByDefault}).
+ * &lt;/p&gt;
+ * &lt;p&gt;
+ * Using these annotations a programmer can declare how the code is meant to behave, and static code
+ * analysis (like e.g. FindBugs) can be used to verify that this is actually true. Also these
+ * annotations help others understanding code more easily, e.g. if confrontend with an annotated
+ * interface the necessity for null checks can easily be deducted from the annotations.
+ * &lt;/p&gt;
+ * &lt;p&gt;
+ * The Jsr305AnnotationsCheck supports enforcing the following code style:
+ * &lt;/p&gt;
+ * &lt;ul&gt;
+ * &lt;li&gt;Every method declaration, implementation or lambda requires nullness annotations for all
+ * parameters and return values except for primitive types (because a void or an int can never be
+ * null anyway).&lt;/li&gt;
+ * &lt;li&gt;The annotation can be made directly or applied through either inheritance from an already
+ * annotated class or a annotation for class-wide defaults.&lt;/li&gt;
+ * &lt;li&gt;Annotations need to make sense. For instance, a class-scope annotation cannot be used for a
+ * method, and a method annotation cannot be used for a class.&lt;/li&gt;
+ * &lt;li&gt;In overridden methods, the following rule applies (regardless of what was annotated in the
+ * parent method): For parameter definitions {@code @Nonnull} annotation is always illegal because
+ * being less &quot;nullable&quot; cannot be assumed for a parameter in an inherited method. Conversely
+ * {@code @Nullable} is always allowed. For return values it is the other way round:
+ * {@code @CheckForNull} is always illegal while {@code @Nonnull} is always legal.&lt;/li&gt;
+ * &lt;/ul&gt;
+ * &lt;p&gt;
+ * The following configuration properties are supported:
+ * &lt;/p&gt;
+ * &lt;dl&gt;
+ * &lt;dt&gt;{@code packages = com.github.sevntu.pkg1,com.github.sevntu.pkg2}&lt;/dt&gt;
+ * &lt;dd&gt;Activate this check for a list of parent packages and their children.&lt;/dd&gt;
+ * &lt;dt&gt;{@code excludePackages = com.github.sevntu.pkg1.sub1,com.github.sevntu.pkg1.sub2}&lt;/dt&gt;
+ * &lt;dd&gt;Set packages excluded from checking. This setting can be useful if under the parent package
+ * set with &quot;packages&quot; there are subpackages which should not be checked.&lt;/dd&gt;
+ * &lt;dt&gt;{@code allowOverridingReturnValue = true}&lt;/dt&gt;
+ * &lt;dd&gt;Annotating return values &quot;@CheckForNull&quot; in overridden methods is flagged as an error. When
+ * setting the this property to true, this error will be ignored (useful for upgrading).&lt;/dd&gt;
+ * &lt;dt&gt;{@code allowOverridingParameters = true}&lt;/dt&gt;
+ * &lt;dd&gt;Annotating parameters &quot;@Nonnull&quot; in overridden methods is flagged as an error. When setting
+ * this property to true, this error will be ignored (useful for upgrading).&lt;/dd&gt;
+ * &lt;/dl&gt;
+ */
+<span class="fc" id="L85">public class Jsr305AnnotationsCheck extends AbstractCheck {</span>
+
+    /** Key for error message. */
+    public static final String MSG_ILLEGAL_CLASS_LEVEL_ANNOTATION =
+            &quot;jsr305.illegal.class.level.annotation&quot;;
+
+    /** Key for error message. */
+    public static final String MSG_CONTRADICTING_CLASS_LEVEL_ANNOTATIONS =
+            &quot;jsr305.contradicting.class.level.annotations&quot;;
+
+    /** Key for error message. */
+    public static final String MSG_PARAM_DEFINITIONS_WITH_CHECK =
+            &quot;jsr305.param.definitions.with.check.annotation&quot;;
+
+    /** Key for error message. */
+    public static final String MSG_PARAM_DEFINITION_WITH_OVERRIDE =
+            &quot;jsr305.param.definition.with.override.annotation&quot;;
+
+    /** Key for error message. */
+    public static final String MSG_PARAM_DEFINITION_WITH_NONNULL_BY_DEFAULT =
+            &quot;jsr305.param.definition.with.nonnull.by.default.annotation&quot;;
+
+    /** Key for error message. */
+    public static final String MSG_PARAM_DEFINITION_WITH_NULLABLE_BY_DEFAULT =
+            &quot;jsr305.param.definition.with.nullable.by.default.annotation&quot;;
+
+    /** Key for error message. */
+    public static final String MSG_PARAM_DEFINITION_WITH_RETURN_DEFAULT =
+            &quot;jsr305.param.definition.with.return.values.default.annotation&quot;;
+
+    /** Key for error message. */
+    public static final String MSG_PARAM_NONNULL_AND_NULLABLE =
+            &quot;jsr305.param.nonnull.and.nullable.annotation&quot;;
+
+    /** Key for error message. */
+    public static final String MSG_PRIMITIVES_WITH_NULLNESS_ANNOTATION =
+            &quot;jsr305.primitives.with.nullness.annotation&quot;;
+
+    /** Key for error message. */
+    public static final String MSG_OVERRIDDEN_WITH_INCREASED_CONSTRAINT =
+            &quot;jsr305.overridden.definitions.with.increased.param.constraint&quot;;
+
+    /** Key for error message. */
+    public static final String MSG_REDUNDANT_NONNULL_PARAM_ANNOTATION =
+            &quot;jsr305.redundant.nonnull.param.annotation&quot;;
+
+    /** Key for error message. */
+    public static final String MSG_REDUNDANT_NULLABLE_PARAM_ANNOTATION =
+            &quot;jsr305.redundant.nullable.param.annotation&quot;;
+
+    /** Key for error message. */
+    public static final String MSG_PARAMETER_WITHOUT_NULLNESS_ANNOTATION =
+            &quot;jsr305.parameter.without.nullness.annotation&quot;;
+
+    /** Key for error message. */
+    public static final String MSG_RETURN_VALUE_WITH_NONNULL_BY_DEFAULT =
+            &quot;jsr305.return.value.with.nonnull.by.default.annotation&quot;;
+
+    /** Key for error message. */
+    public static final String MSG_RETURN_VALUE_WITH_NULLABLE =
+            &quot;jsr305.return.value.with.nullable.annotation&quot;;
+
+    /** Key for error message. */
+    public static final String MSG_CONTRADICTING_RETURN_VALUE_ANNOTATIONS =
+            &quot;jsr305.contradicting.return.value.annotations&quot;;
+
+    /** Key for error message. */
+    public static final String MSG_OVERRIDDEN_METHOD_WITH_CHECK_RETURN_VALUE =
+            &quot;jsr305.overridden.method.with.check.return.value.annotation&quot;;
+
+    /** Key for error message. */
+    public static final String MSG_REDUNDANT_NONNULL_BY_DEFAULT_ANNOTATION =
+            &quot;jsr305.redundant.nonnull.by.default.annotation&quot;;
+
+    /** Key for error message. */
+    public static final String MSG_REDUNDANT_NULLABLE_BY_DEFAULT_ANNOTATION =
+            &quot;jsr305.redundant.nullable.by.default.annotation&quot;;
+
+    /** Key for error message. */
+    public static final String MSG_VOID_WITH_CHECK_RETURN_VALUE_ANNOTATION =
+            &quot;jsr305.void.with.check.return.value.annotation&quot;;
+
+    /** Key for error message. */
+    public static final String MSG_REDUNDANT_NONNULL_RETURN_ANNOTATION =
+            &quot;jsr305.redundant.nonnull.return.annotation&quot;;
+
+    /** Key for error message. */
+    public static final String MSG_RETURN_WITHOUT_NULLNESS_ANNOTATION =
+            &quot;jsr305.return.without.nullness.annotation&quot;;
+
+    /** Key for error message. */
+    public static final String MSG_OVERRIDDEN_METHODS_ALLOW_ONLY_NONNULL =
+            &quot;jsr305.overridden.methods.allow.only.nonnull&quot;;
+
+    /** Key for error message. */
+    public static final String MSG_NEED_TO_INHERIT_PARAM_ANNOTATIONS =
+            &quot;jsr305.need.to.inherit.param.annotations&quot;;
+
+    /** Key for error message. */
+    public static final String MSG_CONSTRUCTOR_WITH_RETURN_ANNOTATION =
+            &quot;jsr305.constructor.with.return.annotation&quot;;
+
+    /** Package name. */
+    private static final String PKG_JAVAX_ANNOTATION = &quot;javax.annotation&quot;;
+
+    /**
+     * Class NullnessAnnotation. The annotations we consider as &quot;nullness-relevant&quot;.
+     */
+<span class="fc" id="L193">    protected enum NullnessAnnotation {</span>
+
+<span class="fc" id="L195">        /** Override. */</span>
+<span class="fc" id="L196">        OVERRIDE(&quot;Override&quot;, &quot;java.lang&quot;),</span>
+<span class="fc" id="L197">        /** CheckForNull. */</span>
+<span class="fc" id="L198">        CHECK_FOR_NULL(&quot;CheckForNull&quot;, PKG_JAVAX_ANNOTATION),</span>
+<span class="fc" id="L199">        /** Nullable. */</span>
+<span class="fc" id="L200">        NULLABLE(&quot;Nullable&quot;, PKG_JAVAX_ANNOTATION),</span>
+<span class="fc" id="L201">        /** Nonnull. */</span>
+<span class="fc" id="L202">        NONNULL(&quot;Nonnull&quot;, PKG_JAVAX_ANNOTATION),</span>
+<span class="fc" id="L203">        /** CheckReturnValue. */</span>
+<span class="fc" id="L204">        CHECK_RETURN_VALUE(&quot;CheckReturnValue&quot;, PKG_JAVAX_ANNOTATION),</span>
+<span class="fc" id="L205">        /** ParametersAreNonnullByDefault. */</span>
+<span class="fc" id="L206">        PARAMETERS_ARE_NONNULL_BY_DEFAULT(&quot;ParametersAreNonnullByDefault&quot;, PKG_JAVAX_ANNOTATION),</span>
+<span class="fc" id="L207">        /** ParametersAreNullableByDefault. */</span>
+<span class="fc" id="L208">        PARAMETERS_ARE_NULLABLE_BY_DEFAULT(&quot;ParametersAreNullableByDefault&quot;, PKG_JAVAX_ANNOTATION),</span>
+<span class="fc" id="L209">        /** ReturnValuesAreNonnullByDefault. */</span>
+<span class="fc" id="L210">        RETURN_VALUES_ARE_NONNULL_BY_DEFAULT(&quot;ReturnValuesAreNonnullByDefault&quot;,</span>
+<span class="fc" id="L211">                &quot;edu.umd.cs.findbugs.annotations&quot;);</span>
+
+        /** The annotation's name. */
+        private final String theAnnotationName;
+
+        /** The annotation's fully qualified class name. */
+        private final String theFqcn;
+
+        /**
+         * Constructor.
+         * @param annotationName
+         *        the annotation's name
+         * @param packageName
+         *        the package name
+         */
+<span class="fc" id="L226">        NullnessAnnotation(final String annotationName, final String packageName) {</span>
+<span class="fc" id="L227">            this.theAnnotationName = annotationName;</span>
+<span class="fc" id="L228">            this.theFqcn = packageName + &quot;.&quot; + annotationName;</span>
+<span class="fc" id="L229">        }</span>
+
+    }
+
+    /** The map of annotations against their respective names. */
+<span class="fc" id="L234">    private static final Map&lt;String, NullnessAnnotation&gt; STRING2ANNOTATION =</span>
+<span class="fc" id="L235">            createString2AnnotationMap();</span>
+
+    /** The modifiers of interest. */
+<span class="fc" id="L238">    private static final int[] DEFAULT_MODIFIERS = {</span>
+<span class="fc" id="L239">        TokenTypes.PARAMETER_DEF,</span>
+<span class="fc" id="L240">        TokenTypes.METHOD_DEF,</span>
+<span class="fc" id="L241">        TokenTypes.PACKAGE_DEF,</span>
+<span class="fc" id="L242">        TokenTypes.CTOR_DEF,</span>
+<span class="fc" id="L243">        TokenTypes.CLASS_DEF,</span>
+<span class="fc" id="L244">        TokenTypes.INTERFACE_DEF,</span>
+<span class="fc" id="L245">        TokenTypes.ENUM_DEF,</span>
+<span class="fc" id="L246">    };</span>
+
+    /** Parameter: packages to check. */
+<span class="fc" id="L249">    private String[] packages = new String[0];</span>
+    /** Parameter: packages to exclude from checking. */
+<span class="fc" id="L251">    private String[] excludePackages = new String[0];</span>
+    /** Parameter: overriding return value annotations allowed. */
+    private boolean allowOverridingReturnValue;
+    /** Parameter: overriding parameter annotations allowed. */
+    private boolean allowOverridingParameter;
+
+    /** State, is a package excluded. */
+    private boolean packageExcluded;
+
+    @Override
+    public final int[] getDefaultTokens() {
+<span class="fc" id="L262">        return getAcceptableTokens();</span>
+    }
+
+    @Override
+    public final int[] getRequiredTokens() {
+<span class="fc" id="L267">        return new int[0];</span>
+    }
+
+    @Override
+    public final int[] getAcceptableTokens() {
+<span class="fc" id="L272">        return DEFAULT_MODIFIERS.clone();</span>
+    }
+
+    @Override
+    public final void visitToken(final DetailAST ast) {
+<span class="fc bfc" id="L277" title="All 2 branches covered.">        if (ast.getType() == TokenTypes.PACKAGE_DEF) {</span>
+<span class="fc" id="L278">            final DetailAST nameAST = ast.getLastChild().getPreviousSibling();</span>
+<span class="fc" id="L279">            packageExcluded = isPackageExcluded(FullIdent.createFullIdent(nameAST));</span>
+<span class="fc" id="L280">        }</span>
+<span class="fc bfc" id="L281" title="All 2 branches covered.">        else if (!packageExcluded) {</span>
+<span class="fc" id="L282">            final AbstractJsr305Check handler = handleDefinition(ast);</span>
+<span class="fc bfc" id="L283" title="All 2 branches covered.">            if (handler != null) {</span>
+<span class="fc" id="L284">                handler.check();</span>
+            }
+        }
+<span class="fc" id="L287">    }</span>
+
+    /**
+     * Sets the included packages parameter.
+     * @param packageNames
+     *        the package names, comma separated
+     */
+    public void setPackages(final String... packageNames) {
+<span class="fc" id="L295">        packages = transformToUnique(packageNames);</span>
+<span class="fc" id="L296">    }</span>
+
+    /**
+     * Maps annotations to their respective names.
+     * @return the map
+     */
+    private static Map&lt;String, NullnessAnnotation&gt; createString2AnnotationMap() {
+<span class="fc" id="L303">        final Map&lt;String, NullnessAnnotation&gt; result = new HashMap&lt;&gt;();</span>
+
+<span class="fc bfc" id="L305" title="All 2 branches covered.">        for (final NullnessAnnotation annotation : NullnessAnnotation.values()) {</span>
+<span class="fc" id="L306">            result.put(annotation.theAnnotationName, annotation);</span>
+<span class="fc" id="L307">            result.put(annotation.theFqcn, annotation);</span>
+        }
+
+<span class="fc" id="L310">        return Collections.unmodifiableMap(result);</span>
+    }
+
+    /**
+     * Sets the excluded packages parameter.
+     * @param packageNames
+     *        the package names, comma separated
+     */
+    public void setExcludePackages(final String... packageNames) {
+<span class="fc" id="L319">        excludePackages = transformToUnique(packageNames);</span>
+<span class="fc" id="L320">    }</span>
+
+    /**
+     * Removes duplicates from an array of strings.
+     * @param input
+     *        the array
+     * @return a new, duplicate-free array
+     */
+    private static String[] transformToUnique(final String... input) {
+<span class="fc" id="L329">        final Set&lt;String&gt; inputSet = new HashSet&lt;&gt;(Arrays.asList(input));</span>
+<span class="fc" id="L330">        return inputSet.toArray(new String[0]);</span>
+    }
+
+    /**
+     * Checks whether a package is excluded.
+     * @param fullIdent
+     *        the identifier
+     * @return true if yes
+     */
+    protected boolean isPackageExcluded(final FullIdent fullIdent) {
+<span class="fc" id="L340">        Boolean result = null;</span>
+<span class="fc" id="L341">        final String packageName = fullIdent.getText();</span>
+<span class="fc bfc" id="L342" title="All 2 branches covered.">        for (final String excludesPackageName : excludePackages) {</span>
+<span class="fc bfc" id="L343" title="All 2 branches covered.">            if (packageName.startsWith(excludesPackageName)) {</span>
+<span class="fc" id="L344">                result = true;</span>
+<span class="fc" id="L345">                break;</span>
+            }
+        }
+<span class="fc bfc" id="L348" title="All 2 branches covered.">        if (result == null) {</span>
+<span class="fc bfc" id="L349" title="All 2 branches covered.">            for (final String includePackageName : packages) {</span>
+<span class="fc bfc" id="L350" title="All 2 branches covered.">                if (packageName.startsWith(includePackageName)) {</span>
+<span class="fc" id="L351">                    result = false;</span>
+<span class="fc" id="L352">                    break;</span>
+                }
+            }
+        }
+<span class="fc bfc" id="L356" title="All 2 branches covered.">        if (result == null) {</span>
+<span class="fc" id="L357">            result = true;</span>
+        }
+<span class="fc" id="L359">        return result;</span>
+    }
+
+    /**
+     * Returns the check to use for a given definition.
+     * @param ast
+     *        the ast
+     * @return the check.
+     */
+    protected AbstractJsr305Check handleDefinition(final DetailAST ast) {
+
+        // no definition in catch clause
+<span class="fc" id="L371">        final DetailAST parent = ast.getParent();</span>
+<span class="fc" id="L372">        AbstractJsr305Check result = null;</span>
+<span class="fc bfc" id="L373" title="All 4 branches covered.">        if (parent == null || parent.getType() != TokenTypes.LITERAL_CATCH) {</span>
+            // search modifiers
+<span class="fc" id="L375">            final int type = ast.getType();</span>
+<span class="pc bpc" id="L376" title="1 of 5 branches missed.">            switch (type) {</span>
+                case TokenTypes.METHOD_DEF:
+<span class="pc bpc" id="L378" title="1 of 2 branches missed.">                    result = new MethodJsr305Check(ast);</span>
+<span class="fc" id="L379">                    break;</span>
+                case TokenTypes.CTOR_DEF:
+<span class="pc bpc" id="L381" title="1 of 2 branches missed.">                    result = new ConstructorJsr305Check(ast);</span>
+<span class="fc" id="L382">                    break;</span>
+                case TokenTypes.PARAMETER_DEF:
+<span class="pc bpc" id="L384" title="1 of 2 branches missed.">                    result = new ParameterJsr305Check(ast);</span>
+<span class="fc" id="L385">                    break;</span>
+                case TokenTypes.CLASS_DEF:
+                case TokenTypes.INTERFACE_DEF:
+                case TokenTypes.ENUM_DEF:
+<span class="pc bpc" id="L389" title="1 of 2 branches missed.">                    result = new ClassJsr305Check(ast);</span>
+<span class="fc" id="L390">                    break;</span>
+                default:
+<span class="nc bnc" id="L392" title="All 2 branches missed.">                    SevntuUtil.reportInvalidToken(ast.getType());</span>
+                    break;
+            }
+        }
+<span class="fc" id="L396">        return result;</span>
+    }
+
+    /**
+     * Sets the parameter for allowing overriding return values.
+     * @param newAllowOverridingReturnValue
+     *        true if yes
+     */
+    public void setAllowOverridingReturnValue(final boolean newAllowOverridingReturnValue) {
+<span class="fc" id="L405">        this.allowOverridingReturnValue = newAllowOverridingReturnValue;</span>
+<span class="fc" id="L406">    }</span>
+
+    /**
+     * Sets the parameter for allowing overriding parameters.
+     * @param newAllowOverridingParameter
+     *        true if yes
+     */
+    public void setAllowOverridingParameter(final boolean newAllowOverridingParameter) {
+<span class="fc" id="L414">        this.allowOverridingParameter = newAllowOverridingParameter;</span>
+<span class="fc" id="L415">    }</span>
+
+    /**
+     * Class ClassJsr305Check. Checks a class.
+     */
+    private final class ClassJsr305Check extends AbstractJsr305Check {
+
+        /**
+         * Constructor.
+         * @param ast
+         *        the ast
+         */
+<span class="fc" id="L427">        protected ClassJsr305Check(final DetailAST ast) {</span>
+<span class="fc" id="L428">            super(ast);</span>
+<span class="fc" id="L429">        }</span>
+
+        /**
+         * Run the actual check.
+         */
+        @Override
+        protected void runcheck() {
+<span class="fc" id="L436">            checkContainsAny(MSG_ILLEGAL_CLASS_LEVEL_ANNOTATION,</span>
+<span class="fc" id="L437">                    NullnessAnnotation.CHECK_FOR_NULL, NullnessAnnotation.CHECK_RETURN_VALUE,</span>
+<span class="fc" id="L438">                    NullnessAnnotation.NONNULL, NullnessAnnotation.NULLABLE);</span>
+<span class="fc" id="L439">            checkContainsAll(MSG_CONTRADICTING_CLASS_LEVEL_ANNOTATIONS,</span>
+<span class="fc" id="L440">                    NullnessAnnotation.PARAMETERS_ARE_NONNULL_BY_DEFAULT,</span>
+<span class="fc" id="L441">                    NullnessAnnotation.PARAMETERS_ARE_NULLABLE_BY_DEFAULT);</span>
+<span class="fc" id="L442">        }</span>
+
+    }
+
+    /**
+     * Class ParameterJsr305Check. Checks a parameter.
+     */
+    private final class ParameterJsr305Check extends AbstractJsr305Check {
+
+        /**
+         * Constructor.
+         * @param ast
+         *        the ast
+         */
+<span class="fc" id="L456">        protected ParameterJsr305Check(final DetailAST ast) {</span>
+<span class="fc" id="L457">            super(ast);</span>
+<span class="fc" id="L458">        }</span>
+
+        /**
+         * Run the actual check.
+         */
+        @Override
+        protected void runcheck() {
+<span class="fc" id="L465">            checkContainsAny(MSG_PARAM_DEFINITIONS_WITH_CHECK,</span>
+<span class="fc" id="L466">                    NullnessAnnotation.CHECK_FOR_NULL, NullnessAnnotation.CHECK_RETURN_VALUE);</span>
+<span class="fc" id="L467">            checkContainsAny(MSG_PARAM_DEFINITION_WITH_OVERRIDE,</span>
+<span class="fc" id="L468">                    NullnessAnnotation.OVERRIDE);</span>
+<span class="fc" id="L469">            checkContainsAny(MSG_PARAM_DEFINITION_WITH_NONNULL_BY_DEFAULT,</span>
+<span class="fc" id="L470">                    NullnessAnnotation.PARAMETERS_ARE_NONNULL_BY_DEFAULT);</span>
+<span class="fc" id="L471">            checkContainsAny(MSG_PARAM_DEFINITION_WITH_NULLABLE_BY_DEFAULT,</span>
+<span class="fc" id="L472">                    NullnessAnnotation.PARAMETERS_ARE_NULLABLE_BY_DEFAULT);</span>
+<span class="fc" id="L473">            checkContainsAny(MSG_PARAM_DEFINITION_WITH_RETURN_DEFAULT,</span>
+<span class="fc" id="L474">                    NullnessAnnotation.RETURN_VALUES_ARE_NONNULL_BY_DEFAULT);</span>
+<span class="fc" id="L475">            checkContainsAll(MSG_PARAM_NONNULL_AND_NULLABLE,</span>
+<span class="fc" id="L476">                    NullnessAnnotation.NONNULL, NullnessAnnotation.NULLABLE);</span>
+
+<span class="fc bfc" id="L478" title="All 2 branches covered.">            if (isPrimitiveType()) {</span>
+<span class="fc" id="L479">                checkContainsAny(MSG_PRIMITIVES_WITH_NULLNESS_ANNOTATION,</span>
+<span class="fc" id="L480">                        NullnessAnnotation.CHECK_FOR_NULL, NullnessAnnotation.NONNULL,</span>
+<span class="fc" id="L481">                        NullnessAnnotation.NULLABLE);</span>
+<span class="fc" id="L482">            }</span>
+            else {
+<span class="fc" id="L484">                final NullnessAnnotation firstAncestorAnnotation =</span>
+<span class="fc" id="L485">                        getParentMethodOrClassAnnotation(</span>
+<span class="fc" id="L486">                                    NullnessAnnotation.PARAMETERS_ARE_NONNULL_BY_DEFAULT,</span>
+<span class="fc" id="L487">                                    NullnessAnnotation.PARAMETERS_ARE_NULLABLE_BY_DEFAULT);</span>
+<span class="fc" id="L488">                final boolean isMethodOverridden = isMethodOverridden();</span>
+<span class="fc bfc" id="L489" title="All 2 branches covered.">                final boolean parametersAreNonnullByDefault = firstAncestorAnnotation</span>
+<span class="fc" id="L490">                        == NullnessAnnotation.PARAMETERS_ARE_NONNULL_BY_DEFAULT;</span>
+<span class="fc bfc" id="L491" title="All 2 branches covered.">                final boolean parametersAreNullableByDefault = firstAncestorAnnotation</span>
+<span class="fc" id="L492">                        == NullnessAnnotation.PARAMETERS_ARE_NULLABLE_BY_DEFAULT;</span>
+
+<span class="fc bfc" id="L494" title="All 4 branches covered.">                if (isMethodOverridden &amp;&amp; !allowOverridingParameter) {</span>
+<span class="fc" id="L495">                    checkContainsAny(MSG_OVERRIDDEN_WITH_INCREASED_CONSTRAINT,</span>
+<span class="fc" id="L496">                            NullnessAnnotation.NONNULL);</span>
+                }
+<span class="fc bfc" id="L498" title="All 2 branches covered.">                if (parametersAreNonnullByDefault) {</span>
+<span class="fc" id="L499">                    checkContainsAny(MSG_REDUNDANT_NONNULL_PARAM_ANNOTATION,</span>
+<span class="fc" id="L500">                            NullnessAnnotation.NONNULL);</span>
+                }
+<span class="fc bfc" id="L502" title="All 2 branches covered.">                if (parametersAreNullableByDefault) {</span>
+<span class="fc" id="L503">                    checkContainsAny(MSG_REDUNDANT_NULLABLE_PARAM_ANNOTATION,</span>
+<span class="fc" id="L504">                            NullnessAnnotation.NULLABLE);</span>
+                }
+
+<span class="fc bfc" id="L507" title="All 4 branches covered.">                if (!isMethodOverridden &amp;&amp; !parametersAreNonnullByDefault</span>
+<span class="fc bfc" id="L508" title="All 2 branches covered.">                        &amp;&amp; !parametersAreNullableByDefault) {</span>
+<span class="fc" id="L509">                    checkContainsNone(MSG_PARAMETER_WITHOUT_NULLNESS_ANNOTATION,</span>
+<span class="fc" id="L510">                            NullnessAnnotation.NONNULL, NullnessAnnotation.NULLABLE);</span>
+                }
+            }
+<span class="fc" id="L513">        }</span>
+    }
+
+    /**
+     * Class AbstractMethodJsr305Check. A check on a method or constructor (special case).
+     */
+    private abstract class AbstractMethodJsr305Check extends AbstractJsr305Check {
+
+        /**
+         * Constructor.
+         * @param ast
+         *        the ast
+         */
+<span class="fc" id="L526">        protected AbstractMethodJsr305Check(final DetailAST ast) {</span>
+<span class="fc" id="L527">            super(ast);</span>
+<span class="fc" id="L528">        }</span>
+
+        /**
+         * Run the actual check.
+         */
+        @Override
+        protected void runcheck() {
+<span class="fc" id="L535">            checkContainsAll(MSG_CONTRADICTING_CLASS_LEVEL_ANNOTATIONS,</span>
+<span class="fc" id="L536">                    NullnessAnnotation.PARAMETERS_ARE_NONNULL_BY_DEFAULT,</span>
+<span class="fc" id="L537">                    NullnessAnnotation.PARAMETERS_ARE_NULLABLE_BY_DEFAULT);</span>
+<span class="fc" id="L538">            runReturnAnnotationCheck();</span>
+<span class="fc" id="L539">        }</span>
+
+        /**
+         * Run annotation check for return.
+         */
+        protected abstract void runReturnAnnotationCheck();
+
+    }
+
+    /**
+     * Class MethodJsr305Check. A check for a method.
+     */
+    private final class MethodJsr305Check extends AbstractMethodJsr305Check {
+
+        /**
+         * Constructor.
+         * @param ast
+         *        the ast
+         */
+<span class="fc" id="L558">        protected MethodJsr305Check(final DetailAST ast) {</span>
+<span class="fc" id="L559">            super(ast);</span>
+<span class="fc" id="L560">        }</span>
+
+        /**
+         * Run annotation check for return.
+         */
+        @Override
+        protected void runReturnAnnotationCheck() {
+<span class="fc" id="L567">            checkContainsAny(MSG_RETURN_VALUE_WITH_NONNULL_BY_DEFAULT,</span>
+<span class="fc" id="L568">                    NullnessAnnotation.RETURN_VALUES_ARE_NONNULL_BY_DEFAULT);</span>
+<span class="fc" id="L569">            checkContainsAny(MSG_RETURN_VALUE_WITH_NULLABLE,</span>
+<span class="fc" id="L570">                    NullnessAnnotation.NULLABLE);</span>
+<span class="fc" id="L571">            checkContainsAll(MSG_CONTRADICTING_RETURN_VALUE_ANNOTATIONS, NullnessAnnotation.NONNULL,</span>
+<span class="fc" id="L572">                    NullnessAnnotation.CHECK_FOR_NULL);</span>
+<span class="fc" id="L573">            checkContainsAll(MSG_OVERRIDDEN_METHOD_WITH_CHECK_RETURN_VALUE,</span>
+<span class="fc" id="L574">                    NullnessAnnotation.CHECK_RETURN_VALUE, NullnessAnnotation.OVERRIDE);</span>
+<span class="fc" id="L575">            checkRedundancyDueToClassLevelAnnotation(MSG_REDUNDANT_NONNULL_BY_DEFAULT_ANNOTATION,</span>
+<span class="fc" id="L576">                    NullnessAnnotation.PARAMETERS_ARE_NONNULL_BY_DEFAULT);</span>
+<span class="fc" id="L577">            checkRedundancyDueToClassLevelAnnotation(MSG_REDUNDANT_NULLABLE_BY_DEFAULT_ANNOTATION,</span>
+<span class="fc" id="L578">                    NullnessAnnotation.PARAMETERS_ARE_NULLABLE_BY_DEFAULT);</span>
+
+<span class="fc bfc" id="L580" title="All 2 branches covered.">            if (isVoid()) {</span>
+<span class="fc" id="L581">                checkContainsAny(MSG_VOID_WITH_CHECK_RETURN_VALUE_ANNOTATION,</span>
+<span class="fc" id="L582">                        NullnessAnnotation.CHECK_RETURN_VALUE);</span>
+            }
+<span class="fc bfc" id="L584" title="All 2 branches covered.">            if (isPrimitiveType()) {</span>
+<span class="fc" id="L585">                checkContainsAny(MSG_PRIMITIVES_WITH_NULLNESS_ANNOTATION,</span>
+<span class="fc" id="L586">                        NullnessAnnotation.CHECK_FOR_NULL, NullnessAnnotation.NONNULL,</span>
+<span class="fc" id="L587">                        NullnessAnnotation.NULLABLE);</span>
+<span class="fc" id="L588">            }</span>
+            else {
+<span class="fc" id="L590">                final NullnessAnnotation annotation = getParentMethodOrClassAnnotation(</span>
+<span class="fc" id="L591">                        NullnessAnnotation.RETURN_VALUES_ARE_NONNULL_BY_DEFAULT);</span>
+<span class="fc bfc" id="L592" title="All 2 branches covered.">                final boolean returnValuesAreNonnullByDefault = annotation</span>
+<span class="fc" id="L593">                        == NullnessAnnotation.RETURN_VALUES_ARE_NONNULL_BY_DEFAULT;</span>
+<span class="fc" id="L594">                final boolean isMethodOverridden = isMethodOverridden();</span>
+
+<span class="fc bfc" id="L596" title="All 2 branches covered.">                if (returnValuesAreNonnullByDefault) {</span>
+<span class="fc bfc" id="L597" title="All 2 branches covered.">                    if (!isMethodOverridden) {</span>
+<span class="fc" id="L598">                        checkContainsAny(MSG_REDUNDANT_NONNULL_RETURN_ANNOTATION,</span>
+<span class="fc" id="L599">                                NullnessAnnotation.NONNULL);</span>
+                    }
+<span class="fc" id="L601">                }</span>
+                else {
+<span class="fc" id="L603">                    checkContainsNone(MSG_RETURN_WITHOUT_NULLNESS_ANNOTATION,</span>
+<span class="fc" id="L604">                            NullnessAnnotation.CHECK_FOR_NULL, NullnessAnnotation.NONNULL,</span>
+<span class="fc" id="L605">                            NullnessAnnotation.OVERRIDE);</span>
+                }
+
+<span class="fc bfc" id="L608" title="All 4 branches covered.">                if (isMethodOverridden &amp;&amp; !allowOverridingReturnValue) {</span>
+<span class="fc" id="L609">                    checkContainsAny(MSG_OVERRIDDEN_METHODS_ALLOW_ONLY_NONNULL,</span>
+<span class="fc" id="L610">                            NullnessAnnotation.CHECK_FOR_NULL, NullnessAnnotation.NULLABLE);</span>
+                }
+
+<span class="fc bfc" id="L613" title="All 2 branches covered.">                if (isMethodOverridden) {</span>
+<span class="fc" id="L614">                    checkContainsAny(MSG_NEED_TO_INHERIT_PARAM_ANNOTATIONS,</span>
+<span class="fc" id="L615">                            NullnessAnnotation.PARAMETERS_ARE_NONNULL_BY_DEFAULT);</span>
+                }
+            }
+<span class="fc" id="L618">        }</span>
+
+    }
+
+    /**
+     * Class ConstructorJsr305Check. Check a constructor.
+     */
+    private final class ConstructorJsr305Check extends AbstractMethodJsr305Check {
+
+        /**
+         * Constructor.
+         * @param ast
+         *        the ast
+         */
+<span class="fc" id="L632">        protected ConstructorJsr305Check(final DetailAST ast) {</span>
+<span class="fc" id="L633">            super(ast);</span>
+<span class="fc" id="L634">        }</span>
+
+        /**
+         * Check for return type nullness annotations (which are illegal).
+         */
+        @Override
+        protected void runReturnAnnotationCheck() {
+<span class="fc" id="L641">            checkContainsAny(MSG_CONSTRUCTOR_WITH_RETURN_ANNOTATION,</span>
+<span class="fc" id="L642">                    NullnessAnnotation.CHECK_FOR_NULL, NullnessAnnotation.CHECK_RETURN_VALUE,</span>
+<span class="fc" id="L643">                    NullnessAnnotation.NONNULL, NullnessAnnotation.NULLABLE,</span>
+<span class="fc" id="L644">                    NullnessAnnotation.OVERRIDE);</span>
+<span class="fc" id="L645">        }</span>
+
+    }
+
+    /**
+     * An abstract check, the base for checks on parameters, methods, classes. Class
+     * AbstractJsr305Check.
+     */
+    public abstract class AbstractJsr305Check {
+
+        /** Has an error been found. */
+        private boolean errorFound;
+        /** The found annotations. */
+        private final Set&lt;NullnessAnnotation&gt; theAnnotations;
+        /** The ast. */
+        private final DetailAST theAst;
+
+        /**
+         * Construtor.
+         * @param ast
+         *        the ast
+         */
+<span class="fc" id="L667">        protected AbstractJsr305Check(final DetailAST ast) {</span>
+<span class="fc" id="L668">            theAst = ast;</span>
+<span class="fc" id="L669">            errorFound = false;</span>
+<span class="fc" id="L670">            theAnnotations = findAnnotation();</span>
+<span class="fc" id="L671">        }</span>
+
+        /**
+         * Run the actual check.
+         */
+        public final void check() {
+<span class="fc" id="L677">            runcheck();</span>
+<span class="fc" id="L678">        }</span>
+
+        /**
+         * Run the actual check.
+         */
+        protected abstract void runcheck();
+
+        /**
+         * Emits an error if any of the given annotations are found.
+         * @param msg
+         *        the error message to emit
+         * @param annotations
+         *        the annotations to look for
+         */
+        protected void checkContainsAny(final String msg, final NullnessAnnotation... annotations) {
+<span class="fc bfc" id="L693" title="All 4 branches covered.">            if (!errorFound &amp;&amp; containsAny(annotations)) {</span>
+<span class="fc" id="L694">                error(msg);</span>
+            }
+<span class="fc" id="L696">        }</span>
+
+        /**
+         * Check whether any of the given annotations are found.
+         * @param annotations
+         *        the annotations to look for
+         * @return true if yes
+         */
+        protected boolean containsAny(final NullnessAnnotation... annotations) {
+<span class="fc" id="L705">            Boolean result = null;</span>
+<span class="fc bfc" id="L706" title="All 2 branches covered.">            if (theAnnotations.isEmpty()) {</span>
+<span class="fc" id="L707">                result = false;</span>
+<span class="fc" id="L708">            }</span>
+            else {
+<span class="fc bfc" id="L710" title="All 2 branches covered.">                for (final NullnessAnnotation obj : annotations) {</span>
+<span class="fc bfc" id="L711" title="All 2 branches covered.">                    if (theAnnotations.contains(obj)) {</span>
+<span class="fc" id="L712">                        result = true;</span>
+<span class="fc" id="L713">                        break;</span>
+                    }
+                }
+            }
+<span class="fc bfc" id="L717" title="All 2 branches covered.">            if (result == null) {</span>
+<span class="fc" id="L718">                result = false;</span>
+            }
+<span class="fc" id="L720">            return result;</span>
+        }
+
+        /**
+         * Emits an error if all given annotations are found.
+         * @param msg
+         *        the error message to emit
+         * @param annotations
+         *        the annotations to look for
+         */
+        protected void checkContainsAll(final String msg, final NullnessAnnotation... annotations) {
+<span class="fc bfc" id="L731" title="All 4 branches covered.">            if (!errorFound &amp;&amp; containsAll(annotations)) {</span>
+<span class="fc" id="L732">                error(msg);</span>
+            }
+<span class="fc" id="L734">        }</span>
+
+        /**
+         * Emits an error if both this and the parent class have redundant nullness annotations.
+         * @param msg
+         *        the error message to emit
+         * @param annotations
+         *        the annotations to look for
+         */
+        protected void checkRedundancyDueToClassLevelAnnotation(final String msg,
+                final NullnessAnnotation... annotations) {
+<span class="fc bfc" id="L745" title="All 2 branches covered.">            if (!errorFound) {</span>
+<span class="fc bfc" id="L746" title="All 2 branches covered.">                for (final NullnessAnnotation nullnessAnnotation : annotations) {</span>
+<span class="fc" id="L747">                    final boolean thisIsAnnotated = theAnnotations.contains(nullnessAnnotation);</span>
+<span class="fc" id="L748">                    final boolean parentIsAnnotated =</span>
+<span class="fc bfc" id="L749" title="All 2 branches covered.">                            getParentMethodOrClassAnnotation(nullnessAnnotation) != null;</span>
+<span class="fc bfc" id="L750" title="All 4 branches covered.">                    if (thisIsAnnotated &amp;&amp; parentIsAnnotated) {</span>
+<span class="fc" id="L751">                        error(msg);</span>
+<span class="fc" id="L752">                        break;</span>
+                    }
+                }
+            }
+<span class="fc" id="L756">        }</span>
+
+        /**
+         * Check whether all the given annotations are present.
+         * @param annotations
+         *        the annotations to look for
+         * @return true if yes
+         */
+        protected boolean containsAll(final NullnessAnnotation... annotations) {
+<span class="fc" id="L765">            Boolean result = null;</span>
+<span class="fc bfc" id="L766" title="All 2 branches covered.">            if (theAnnotations.isEmpty()) {</span>
+                // an empty list of annotations can never contain all
+<span class="fc" id="L768">                result = false;</span>
+<span class="fc" id="L769">            }</span>
+            else {
+<span class="fc bfc" id="L771" title="All 2 branches covered.">                for (final NullnessAnnotation obj : annotations) {</span>
+<span class="fc bfc" id="L772" title="All 2 branches covered.">                    if (!theAnnotations.contains(obj)) {</span>
+<span class="fc" id="L773">                        result = false;</span>
+<span class="fc" id="L774">                        break;</span>
+                    }
+                }
+            }
+<span class="fc bfc" id="L778" title="All 2 branches covered.">            if (result == null) {</span>
+<span class="fc" id="L779">                result = true;</span>
+            }
+<span class="fc" id="L781">            return result;</span>
+        }
+
+        /**
+         * Make sure that none of the given annotations are present.
+         * @param msg
+         *        the error message to emit if one of the given annotations was found
+         * @param annotations
+         *        the annotations to look for
+         */
+        protected void checkContainsNone(final String msg,
+                final NullnessAnnotation... annotations) {
+<span class="fc bfc" id="L793" title="All 4 branches covered.">            if (!errorFound &amp;&amp; !containsAny(annotations)) {</span>
+<span class="fc" id="L794">                error(msg);</span>
+            }
+<span class="fc" id="L796">        }</span>
+
+        /**
+         * Logs an error.
+         *
+         * @param msg
+         *        the message
+         */
+        protected void reportError(final String msg) {
+<span class="fc" id="L805">            log(theAst, msg);</span>
+<span class="fc" id="L806">        }</span>
+
+        /**
+         * Handle an error (log and set 'errorFound' to 'true').
+         *
+         * @param msg
+         *        the error message
+         */
+        protected void error(final String msg) {
+<span class="fc" id="L815">            reportError(msg);</span>
+<span class="fc" id="L816">            errorFound = true;</span>
+<span class="fc" id="L817">        }</span>
+
+        /**
+         * Is the current symbol a primitive type.
+         * @return true if yes
+         */
+        protected boolean isPrimitiveType() {
+<span class="fc" id="L824">            final DetailAST parameterType = theAst.findFirstToken(TokenTypes.TYPE);</span>
+            final boolean result;
+<span class="fc" id="L826">            final DetailAST identToken = parameterType.getFirstChild();</span>
+
+<span class="fc bfc" id="L828" title="All 2 branches covered.">            switch (identToken.getType()) {</span>
+                case TokenTypes.LITERAL_BOOLEAN:
+                case TokenTypes.LITERAL_INT:
+                case TokenTypes.LITERAL_LONG:
+                case TokenTypes.LITERAL_SHORT:
+                case TokenTypes.LITERAL_BYTE:
+                case TokenTypes.LITERAL_CHAR:
+                case TokenTypes.LITERAL_VOID:
+                case TokenTypes.LITERAL_DOUBLE:
+                case TokenTypes.LITERAL_FLOAT:
+<span class="pc bpc" id="L838" title="1 of 4 branches missed.">                    result = !isArrayOrElipsis(parameterType);</span>
+<span class="fc" id="L839">                    break;</span>
+                default:
+<span class="pc bpc" id="L841" title="1 of 2 branches missed.">                    result = false;</span>
+            }
+<span class="fc" id="L843">            return result;</span>
+        }
+
+        /**
+         * Checks whether token is array or elipsis.
+         * @param identToken
+         *        the token
+         * @return true if yes
+         */
+        protected boolean isArrayOrElipsis(final DetailAST identToken) {
+<span class="fc" id="L853">            final DetailAST next = identToken.getNextSibling();</span>
+            final boolean result;
+<span class="fc bfc" id="L855" title="All 2 branches covered.">            switch (next.getType()) {</span>
+                case TokenTypes.ARRAY_DECLARATOR:
+                case TokenTypes.ELLIPSIS:
+<span class="pc bpc" id="L858" title="1 of 2 branches missed.">                    result = true;</span>
+<span class="fc" id="L859">                    break;</span>
+                default:
+<span class="pc bpc" id="L861" title="1 of 2 branches missed.">                    result = false;</span>
+            }
+<span class="fc" id="L863">            return result;</span>
+        }
+
+        /**
+         * Is the current symbol of void type.
+         * @return true if yes
+         */
+        protected boolean isVoid() {
+<span class="fc" id="L871">            final DetailAST parameterType = theAst.findFirstToken(TokenTypes.TYPE);</span>
+            final boolean result;
+<span class="fc" id="L873">            final DetailAST identToken = parameterType.getFirstChild();</span>
+<span class="fc bfc" id="L874" title="All 2 branches covered.">            result = identToken.getType() == TokenTypes.LITERAL_VOID;</span>
+<span class="fc" id="L875">            return result;</span>
+        }
+
+        /**
+         * Find the nullness annotations.
+         * @return the annotations.
+         */
+        private Set&lt;NullnessAnnotation&gt; findAnnotation() {
+<span class="fc" id="L883">            return findAnnotations(theAst);</span>
+        }
+
+        /**
+         * Find the nullness annotations.
+         * @param ast
+         *        the ast
+         * @return the annotations.
+         */
+        private Set&lt;NullnessAnnotation&gt; findAnnotations(final DetailAST ast) {
+<span class="fc" id="L893">            final Set&lt;NullnessAnnotation&gt; result = new HashSet&lt;&gt;();</span>
+
+<span class="fc" id="L895">            final DetailAST modifiers = ast.findFirstToken(TokenTypes.MODIFIERS);</span>
+<span class="fc bfc" id="L896" title="All 2 branches covered.">            for (AST child = modifiers.getFirstChild(); child != null; child =</span>
+<span class="fc" id="L897">                    child.getNextSibling()) {</span>
+<span class="fc bfc" id="L898" title="All 2 branches covered.">                if (child.getType() == TokenTypes.ANNOTATION) {</span>
+<span class="fc" id="L899">                    addNextNullnessAnnotation(result, (DetailAST) child);</span>
+                }
+            }
+
+<span class="fc" id="L903">            return result;</span>
+        }
+
+        /**
+         * Adds the nullness annotation from the argument's first token if any.
+         * @param result
+         *        the result
+         * @param ast
+         *        the ast
+         */
+        protected final void addNextNullnessAnnotation(final Set&lt;NullnessAnnotation&gt; result,
+                DetailAST ast) {
+<span class="fc" id="L915">            final DetailAST identifier = ast.findFirstToken(TokenTypes.IDENT);</span>
+<span class="fc" id="L916">            final String annotationName = identifier.getText();</span>
+<span class="fc" id="L917">            final NullnessAnnotation annotation = STRING2ANNOTATION.get(annotationName);</span>
+<span class="fc bfc" id="L918" title="All 2 branches covered.">            if (annotation != null) {</span>
+<span class="fc" id="L919">                result.add(annotation);</span>
+            }
+<span class="fc" id="L921">        }</span>
+
+        /**
+         * Gets the nullness annotation for the parent method or class.
+         * @param annotationsToLookFor
+         *        the annotations to look for.
+         * @return the annotation or null if none was found
+         */
+        protected NullnessAnnotation
+                getParentMethodOrClassAnnotation(final NullnessAnnotation... annotationsToLookFor) {
+
+<span class="fc" id="L932">            boolean finished = false;</span>
+<span class="fc" id="L933">            NullnessAnnotation result = null;</span>
+<span class="fc bfc" id="L934" title="All 4 branches covered.">            for (DetailAST current = theAst.getParent(); current != null &amp;&amp; !finished; current =</span>
+<span class="fc" id="L935">                    current.getParent()) {</span>
+<span class="fc" id="L936">                final int tokenType = current.getType();</span>
+
+<span class="fc bfc" id="L938" title="All 2 branches covered.">                if (isPossibleTokenTypeForNullnessAnnotations(tokenType)) {</span>
+<span class="fc" id="L939">                    final Set&lt;NullnessAnnotation&gt; foundAndLookedFor =</span>
+<span class="fc" id="L940">                            collectLookedForAnnotations(current, annotationsToLookFor);</span>
+<span class="fc bfc" id="L941" title="All 2 branches covered.">                    if (foundAndLookedFor.size() == 1) {</span>
+<span class="fc" id="L942">                        result = foundAndLookedFor.iterator().next();</span>
+<span class="fc" id="L943">                        finished = true;</span>
+<span class="fc" id="L944">                    }</span>
+<span class="fc bfc" id="L945" title="All 2 branches covered.">                    else if (!foundAndLookedFor.isEmpty()) {</span>
+<span class="fc" id="L946">                        finished = true;</span>
+                    }
+                }
+                // break on inner and anonymous classes/interfaces, we can't
+                // handle inheritance correctly
+<span class="fc bfc" id="L951" title="All 4 branches covered.">                if (tokenType == TokenTypes.LITERAL_NEW || tokenType == TokenTypes.CLASS_DEF</span>
+<span class="fc bfc" id="L952" title="All 2 branches covered.">                        || tokenType == TokenTypes.INTERFACE_DEF</span>
+<span class="fc bfc" id="L953" title="All 2 branches covered.">                        || tokenType == TokenTypes.ENUM_DEF) {</span>
+<span class="fc" id="L954">                    finished = true;</span>
+                }
+            }
+<span class="fc" id="L957">            return result;</span>
+        }
+
+        /**
+         * Is the current tokenType a possible type for nullness annotations.
+         * @param tokenType the token type
+         * @return true if yes
+         */
+        private boolean isPossibleTokenTypeForNullnessAnnotations(final int tokenType) {
+<span class="fc bfc" id="L966" title="All 4 branches covered.">            return tokenType == TokenTypes.CLASS_DEF || tokenType == TokenTypes.INTERFACE_DEF</span>
+<span class="fc bfc" id="L967" title="All 4 branches covered.">                    || tokenType == TokenTypes.METHOD_DEF || tokenType == TokenTypes.CTOR_DEF</span>
+<span class="fc bfc" id="L968" title="All 2 branches covered.">                    || tokenType == TokenTypes.ENUM_DEF;</span>
+        }
+
+        /**
+         * Extracts all given annotations from the current ast.
+         * @param current the current ast
+         * @param annotationsToLookFor the annotations we are looking for
+         * @return the annotations
+         */
+        protected Set&lt;NullnessAnnotation&gt; collectLookedForAnnotations(DetailAST current,
+                final NullnessAnnotation... annotationsToLookFor) {
+<span class="fc" id="L979">            final Set&lt;NullnessAnnotation&gt; foundAnnotations = findAnnotations(current);</span>
+<span class="fc" id="L980">            final Set&lt;NullnessAnnotation&gt; foundAndLookedFor = new HashSet&lt;&gt;();</span>
+<span class="fc bfc" id="L981" title="All 2 branches covered.">            for (final NullnessAnnotation nullnessAnnotation : annotationsToLookFor) {</span>
+<span class="fc bfc" id="L982" title="All 2 branches covered.">                if (foundAnnotations.contains(nullnessAnnotation)) {</span>
+<span class="fc" id="L983">                    foundAndLookedFor.add(nullnessAnnotation);</span>
+                }
+            }
+<span class="fc" id="L986">            return foundAndLookedFor;</span>
+        }
+
+        /**
+         * Is the current method overridden.
+         * @return true if yes
+         */
+        protected boolean isMethodOverridden() {
+<span class="fc" id="L994">            DetailAST current = theAst;</span>
+<span class="fc" id="L995">            Boolean result = null;</span>
+<span class="fc bfc" id="L996" title="All 6 branches covered.">            for (; current != null &amp;&amp; result == null; current = current.getParent()) {</span>
+<span class="fc bfc" id="L997" title="All 3 branches covered.">                switch (current.getType()) {</span>
+                    case TokenTypes.METHOD_DEF:
+<span class="pc bpc" id="L999" title="1 of 2 branches missed.">                        result = findAnnotations(current).contains(NullnessAnnotation.OVERRIDE);</span>
+<span class="fc" id="L1000">                        break;</span>
+                    case TokenTypes.LAMBDA:
+<span class="pc bpc" id="L1002" title="1 of 2 branches missed.">                        result = true;</span>
+                        break;
+                    default:
+                }
+            }
+<span class="fc bfc" id="L1007" title="All 2 branches covered.">            if (result == null) {</span>
+<span class="fc" id="L1008">                result = false;</span>
+            }
+<span class="fc" id="L1010">            return result;</span>
+        }
+
+    }
+
+}
+</pre><div class="footer"><span class="right">Created with <a href="http://www.eclemma.org/jacoco">JaCoCo</a> 0.7.1.201405082137</span></div></body></html>

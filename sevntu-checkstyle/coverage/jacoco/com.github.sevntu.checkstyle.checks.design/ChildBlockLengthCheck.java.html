@@ -1,0 +1,369 @@
+<?xml version="1.0" encoding="UTF-8"?><!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Strict//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-strict.dtd"><html xmlns="http://www.w3.org/1999/xhtml" lang="en"><head><meta http-equiv="Content-Type" content="text/html;charset=UTF-8"/><link rel="stylesheet" href="../.resources/report.css" type="text/css"/><link rel="shortcut icon" href="../.resources/report.gif" type="image/gif"/><title>ChildBlockLengthCheck.java</title><link rel="stylesheet" href="../.resources/prettify.css" type="text/css"/><script type="text/javascript" src="../.resources/prettify.js"></script></head><body onload="window['PR_TAB_WIDTH']=4;prettyPrint()"><div class="breadcrumb" id="breadcrumb"><span class="info"><a href="../.sessions.html" class="el_session">Sessions</a></span><a href="../index.html" class="el_report">sevntu-checks</a> &gt; <a href="index.source.html" class="el_package">com.github.sevntu.checkstyle.checks.design</a> &gt; <span class="el_source">ChildBlockLengthCheck.java</span></div><h1>ChildBlockLengthCheck.java</h1><pre class="source lang-java linenums">////////////////////////////////////////////////////////////////////////////////
+// checkstyle: Checks Java source code for adherence to a set of rules.
+// Copyright (C) 2001-2019 the original author or authors.
+//
+// This library is free software; you can redistribute it and/or
+// modify it under the terms of the GNU Lesser General Public
+// License as published by the Free Software Foundation; either
+// version 2.1 of the License, or (at your option) any later version.
+//
+// This library is distributed in the hope that it will be useful,
+// but WITHOUT ANY WARRANTY; without even the implied warranty of
+// MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the GNU
+// Lesser General Public License for more details.
+//
+// You should have received a copy of the GNU Lesser General Public
+// License along with this library; if not, write to the Free Software
+// Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA
+////////////////////////////////////////////////////////////////////////////////
+
+package com.github.sevntu.checkstyle.checks.design;
+
+import java.util.Arrays;
+import java.util.LinkedList;
+import java.util.List;
+
+import com.google.common.collect.Lists;
+import com.puppycrawl.tools.checkstyle.api.AbstractCheck;
+import com.puppycrawl.tools.checkstyle.api.DetailAST;
+import com.puppycrawl.tools.checkstyle.api.TokenTypes;
+import com.puppycrawl.tools.checkstyle.utils.TokenUtil;
+
+/**
+ * This check detects the child blocks, which length is more then 80% of parent
+ * block length. &lt;br&gt;
+ * &lt;p&gt;
+ * Supported keywords are used to detect blocks: &lt;br&gt;
+ * &quot;if&quot;, &quot;else&quot;, &quot;for&quot;, &quot;switch&quot;, &quot;do&quot;, &quot;while&quot;, &quot;try&quot;, &quot;catch&quot;.
+ * &lt;/p&gt;
+ * &lt;p&gt;
+ * &lt;i&gt;Rationale:&lt;/i&gt;
+ * &lt;/p&gt;
+ * &lt;p&gt;
+ * Length of child block that is more then 80% of parent block is usually hard
+ * to read in case child block is long(few display screens). Such child blocks
+ * should be refactored or moved to separate method.
+ * &lt;/p&gt;
+ * @author &lt;a href=&quot;mailto:Daniil.Yaroslavtsev@gmail.com&quot;&gt; Daniil
+ *         Yaroslavtsev&lt;/a&gt;
+ * @since 1.8.0
+ */
+<span class="fc" id="L51">public class ChildBlockLengthCheck extends AbstractCheck {</span>
+
+    /**
+     * A key is pointing to the warning message text in &quot;messages.properties&quot;
+     * file.
+     */
+    public static final String MSG_KEY = &quot;child.block.length&quot;;
+
+    /**
+     * The constant is used in percentage arithmetic operations. Represents
+     * '100%'
+     */
+    private static final double PERCENTS_FACTOR = 100.0;
+
+    /**
+     * Default value of maximum percentage ratio between the child and the
+     * parent block.
+     */
+    private static final double DEFAULT_MAX_CHILD_BLOCK_PERCENTAGE = 80.0;
+
+    /**
+     * Default number of lines of which block body may consist to be skipped by
+     * check.
+     */
+    private static final int DEFAULT_IGNORE_BLOCK_LINESCOUNT = 50;
+
+    /**
+     * Array contains all allowed block types to be checked. Supported block
+     * types: LITERAL_IF, LITERAL_SWITCH, LITERAL_FOR, LITERAL_DO,
+     * LITERAL_WHILE, LITERAL_TRY, LITERAL_ELSE, LITERAL_CATCH.
+     */
+    private int[] blockTypes;
+
+    /**
+     * Maximum percentage ratio between the child block and the parent block.
+     */
+<span class="fc" id="L87">    private double maxChildBlockPercentage = DEFAULT_MAX_CHILD_BLOCK_PERCENTAGE;</span>
+
+    /**
+     * Maximum number of lines of which block body may consist to be skipped by
+     * check.
+     */
+<span class="fc" id="L93">    private int ignoreBlockLinesCount = DEFAULT_IGNORE_BLOCK_LINESCOUNT;</span>
+
+    /**
+     * Sets allowed types of blocks to be checked. Supported block types:
+     * LITERAL_IF, LITERAL_SWITCH, LITERAL_FOR, LITERAL_DO, LITERAL_WHILE,
+     * LITERAL_TRY, LITERAL_ELSE, LITERAL_CATCH.
+     * @param blockTypes
+     *        - DetailAST tokenTypes that are related to the types which are
+     *        allowed by user in check preferences.
+     **/
+    public void setBlockTypes(final String... blockTypes) {
+<span class="fc" id="L104">        this.blockTypes = new int[blockTypes.length];</span>
+<span class="fc bfc" id="L105" title="All 2 branches covered.">        for (int i = 0; i &lt; blockTypes.length; i++) {</span>
+<span class="fc" id="L106">            this.blockTypes[i] = TokenUtil.getTokenId(blockTypes[i]);</span>
+        }
+<span class="fc" id="L108">    }</span>
+
+    /**
+     * Sets the maximum percentage ratio between child and parent block. (sets
+     * &quot;maxChildBlockPercentage&quot; option value)
+     * @param maxChildBlockPercentage
+     *        the new &quot;maxChildBlockPercentage&quot; option value.
+     */
+    public void setMaxChildBlockPercentage(int maxChildBlockPercentage) {
+<span class="fc" id="L117">        this.maxChildBlockPercentage = maxChildBlockPercentage;</span>
+<span class="fc" id="L118">    }</span>
+
+    /**
+     * Sets the maximum linelength of blocks that will be ignored by check.
+     * @param ignoreBlockLinesCount
+     *        the maximum linelength of the block to be ignored.
+     */
+    public void setIgnoreBlockLinesCount(int ignoreBlockLinesCount) {
+<span class="fc" id="L126">        this.ignoreBlockLinesCount = ignoreBlockLinesCount;</span>
+<span class="fc" id="L127">    }</span>
+
+    // -@cs[SimpleAccessorNameNotation] Overrides method from the base class.
+    // Issue: https://github.com/sevntu-checkstyle/sevntu.checkstyle/issues/166
+    @Override
+    public int[] getDefaultTokens() {
+        final int[] result;
+<span class="fc bfc" id="L134" title="All 2 branches covered.">        if (blockTypes == null) {</span>
+<span class="fc" id="L135">            result = null;</span>
+<span class="fc" id="L136">        }</span>
+        else {
+<span class="fc" id="L138">            result = Arrays.copyOf(blockTypes, blockTypes.length);</span>
+        }
+<span class="fc" id="L140">        return result;</span>
+    }
+
+    @Override
+    public int[] getAcceptableTokens() {
+<span class="fc" id="L145">        return getDefaultTokens();</span>
+    }
+
+    @Override
+    public int[] getRequiredTokens() {
+<span class="fc" id="L150">        return getDefaultTokens();</span>
+    }
+
+    @Override
+    public void visitToken(DetailAST ast) {
+<span class="fc" id="L155">        final DetailAST aOpeningBrace = openingBrace(ast);</span>
+
+        // if the block has braces at all
+<span class="fc bfc" id="L158" title="All 2 branches covered.">        if (aOpeningBrace != null) {</span>
+<span class="fc" id="L159">            final DetailAST aClosingBrace = closingBrace(ast);</span>
+<span class="fc" id="L160">            final int parentBlockSize =</span>
+<span class="fc" id="L161">                    linesCount(aOpeningBrace, aClosingBrace);</span>
+
+<span class="fc bfc" id="L163" title="All 2 branches covered.">            if (parentBlockSize &gt; ignoreBlockLinesCount) {</span>
+<span class="fc" id="L164">                final List&lt;DetailAST&gt; childBlocks = getChildBlocks(</span>
+<span class="fc" id="L165">                        aOpeningBrace, aClosingBrace);</span>
+
+<span class="fc" id="L167">                final List&lt;DetailAST&gt; badChildBlocks = getBadChildBlocks(</span>
+<span class="fc" id="L168">                        childBlocks, parentBlockSize);</span>
+
+<span class="fc bfc" id="L170" title="All 2 branches covered.">                if (badChildBlocks.isEmpty()) {</span>
+<span class="fc bfc" id="L171" title="All 2 branches covered.">                    for (DetailAST childBlock : childBlocks) {</span>
+<span class="fc" id="L172">                        visitToken(childBlock);</span>
+                    }
+<span class="fc" id="L174">                }</span>
+                else {
+<span class="fc bfc" id="L176" title="All 2 branches covered.">                    for (DetailAST badBlock : badChildBlocks) {</span>
+<span class="fc" id="L177">                        final int blockSize = linesCount(badBlock);</span>
+
+<span class="fc" id="L179">                        final double allowedBlockSize = (int) (parentBlockSize</span>
+<span class="fc" id="L180">                                * maxChildBlockPercentage / PERCENTS_FACTOR);</span>
+
+<span class="fc" id="L182">                        log(badBlock, MSG_KEY, blockSize, allowedBlockSize);</span>
+                    }
+                }
+            }
+        }
+<span class="fc" id="L187">    }</span>
+
+    /**
+     * Gets all the child blocks for given parent block. Uses an iterative
+     * algorithm.
+     * @param blockOpeningBrace
+     *        a DetailAST node that points to the current method`s opening
+     *        brace.
+     * @param blockClosingBrace
+     *        the a block closing brace
+     * @return all child blocks that have braces.
+     */
+    private List&lt;DetailAST&gt; getChildBlocks(DetailAST blockOpeningBrace,
+            DetailAST blockClosingBrace) {
+<span class="fc" id="L201">        final List&lt;DetailAST&gt; childBlocks = Lists.newLinkedList();</span>
+
+<span class="fc" id="L203">        DetailAST curNode = blockOpeningBrace;</span>
+
+<span class="fc bfc" id="L205" title="All 2 branches covered.">        while (curNode != blockClosingBrace) {</span>
+<span class="fc bfc" id="L206" title="All 2 branches covered.">            if (isAllowedBlockType(curNode.getType())) {</span>
+<span class="fc" id="L207">                childBlocks.add(curNode);</span>
+            }
+            // before node leaving
+<span class="fc" id="L210">            DetailAST nextNode = curNode.getFirstChild();</span>
+
+<span class="fc" id="L212">            final int type = curNode.getType();</span>
+            // skip anonymous classes and nested methods
+<span class="fc bfc" id="L214" title="All 2 branches covered.">            if (type == TokenTypes.METHOD_DEF</span>
+<span class="fc bfc" id="L215" title="All 2 branches covered.">                    || type == TokenTypes.CLASS_DEF) {</span>
+<span class="fc" id="L216">                nextNode = curNode.getNextSibling();</span>
+            }
+
+<span class="fc bfc" id="L219" title="All 2 branches covered.">            while (nextNode == null) {</span>
+                // leave the visited node
+<span class="fc" id="L221">                nextNode = curNode.getNextSibling();</span>
+<span class="fc bfc" id="L222" title="All 2 branches covered.">                if (nextNode == null) {</span>
+<span class="fc" id="L223">                    curNode = curNode.getParent();</span>
+                }
+            }
+<span class="fc" id="L226">            curNode = nextNode;</span>
+        }
+<span class="fc" id="L228">        return childBlocks;</span>
+    }
+
+    /**
+     * Checks that given child block type is allowed.
+     * @param blockType
+     *        the token type ID for the given block.
+     * @return true, if the given child block type is allowed.
+     */
+    private boolean isAllowedBlockType(int blockType) {
+<span class="fc" id="L238">        boolean result = false;</span>
+<span class="fc bfc" id="L239" title="All 2 branches covered.">        for (int type : blockTypes) {</span>
+<span class="fc bfc" id="L240" title="All 2 branches covered.">            if (type == blockType) {</span>
+<span class="fc" id="L241">                result = true;</span>
+<span class="fc" id="L242">                break;</span>
+            }
+        }
+<span class="fc" id="L245">        return result;</span>
+    }
+
+    /**
+     * Gets the child blocks which occupies too much size (in percentage) of
+     * given parent block size.
+     * @param blocksList
+     *        the blocks
+     * @param parentBlockSize
+     *        the a parent block size
+     * @return the wrong child blocks
+     */
+    private List&lt;DetailAST&gt; getBadChildBlocks(List&lt;DetailAST&gt; blocksList,
+            int parentBlockSize) {
+<span class="fc" id="L259">        final List&lt;DetailAST&gt; result = new LinkedList&lt;&gt;();</span>
+<span class="fc bfc" id="L260" title="All 2 branches covered.">        for (DetailAST block : blocksList) {</span>
+<span class="fc bfc" id="L261" title="All 2 branches covered.">            if (isChildBlockBad(block, parentBlockSize)) {</span>
+<span class="fc" id="L262">                result.add(block);</span>
+            }
+        }
+<span class="fc" id="L265">        return result;</span>
+    }
+
+    /**
+     * Checks if the child block size percentage from parent block is greater
+     * than.
+     * @param childBlock
+     *        the a child block node
+     * @param parentBlockSize
+     *        the a parent block size
+     * @return true, if is child block wrong
+     */
+    private boolean isChildBlockBad(DetailAST childBlock,
+            int parentBlockSize) {
+<span class="fc" id="L279">        boolean result = false;</span>
+<span class="fc" id="L280">        final DetailAST openingBrace = openingBrace(childBlock);</span>
+<span class="fc bfc" id="L281" title="All 2 branches covered.">        if (openingBrace != null) {</span>
+<span class="fc" id="L282">            final DetailAST closingBrace = closingBrace(childBlock);</span>
+<span class="fc" id="L283">            final int childBlockSize = linesCount(openingBrace, closingBrace);</span>
+<span class="fc" id="L284">            result = getPercentage(parentBlockSize, childBlockSize);</span>
+        }
+<span class="fc" id="L286">        return result;</span>
+    }
+
+    /**
+     * Gets the percentage which the child block occupies inside the parent
+     * block.
+     * @param parentBlockSize
+     *        the parent block size in lines
+     * @param childBlockSize
+     *        the child block size in lines
+     * @return the percentage value.
+     */
+    private boolean getPercentage(int parentBlockSize,
+            final int childBlockSize) {
+<span class="fc" id="L300">        final double percentage =</span>
+<span class="fc" id="L301">                ((double) childBlockSize / (double) parentBlockSize) * 100.0;</span>
+<span class="fc bfc" id="L302" title="All 2 branches covered.">        return percentage &gt; maxChildBlockPercentage;</span>
+    }
+
+    /**
+     * Gets the opening brace for the given block.
+     * @param parentBlock
+     *        the DetailAST node is related to the given parent block.
+     * @return the DetailAST node is related to the given block opening brace
+     */
+    private static DetailAST openingBrace(final DetailAST parentBlock) {
+        final int searchType;
+<span class="fc bfc" id="L313" title="All 2 branches covered.">        if (parentBlock.getType() == TokenTypes.LITERAL_SWITCH) {</span>
+<span class="fc" id="L314">            searchType = TokenTypes.LCURLY;</span>
+<span class="fc" id="L315">        }</span>
+        else {
+<span class="fc" id="L317">            searchType = TokenTypes.SLIST;</span>
+        }
+<span class="fc" id="L319">        return parentBlock.findFirstToken(searchType);</span>
+    }
+
+    /**
+     * Gets the closing brace for the given block.
+     * @param parentBlockNode
+     *        the DetailAST node is related to the given parent block.
+     * @return the DetailAST node is related to the given block closing brace
+     */
+    private static DetailAST closingBrace(DetailAST parentBlockNode) {
+<span class="fc" id="L329">        final int aParentBlockType = parentBlockNode.getType();</span>
+        final DetailAST result;
+<span class="fc bfc" id="L331" title="All 2 branches covered.">        if (aParentBlockType == TokenTypes.LITERAL_SWITCH) {</span>
+<span class="fc" id="L332">            result = parentBlockNode.getLastChild();</span>
+<span class="fc" id="L333">        }</span>
+        else {
+<span class="fc" id="L335">            result = openingBrace(parentBlockNode).getLastChild();</span>
+        }
+<span class="fc" id="L337">        return result;</span>
+    }
+
+    /**
+     * Gets the lines count between braces of the given block.
+     * @param blockAst
+     *        - the DetailAST node is related to the given block (the block
+     *        should have braces!).
+     * @return the lines count between the given block braces.
+     */
+    private static int linesCount(DetailAST blockAst) {
+<span class="fc" id="L348">        return linesCount(openingBrace(blockAst), closingBrace(blockAst));</span>
+    }
+
+    /**
+     * Gets the lines count between the given block opening and closing braces.
+     * @param openingBrace
+     *        the block opening brace DetailAST (LCURLY or SLIST type)
+     * @param closingBrace
+     *        the block closing brace DetailAST (RCURLY type)
+     * @return the lines count between the given block braces.
+     */
+    private static int linesCount(DetailAST openingBrace,
+            DetailAST closingBrace) {
+<span class="fc" id="L361">        int result = closingBrace.getLineNo() - openingBrace.getLineNo();</span>
+<span class="fc bfc" id="L362" title="All 2 branches covered.">        if (result != 0) {</span>
+<span class="fc" id="L363">            result--;</span>
+        }
+<span class="fc" id="L365">        return result;</span>
+    }
+
+}
+</pre><div class="footer"><span class="right">Created with <a href="http://www.eclemma.org/jacoco">JaCoCo</a> 0.7.1.201405082137</span></div></body></html>

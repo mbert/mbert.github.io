@@ -1,0 +1,393 @@
+<?xml version="1.0" encoding="UTF-8"?><!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Strict//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-strict.dtd"><html xmlns="http://www.w3.org/1999/xhtml" lang="en"><head><meta http-equiv="Content-Type" content="text/html;charset=UTF-8"/><link rel="stylesheet" href="../.resources/report.css" type="text/css"/><link rel="shortcut icon" href="../.resources/report.gif" type="image/gif"/><title>UnnecessaryParenthesesExtendedCheck.java</title><link rel="stylesheet" href="../.resources/prettify.css" type="text/css"/><script type="text/javascript" src="../.resources/prettify.js"></script></head><body onload="window['PR_TAB_WIDTH']=4;prettyPrint()"><div class="breadcrumb" id="breadcrumb"><span class="info"><a href="../.sessions.html" class="el_session">Sessions</a></span><a href="../index.html" class="el_report">sevntu-checks</a> &gt; <a href="index.source.html" class="el_package">com.github.sevntu.checkstyle.checks.coding</a> &gt; <span class="el_source">UnnecessaryParenthesesExtendedCheck.java</span></div><h1>UnnecessaryParenthesesExtendedCheck.java</h1><pre class="source lang-java linenums">////////////////////////////////////////////////////////////////////////////////
+// checkstyle: Checks Java source code for adherence to a set of rules.
+// Copyright (C) 2001-2019 the original author or authors.
+//
+// This library is free software; you can redistribute it and/or
+// modify it under the terms of the GNU Lesser General Public
+// License as published by the Free Software Foundation; either
+// version 2.1 of the License, or (at your option) any later version.
+//
+// This library is distributed in the hope that it will be useful,
+// but WITHOUT ANY WARRANTY; without even the implied warranty of
+// MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the GNU
+// Lesser General Public License for more details.
+//
+// You should have received a copy of the GNU Lesser General Public
+// License along with this library; if not, write to the Free Software
+// Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA
+////////////////////////////////////////////////////////////////////////////////
+
+package com.github.sevntu.checkstyle.checks.coding;
+
+import com.puppycrawl.tools.checkstyle.api.AbstractCheck;
+import com.puppycrawl.tools.checkstyle.api.DetailAST;
+import com.puppycrawl.tools.checkstyle.api.TokenTypes;
+
+/**
+ * &lt;p&gt;
+ * Checks if unnecessary parentheses are used in a statement or expression.
+ * The check will flag the following with warnings:
+ * &lt;/p&gt;
+ * &lt;pre&gt;
+ *     return (x);          // parens around identifier
+ *     return (x + 1);      // parens around return value
+ *     int x = (y / 2 + 1); // parens around assignment rhs
+ *     for (int i = (0); i &amp;lt; 10; i++) {  // parens around literal
+ *     t -= (z + 1);        // parens around assignment rhs&lt;/pre&gt;
+ * &lt;p&gt;
+ * The check is not &quot;type aware&quot;, that is to say, it can't tell if parentheses
+ * are unnecessary based on the types in an expression.  It also doesn't know
+ * about operator precedence and associativity; therefore it won't catch
+ * something like
+ * &lt;/p&gt;
+ * &lt;pre&gt;
+ *     int x = (a + b) + c;&lt;/pre&gt;
+ * &lt;p&gt;
+ * In the above case, given that &lt;em&gt;a&lt;/em&gt;, &lt;em&gt;b&lt;/em&gt;, and &lt;em&gt;c&lt;/em&gt; are
+ * all &lt;code&gt;int&lt;/code&gt; variables, the parentheses around &lt;code&gt;a + b&lt;/code&gt;
+ * are not needed.
+ * &lt;/p&gt;
+ *
+ * @author Eric Roe
+ * @author Antonenko Dmitriy
+ * @since 1.8.0
+ */
+<span class="fc" id="L55">public class UnnecessaryParenthesesExtendedCheck extends AbstractCheck {</span>
+
+    /**Warning message key.*/
+    public static final String MSG_KEY_ASSIGN = &quot;unnecessary.paren.assign&quot;;
+    /**Warning message key.*/
+    public static final String MSG_KEY_EXPR = &quot;unnecessary.paren.expr&quot;;
+    /**Warning message key.*/
+    public static final String MSG_KEY_IDENT = &quot;unnecessary.paren.ident&quot;;
+    /**Warning message key.*/
+    public static final String MSG_KEY_LITERAL = &quot;unnecessary.paren.literal&quot;;
+    /**Warning message key.*/
+    public static final String MSG_KEY_RETURN = &quot;unnecessary.paren.return&quot;;
+    /**Warning message key.*/
+    public static final String MSG_KEY_STRING = &quot;unnecessary.paren.string&quot;;
+    /** The minimum number of child nodes to consider for a match. */
+    private static final int MIN_CHILDREN_FOR_MATCH = 3;
+    /** The maximum string length before we chop the string. */
+    private static final int MAX_QUOTED_LENGTH = 25;
+
+    /** Token types for literals. */
+<span class="fc" id="L75">    private static final int[] LITERALS = {</span>
+<span class="fc" id="L76">        TokenTypes.NUM_DOUBLE,</span>
+<span class="fc" id="L77">        TokenTypes.NUM_FLOAT,</span>
+<span class="fc" id="L78">        TokenTypes.NUM_INT,</span>
+<span class="fc" id="L79">        TokenTypes.NUM_LONG,</span>
+<span class="fc" id="L80">        TokenTypes.STRING_LITERAL,</span>
+<span class="fc" id="L81">        TokenTypes.LITERAL_NULL,</span>
+<span class="fc" id="L82">        TokenTypes.LITERAL_FALSE,</span>
+<span class="fc" id="L83">        TokenTypes.LITERAL_TRUE,</span>
+    };
+
+    /** Token types for assignment operations. */
+<span class="fc" id="L87">    private static final int[] ASSIGNMENTS = {</span>
+<span class="fc" id="L88">        TokenTypes.ASSIGN,</span>
+<span class="fc" id="L89">        TokenTypes.BAND_ASSIGN,</span>
+<span class="fc" id="L90">        TokenTypes.BOR_ASSIGN,</span>
+<span class="fc" id="L91">        TokenTypes.BSR_ASSIGN,</span>
+<span class="fc" id="L92">        TokenTypes.BXOR_ASSIGN,</span>
+<span class="fc" id="L93">        TokenTypes.DIV_ASSIGN,</span>
+<span class="fc" id="L94">        TokenTypes.MINUS_ASSIGN,</span>
+<span class="fc" id="L95">        TokenTypes.MOD_ASSIGN,</span>
+<span class="fc" id="L96">        TokenTypes.PLUS_ASSIGN,</span>
+<span class="fc" id="L97">        TokenTypes.SL_ASSIGN,</span>
+<span class="fc" id="L98">        TokenTypes.SR_ASSIGN,</span>
+<span class="fc" id="L99">        TokenTypes.STAR_ASSIGN,</span>
+    };
+
+    /** Token types equals operations. */
+<span class="fc" id="L103">    private static final int[] EQUALS = {</span>
+<span class="fc" id="L104">        TokenTypes.EQUAL,</span>
+<span class="fc" id="L105">        TokenTypes.NOT_EQUAL,</span>
+<span class="fc" id="L106">        TokenTypes.LOR,</span>
+<span class="fc" id="L107">        TokenTypes.LAND,</span>
+<span class="fc" id="L108">        TokenTypes.BOR,</span>
+<span class="fc" id="L109">    };</span>
+
+    /** Used to ignore unnecessary parentheses check
+     *  in calculation of boolean. */
+    private boolean ignoreCalculationOfBooleanVariables;
+    /** Used to ignore unnecessary parentheses check
+     *  in calculation of boolean with return state. */
+    private boolean ignoreCalculationOfBooleanVariablesWithReturn;
+    /** Used to ignore unnecessary parentheses check
+     *  in calculation of boolean with assert state. */
+    private boolean ignoreCalculationOfBooleanVariablesWithAssert;
+
+    /**
+     * Used to test if logging a warning in a parent node may be skipped
+     * because a warning was already logged on an immediate child node.
+     */
+    private DetailAST parentToSkip;
+    /** Depth of nested assignments.  Normally this will be 0 or 1. */
+    private int assignDepth;
+
+    @Override
+    public int[] getDefaultTokens() {
+<span class="fc" id="L131">        return new int[] {</span>
+<span class="fc" id="L132">            TokenTypes.EXPR,</span>
+<span class="fc" id="L133">            TokenTypes.IDENT,</span>
+<span class="fc" id="L134">            TokenTypes.NUM_DOUBLE,</span>
+<span class="fc" id="L135">            TokenTypes.NUM_FLOAT,</span>
+<span class="fc" id="L136">            TokenTypes.NUM_INT,</span>
+<span class="fc" id="L137">            TokenTypes.NUM_LONG,</span>
+<span class="fc" id="L138">            TokenTypes.STRING_LITERAL,</span>
+<span class="fc" id="L139">            TokenTypes.LITERAL_NULL,</span>
+<span class="fc" id="L140">            TokenTypes.LITERAL_FALSE,</span>
+<span class="fc" id="L141">            TokenTypes.LITERAL_TRUE,</span>
+<span class="fc" id="L142">            TokenTypes.ASSIGN,</span>
+<span class="fc" id="L143">            TokenTypes.BAND_ASSIGN,</span>
+<span class="fc" id="L144">            TokenTypes.BOR_ASSIGN,</span>
+<span class="fc" id="L145">            TokenTypes.BSR_ASSIGN,</span>
+<span class="fc" id="L146">            TokenTypes.BXOR_ASSIGN,</span>
+<span class="fc" id="L147">            TokenTypes.DIV_ASSIGN,</span>
+<span class="fc" id="L148">            TokenTypes.MINUS_ASSIGN,</span>
+<span class="fc" id="L149">            TokenTypes.MOD_ASSIGN,</span>
+<span class="fc" id="L150">            TokenTypes.PLUS_ASSIGN,</span>
+<span class="fc" id="L151">            TokenTypes.SL_ASSIGN,</span>
+<span class="fc" id="L152">            TokenTypes.SR_ASSIGN,</span>
+<span class="fc" id="L153">            TokenTypes.STAR_ASSIGN,</span>
+        };
+    }
+
+    @Override
+    public int[] getAcceptableTokens() {
+<span class="fc" id="L159">        return getDefaultTokens();</span>
+    }
+
+    @Override
+    public int[] getRequiredTokens() {
+<span class="fc" id="L164">        return getDefaultTokens();</span>
+    }
+
+    @Override
+    public void visitToken(DetailAST ast) {
+<span class="fc" id="L169">        final int type = ast.getType();</span>
+<span class="fc" id="L170">        final DetailAST parent = ast.getParent();</span>
+
+        // shouldn't process assign in annotation pairs
+<span class="fc bfc" id="L173" title="All 2 branches covered.">        if (type != TokenTypes.ASSIGN</span>
+<span class="fc bfc" id="L174" title="All 2 branches covered.">            || parent.getType() != TokenTypes.ANNOTATION_MEMBER_VALUE_PAIR) {</span>
+<span class="fc" id="L175">            final boolean surrounded = isSurrounded(ast);</span>
+
+            // An identifier surrounded by parentheses.
+<span class="fc bfc" id="L178" title="All 4 branches covered.">            if (surrounded &amp;&amp; type == TokenTypes.IDENT) {</span>
+<span class="fc" id="L179">                parentToSkip = ast.getParent();</span>
+<span class="fc" id="L180">                log(ast, MSG_KEY_IDENT, ast.getText());</span>
+<span class="fc" id="L181">            }</span>
+            // A literal (numeric or string) surrounded by parentheses.
+<span class="fc bfc" id="L183" title="All 4 branches covered.">            else if (surrounded &amp;&amp; inTokenList(type, LITERALS)) {</span>
+<span class="fc" id="L184">                parentToSkip = ast.getParent();</span>
+<span class="fc bfc" id="L185" title="All 2 branches covered.">                if (type == TokenTypes.STRING_LITERAL) {</span>
+<span class="fc" id="L186">                    log(ast, MSG_KEY_STRING,</span>
+<span class="fc" id="L187">                        chopString(ast.getText()));</span>
+<span class="fc" id="L188">                }</span>
+                else {
+<span class="fc" id="L190">                    log(ast, MSG_KEY_LITERAL, ast.getText());</span>
+                }
+<span class="fc" id="L192">            }</span>
+            // The rhs of an assignment surrounded by parentheses.
+<span class="fc bfc" id="L194" title="All 2 branches covered.">            else if (inTokenList(type, ASSIGNMENTS)) {</span>
+<span class="fc" id="L195">                assignDepth++;</span>
+<span class="fc" id="L196">                final DetailAST last = ast.getLastChild();</span>
+<span class="fc bfc" id="L197" title="All 2 branches covered.">                if (last.getType() == TokenTypes.RPAREN) {</span>
+<span class="fc" id="L198">                    final DetailAST subtree = ast.getFirstChild().getNextSibling()</span>
+<span class="fc" id="L199">                        .getNextSibling();</span>
+<span class="fc" id="L200">                    final int subtreeType = subtree.getType();</span>
+<span class="fc bfc" id="L201" title="All 2 branches covered.">                    if (!ignoreCalculationOfBooleanVariables || !inTokenList(</span>
+<span class="fc bfc" id="L202" title="All 2 branches covered.">                        subtreeType, EQUALS)) {</span>
+<span class="fc" id="L203">                        log(ast, MSG_KEY_ASSIGN);</span>
+                    }
+                }
+            }
+        }
+<span class="fc" id="L208">    }</span>
+
+    @Override
+    public void leaveToken(DetailAST ast) {
+<span class="fc" id="L212">        final int type = ast.getType();</span>
+<span class="fc" id="L213">        final DetailAST parent = ast.getParent();</span>
+
+        // shouldn't process assign in annotation pairs
+<span class="fc bfc" id="L216" title="All 2 branches covered.">        if (type != TokenTypes.ASSIGN</span>
+<span class="fc bfc" id="L217" title="All 2 branches covered.">            || parent.getType() != TokenTypes.ANNOTATION_MEMBER_VALUE_PAIR) {</span>
+            // An expression is surrounded by parentheses.
+<span class="fc bfc" id="L219" title="All 2 branches covered.">            if (type == TokenTypes.EXPR) {</span>
+<span class="fc" id="L220">                leaveTokenExpression(ast);</span>
+
+<span class="fc" id="L222">                parentToSkip = null;</span>
+<span class="fc" id="L223">            }</span>
+<span class="fc bfc" id="L224" title="All 2 branches covered.">            else if (inTokenList(type, ASSIGNMENTS)) {</span>
+<span class="fc" id="L225">                assignDepth--;</span>
+            }
+
+<span class="fc" id="L228">            super.leaveToken(ast);</span>
+        }
+<span class="fc" id="L230">    }</span>
+
+    /**
+     * Examines the expression AST for violations.
+     * @param ast The AST to examine.
+     */
+    private void leaveTokenExpression(DetailAST ast) {
+        // If 'mParentToSkip' == 'aAST', then we've already logged a
+        // warning about an immediate child node in visitToken, so we don't
+        // need to log another one here.
+
+<span class="fc bfc" id="L241" title="All 4 branches covered.">        if (parentToSkip != ast &amp;&amp; exprSurrounded(ast)) {</span>
+<span class="fc bfc" id="L242" title="All 2 branches covered.">            if (assignDepth &gt;= 1) {</span>
+<span class="fc bfc" id="L243" title="All 2 branches covered.">                if (!ignoreCalculationOfBooleanVariables || !inTokenList(</span>
+<span class="fc bfc" id="L244" title="All 2 branches covered.">                    subtreeType(ast), EQUALS)) {</span>
+<span class="fc" id="L245">                    log(ast, MSG_KEY_ASSIGN);</span>
+                }
+<span class="fc" id="L247">            }</span>
+<span class="fc bfc" id="L248" title="All 2 branches covered.">            else if (ast.getParent().getType()</span>
+<span class="fc" id="L249">                == TokenTypes.LITERAL_RETURN) {</span>
+<span class="fc bfc" id="L250" title="All 2 branches covered.">                if (!ignoreCalculationOfBooleanVariablesWithReturn</span>
+<span class="fc bfc" id="L251" title="All 2 branches covered.">                        || !inTokenList(subtreeType(ast), EQUALS)) {</span>
+<span class="fc" id="L252">                    log(ast, MSG_KEY_RETURN);</span>
+                }
+<span class="fc" id="L254">            }</span>
+<span class="fc bfc" id="L255" title="All 2 branches covered.">            else if (ast.getParent().getType()</span>
+<span class="fc" id="L256">                    == TokenTypes.LITERAL_ASSERT) {</span>
+<span class="fc bfc" id="L257" title="All 2 branches covered.">                if (!ignoreCalculationOfBooleanVariablesWithAssert</span>
+<span class="fc bfc" id="L258" title="All 2 branches covered.">                        || !inTokenList(subtreeType(ast), EQUALS)) {</span>
+<span class="fc" id="L259">                    log(ast, MSG_KEY_EXPR);</span>
+                }
+<span class="fc" id="L261">            }</span>
+            else {
+<span class="fc bfc" id="L263" title="All 2 branches covered.">                if (!ignoreCalculationOfBooleanVariables || !inTokenList(</span>
+<span class="fc bfc" id="L264" title="All 2 branches covered.">                    subtreeType(ast), EQUALS)) {</span>
+<span class="fc" id="L265">                    log(ast, MSG_KEY_EXPR);</span>
+                }
+            }
+        }
+<span class="fc" id="L269">    }</span>
+
+    /**
+     * Tests if the given &lt;code&gt;DetailAST&lt;/code&gt; is surrounded by parentheses.
+     * In short, does &lt;code&gt;aAST&lt;/code&gt; have a previous sibling whose type is
+     * &lt;code&gt;TokenTypes.LPAREN&lt;/code&gt; and a next sibling whose type is &lt;code&gt;
+     * TokenTypes.RPAREN&lt;/code&gt;.
+     * @param ast the &lt;code&gt;DetailAST&lt;/code&gt; to check if it is surrounded by
+     *        parentheses.
+     * @return &lt;code&gt;true&lt;/code&gt; if &lt;code&gt;aAST&lt;/code&gt; is surrounded by
+     *         parentheses.
+     */
+    private static boolean isSurrounded(DetailAST ast) {
+<span class="fc" id="L282">        final DetailAST prev = ast.getPreviousSibling();</span>
+<span class="fc" id="L283">        final DetailAST next = ast.getNextSibling();</span>
+
+<span class="fc bfc" id="L285" title="All 4 branches covered.">        return prev != null &amp;&amp; next != null</span>
+<span class="fc bfc" id="L286" title="All 2 branches covered.">            &amp;&amp; prev.getType() == TokenTypes.LPAREN;</span>
+    }
+
+    /**
+     * Tests if the given expression node is surrounded by parentheses.
+     * @param ast a &lt;code&gt;DetailAST&lt;/code&gt; whose type is
+     *        &lt;code&gt;TokenTypes.EXPR&lt;/code&gt;.
+     * @return &lt;code&gt;true&lt;/code&gt; if the expression is surrounded by
+     *         parentheses.
+     * @throws IllegalArgumentException if &lt;code&gt;aAST.getType()&lt;/code&gt; is not
+     *         equal to &lt;code&gt;TokenTypes.EXPR&lt;/code&gt;.
+     */
+    private static boolean exprSurrounded(DetailAST ast) {
+<span class="fc bfc" id="L299" title="All 2 branches covered.">        return ast.getChildCount() &gt;= MIN_CHILDREN_FOR_MATCH;</span>
+    }
+
+    /**
+     * Check if the given token type can be found in an array of token types.
+     * @param type the token type.
+     * @param tokens an array of token types to search.
+     * @return &lt;code&gt;true&lt;/code&gt; if &lt;code&gt;aType&lt;/code&gt; was found in &lt;code&gt;
+     *         aTokens&lt;/code&gt;.
+     */
+    private static boolean inTokenList(int type, int... tokens) {
+        // NOTE: Given the small size of the two arrays searched, I'm not sure
+        //       it's worth bothering with doing a binary search or using a
+        //       HashMap to do the searches.
+
+<span class="fc" id="L314">        boolean found = false;</span>
+<span class="fc bfc" id="L315" title="All 4 branches covered.">        for (int i = 0; i &lt; tokens.length &amp;&amp; !found; i++) {</span>
+<span class="fc bfc" id="L316" title="All 2 branches covered.">            found = tokens[i] == type;</span>
+        }
+<span class="fc" id="L318">        return found;</span>
+    }
+
+    /**
+     * Returns the specified string chopped to &lt;code&gt;MAX_QUOTED_LENGTH&lt;/code&gt;
+     * plus an ellipsis (...) if the length of the string exceeds &lt;code&gt;
+     * MAX_QUOTED_LENGTH&lt;/code&gt;.
+     * @param string the string to potentially chop.
+     * @return the chopped string if &lt;code&gt;aString&lt;/code&gt; is longer than
+     *         &lt;code&gt;MAX_QUOTED_LENGTH&lt;/code&gt;; otherwise &lt;code&gt;aString&lt;/code&gt;.
+     */
+    private static String chopString(String string) {
+        final String result;
+<span class="fc bfc" id="L331" title="All 2 branches covered.">        if (string.length() &gt; MAX_QUOTED_LENGTH) {</span>
+<span class="fc" id="L332">            result = string.substring(0, MAX_QUOTED_LENGTH) + &quot;...\&quot;&quot;;</span>
+<span class="fc" id="L333">        }</span>
+        else {
+<span class="fc" id="L335">            result = string;</span>
+        }
+<span class="fc" id="L337">        return result;</span>
+    }
+
+    /**
+     * Returns the type of the subtree, witch need to detect equals
+     * in boolean calculation.
+     * @param ast the &lt;code&gt;DetailAST&lt;/code&gt;
+     * @return integer value of subtree
+     */
+    private static int subtreeType(DetailAST ast) {
+<span class="fc" id="L347">        final DetailAST subtree = ast.getFirstChild()</span>
+<span class="fc" id="L348">            .getNextSibling();</span>
+<span class="fc" id="L349">        return subtree.getType();</span>
+    }
+
+    /**
+     * Sets flag to IgnoreCalculationOfBooleanVariables.
+     *
+     * @param ignoreCalculationOfBooleanVariables
+     *            if true ignore unnecessary parentheses check in calculation of
+     *            boolean.
+     */
+
+    public final void setIgnoreCalculationOfBooleanVariables(
+            final boolean ignoreCalculationOfBooleanVariables) {
+<span class="fc" id="L362">        this.ignoreCalculationOfBooleanVariables =</span>
+<span class="fc" id="L363">            ignoreCalculationOfBooleanVariables;</span>
+<span class="fc" id="L364">    }</span>
+
+    /**
+     * Sets flag to IgnoreCalculationOfBooleanVariablesWithReturn.
+     *
+     * @param ignoreCalculationOfBooleanVariablesWithReturn
+     *            if true ignore unnecessary parentheses check in calculation of
+     *            boolean with return state.
+     */
+    public final void setIgnoreCalculationOfBooleanVariablesWithReturn(
+            final boolean ignoreCalculationOfBooleanVariablesWithReturn) {
+<span class="fc" id="L375">        this.ignoreCalculationOfBooleanVariablesWithReturn =</span>
+<span class="fc" id="L376">            ignoreCalculationOfBooleanVariablesWithReturn;</span>
+<span class="fc" id="L377">    }</span>
+
+    /**
+     * Sets flag to IgnoreCalculationOfBooleanVariablesWithAssert.
+     *
+     * @param ignoreCalculationOfBooleanVariablesWithAssert
+     *            if true ignore unnecessary parentheses check in calculation of
+     *            boolean with assert state
+     */
+    public final void setIgnoreCalculationOfBooleanVariablesWithAssert(
+            final boolean ignoreCalculationOfBooleanVariablesWithAssert) {
+<span class="fc" id="L388">        this.ignoreCalculationOfBooleanVariablesWithAssert =</span>
+<span class="fc" id="L389">            ignoreCalculationOfBooleanVariablesWithAssert;</span>
+<span class="fc" id="L390">    }</span>
+
+}
+</pre><div class="footer"><span class="right">Created with <a href="http://www.eclemma.org/jacoco">JaCoCo</a> 0.7.1.201405082137</span></div></body></html>

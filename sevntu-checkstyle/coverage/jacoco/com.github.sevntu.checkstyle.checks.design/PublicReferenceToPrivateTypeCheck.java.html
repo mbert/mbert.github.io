@@ -1,0 +1,335 @@
+<?xml version="1.0" encoding="UTF-8"?><!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Strict//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-strict.dtd"><html xmlns="http://www.w3.org/1999/xhtml" lang="en"><head><meta http-equiv="Content-Type" content="text/html;charset=UTF-8"/><link rel="stylesheet" href="../.resources/report.css" type="text/css"/><link rel="shortcut icon" href="../.resources/report.gif" type="image/gif"/><title>PublicReferenceToPrivateTypeCheck.java</title><link rel="stylesheet" href="../.resources/prettify.css" type="text/css"/><script type="text/javascript" src="../.resources/prettify.js"></script></head><body onload="window['PR_TAB_WIDTH']=4;prettyPrint()"><div class="breadcrumb" id="breadcrumb"><span class="info"><a href="../.sessions.html" class="el_session">Sessions</a></span><a href="../index.html" class="el_report">sevntu-checks</a> &gt; <a href="index.source.html" class="el_package">com.github.sevntu.checkstyle.checks.design</a> &gt; <span class="el_source">PublicReferenceToPrivateTypeCheck.java</span></div><h1>PublicReferenceToPrivateTypeCheck.java</h1><pre class="source lang-java linenums">////////////////////////////////////////////////////////////////////////////////
+// checkstyle: Checks Java source code for adherence to a set of rules.
+// Copyright (C) 2001-2019 the original author or authors.
+//
+// This library is free software; you can redistribute it and/or
+// modify it under the terms of the GNU Lesser General Public
+// License as published by the Free Software Foundation; either
+// version 2.1 of the License, or (at your option) any later version.
+//
+// This library is distributed in the hope that it will be useful,
+// but WITHOUT ANY WARRANTY; without even the implied warranty of
+// MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the GNU
+// Lesser General Public License for more details.
+//
+// You should have received a copy of the GNU Lesser General Public
+// License along with this library; if not, write to the Free Software
+// Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA
+////////////////////////////////////////////////////////////////////////////////
+
+package com.github.sevntu.checkstyle.checks.design;
+
+import java.util.ArrayList;
+import java.util.HashSet;
+import java.util.List;
+import java.util.Set;
+
+import com.github.sevntu.checkstyle.SevntuUtil;
+import com.puppycrawl.tools.checkstyle.api.AbstractCheck;
+import com.puppycrawl.tools.checkstyle.api.DetailAST;
+import com.puppycrawl.tools.checkstyle.api.TokenTypes;
+
+/**
+ * This Check warns on propagation of inner private types to outer classes:&lt;br&gt;
+ * - Externally accessible method if it returns private inner type.&lt;br&gt;
+ * - Externally accessible field if it's type is a private inner type.&lt;br&gt;
+ * These types could be &lt;a href=
+ * 'http://docs.oracle.com/javase/tutorial/java/javaOO/nested.html'&gt;private
+ * inner classes&lt;/a&gt;, interfaces or enumerations.&lt;br&gt;
+ * &lt;br&gt;
+ * Examples:
+ * &lt;pre&gt;
+ * class OuterClass {
+ *  public InnerClass innerFromMain = new InnerClass(); //WARNING
+ *  private class InnerClass { ... }
+ *  public InnerClass  getValue() { //WARNING
+ *      return new InnerClass();
+ *  }
+ *  &lt;br&gt;
+ *  private interface InnerInterface { ... }
+ *  public Set&amp;lt;InnerInterface&amp;gt; getValue() { //WARNING
+ *      return new TreeSet&amp;lt;InnerInterface&amp;gt;
+ *  }
+ *  &lt;br&gt;
+ *  private Enum Fruit {Apple, Pear}
+ *  public Fruit getValue() { //WARNING
+ *      return Fruit.Apple;
+ *  }
+ *  &lt;br&gt;
+ *  public someMethod(InnerClass innerClass) { ... }  //WARNING
+ *  &lt;br&gt;
+ * }
+ * &lt;/pre&gt;
+ * &lt;b&gt;Rationale:&lt;/b&gt; it is possible to return&lt;br&gt;
+ * private inner type or use it as the parameter of non-private method, but it
+ * is impossible&lt;br&gt;
+ * to use it in other classes (besides inner classes)&lt;br&gt;
+ * unless it extends or implements at least one &lt;u&gt;non-private&lt;/u&gt; class or
+ * interface.&lt;br&gt;
+ * Such situation usually happens after bulk refactoring and usually means
+ * dead/useless code&lt;br&gt;
+ * &lt;br&gt;
+ * @author &lt;a href=&quot;mailto:nesterenko-aleksey@list.ru&quot;&gt;Aleksey Nesterenko&lt;/a&gt;
+ * @since 1.12.0
+ */
+<span class="fc" id="L75">public class PublicReferenceToPrivateTypeCheck extends AbstractCheck {</span>
+
+    /**
+     * Check message key for private types.
+     */
+    public static final String MSG_KEY = &quot;public.reference.to.private.type&quot;;
+
+    /**
+     * List containing names of private types (classes, interfaces or enums).
+     */
+<span class="fc" id="L85">    private final Set&lt;DetailAST&gt; privateTypes = new HashSet&lt;&gt;();</span>
+
+    /**
+     * List containing the names of types returned by public methods or fields.
+     */
+<span class="fc" id="L90">    private final Set&lt;DetailAST&gt; externallyReferencedTypes = new HashSet&lt;&gt;();</span>
+
+    @Override
+    public int[] getDefaultTokens() {
+<span class="fc" id="L94">        return new int[] {</span>
+<span class="fc" id="L95">            TokenTypes.CLASS_DEF,</span>
+<span class="fc" id="L96">            TokenTypes.METHOD_DEF,</span>
+<span class="fc" id="L97">            TokenTypes.INTERFACE_DEF,</span>
+<span class="fc" id="L98">            TokenTypes.ENUM_DEF,</span>
+<span class="fc" id="L99">            TokenTypes.VARIABLE_DEF,</span>
+        };
+    }
+
+    @Override
+    public int[] getAcceptableTokens() {
+<span class="fc" id="L105">        return getDefaultTokens();</span>
+    }
+
+    @Override
+    public int[] getRequiredTokens() {
+<span class="fc" id="L110">        return getDefaultTokens();</span>
+    }
+
+    @Override
+    public void beginTree(DetailAST rootAST) {
+<span class="fc" id="L115">        privateTypes.clear();</span>
+<span class="fc" id="L116">        externallyReferencedTypes.clear();</span>
+<span class="fc" id="L117">    }</span>
+
+    @Override
+    public void visitToken(DetailAST defAst) {
+<span class="fc bfc" id="L121" title="All 4 branches covered.">        switch (defAst.getType()) {</span>
+            case TokenTypes.CLASS_DEF:
+            case TokenTypes.INTERFACE_DEF:
+            case TokenTypes.ENUM_DEF:
+<span class="pc bpc" id="L125" title="1 of 4 branches missed.">                if (hasModifier(TokenTypes.LITERAL_PRIVATE, defAst)) {</span>
+<span class="fc" id="L126">                    addPrivateTypes(defAst);</span>
+                }
+<span class="fc" id="L128">                break;</span>
+            case TokenTypes.METHOD_DEF:
+<span class="pc bpc" id="L130" title="1 of 4 branches missed.">                if (isDefinedInTopLevelClass(defAst)</span>
+<span class="fc bfc" id="L131" title="All 2 branches covered.">                    &amp;&amp; !hasModifier(TokenTypes.LITERAL_PRIVATE, defAst)) {</span>
+<span class="fc" id="L132">                    addExternallyAccessibleMethodTypes(defAst);</span>
+                }
+<span class="fc" id="L134">                break;</span>
+            case TokenTypes.VARIABLE_DEF:
+<span class="pc bpc" id="L136" title="1 of 4 branches missed.">                if (isDefinedInTopLevelClass(defAst)</span>
+<span class="fc bfc" id="L137" title="All 2 branches covered.">                    &amp;&amp; !hasModifier(TokenTypes.LITERAL_PRIVATE, defAst)) {</span>
+<span class="fc" id="L138">                    addExternallyAccessibleFieldTypes(defAst);</span>
+                }
+<span class="fc" id="L140">                break;</span>
+            default:
+<span class="pc bpc" id="L142" title="1 of 2 branches missed.">                SevntuUtil.reportInvalidToken(defAst.getType());</span>
+                break;
+        }
+<span class="fc" id="L145">    }</span>
+
+    @Override
+    public void finishTree(DetailAST rootAst) {
+<span class="fc bfc" id="L149" title="All 2 branches covered.">        for (DetailAST privateType : privateTypes) {</span>
+<span class="fc bfc" id="L150" title="All 2 branches covered.">            for (DetailAST outReturnedType : externallyReferencedTypes) {</span>
+<span class="fc" id="L151">                if (privateType.getText().equals(</span>
+<span class="fc bfc" id="L152" title="All 2 branches covered.">                        outReturnedType.getText())</span>
+<span class="fc" id="L153">                        &amp;&amp; !isExtendsOrImplementsSmth(privateType</span>
+<span class="fc bfc" id="L154" title="All 2 branches covered.">                                .getParent())) {</span>
+<span class="fc" id="L155">                    log(outReturnedType, MSG_KEY,</span>
+<span class="fc" id="L156">                            outReturnedType.getText());</span>
+                }
+            }
+        }
+<span class="fc" id="L160">    }</span>
+
+    /**
+     * Adds type to the list of private types.
+     * @param classOrInterfaceOrEnumDefAst
+     *        AST subtree that represent inner private type definition.
+     */
+    private void addPrivateTypes(DetailAST classOrInterfaceOrEnumDefAst) {
+<span class="fc" id="L168">        final DetailAST definitionAst = classOrInterfaceOrEnumDefAst</span>
+<span class="fc" id="L169">                .findFirstToken(TokenTypes.IDENT);</span>
+<span class="fc" id="L170">        privateTypes.add(definitionAst);</span>
+<span class="fc" id="L171">    }</span>
+
+    /**
+     * Appends non-private, defined in top-level class method's returned or
+     * parameter type, or field's type to general list of out referenced types.
+     * @param methodDefAst
+     *        AST subtree that represent method definition.
+     */
+    private void addExternallyAccessibleMethodTypes(DetailAST methodDefAst) {
+<span class="fc" id="L180">        final DetailAST typeDefAst = methodDefAst</span>
+<span class="fc" id="L181">                .findFirstToken(TokenTypes.TYPE);</span>
+<span class="fc" id="L182">        final DetailAST parametersDefAst = methodDefAst</span>
+<span class="fc" id="L183">                .findFirstToken(TokenTypes.PARAMETERS);</span>
+<span class="fc" id="L184">        externallyReferencedTypes.addAll(getMethodOrFieldReferencedTypes(typeDefAst));</span>
+<span class="fc" id="L185">        externallyReferencedTypes.addAll(getMethodParameterTypes(parametersDefAst));</span>
+<span class="fc" id="L186">    }</span>
+
+    /**
+     * Appends non-private, defined in top-level class field's type to general
+     * list of out referenced types.
+     * @param fieldDefAst
+     *        AST subtree that represent field definition.
+     */
+    private void addExternallyAccessibleFieldTypes(DetailAST fieldDefAst) {
+<span class="fc" id="L195">        final DetailAST typeDefAst = fieldDefAst.findFirstToken(TokenTypes.TYPE);</span>
+<span class="fc" id="L196">        externallyReferencedTypes.addAll(getMethodOrFieldReferencedTypes(typeDefAst));</span>
+<span class="fc" id="L197">    }</span>
+
+    /**
+     * Gets the return type of method or field type.
+     * @param typeAst
+     *        AST subtree to process.
+     * @return the return types of the token.
+     */
+    private static List&lt;DetailAST&gt;
+            getMethodOrFieldReferencedTypes(DetailAST typeAst) {
+<span class="fc" id="L207">        DetailAST returnedType = null;</span>
+<span class="fc" id="L208">        final List&lt;DetailAST&gt; returnedTypes = new ArrayList&lt;&gt;();</span>
+<span class="fc" id="L209">        DetailAST currentNode = typeAst;</span>
+<span class="fc bfc" id="L210" title="All 2 branches covered.">        while (currentNode != null) {</span>
+<span class="fc bfc" id="L211" title="All 2 branches covered.">            if (currentNode.getType() == TokenTypes.IDENT) {</span>
+<span class="fc" id="L212">                returnedType = currentNode;</span>
+<span class="fc" id="L213">                returnedTypes.add(returnedType);</span>
+            }
+<span class="fc" id="L215">            currentNode = SevntuUtil.getNextSubTreeNode(currentNode, typeAst);</span>
+        }
+<span class="fc" id="L217">        return returnedTypes;</span>
+    }
+
+    /**
+     * Gets method's parameters types.
+     * @param parametersDefAst The token to examine.
+     * @return The parameter types of the method.
+     */
+    private static List&lt;DetailAST&gt;
+            getMethodParameterTypes(DetailAST parametersDefAst) {
+<span class="fc" id="L227">        final List&lt;DetailAST&gt; parameterTypes = new ArrayList&lt;&gt;();</span>
+
+<span class="fc bfc" id="L229" title="All 2 branches covered.">        if (parametersDefAst.getFirstChild() != null) {</span>
+<span class="fc" id="L230">            DetailAST currentNode = parametersDefAst;</span>
+<span class="fc" id="L231">            DetailAST parameterType = null;</span>
+
+<span class="fc bfc" id="L233" title="All 2 branches covered.">            while (currentNode != null) {</span>
+<span class="fc bfc" id="L234" title="All 2 branches covered.">                if (currentNode.getType() == TokenTypes.PARAMETER_DEF) {</span>
+<span class="fc" id="L235">                    parameterType = currentNode;</span>
+
+<span class="fc bfc" id="L237" title="All 2 branches covered.">                    while (parameterType != null) {</span>
+<span class="fc" id="L238">                        parameterType = SevntuUtil.getNextSubTreeNode(parameterType,</span>
+<span class="fc" id="L239">                                currentNode);</span>
+<span class="fc bfc" id="L240" title="All 2 branches covered.">                        if (parameterType != null</span>
+<span class="fc bfc" id="L241" title="All 2 branches covered.">                                &amp;&amp; parameterType.getType() == TokenTypes.IDENT) {</span>
+<span class="fc" id="L242">                            parameterTypes.add(parameterType);</span>
+                        }
+                    }
+                }
+<span class="fc" id="L246">                currentNode = SevntuUtil.getNextSubTreeNode(currentNode, parametersDefAst);</span>
+            }
+        }
+
+<span class="fc" id="L250">        return parameterTypes;</span>
+    }
+
+    /**
+     * Checks if defined type or interface extends or implements any
+     * &lt;u&gt;non-private type&lt;/u&gt;.
+     * @param classOrInterfaceDefAst The token to examine.
+     * @return Method returns true if class extends or implements something.
+     */
+    private boolean isExtendsOrImplementsSmth(DetailAST classOrInterfaceDefAst) {
+<span class="fc bfc" id="L260" title="All 2 branches covered.">        return (classOrInterfaceDefAst</span>
+<span class="fc" id="L261">                .findFirstToken(TokenTypes.EXTENDS_CLAUSE) != null</span>
+<span class="fc bfc" id="L262" title="All 2 branches covered.">                || classOrInterfaceDefAst</span>
+<span class="fc" id="L263">                .findFirstToken(TokenTypes.IMPLEMENTS_CLAUSE) != null)</span>
+<span class="fc bfc" id="L264" title="All 2 branches covered.">                &amp;&amp; !isExtendsOrImplementsPrivate(classOrInterfaceDefAst);</span>
+    }
+
+    /**
+     * Checks if inner class or interface extends or implements &lt;u&gt;inner private
+     * type&lt;/u&gt;.
+     * @param classOrInterfaceDefAst The token to examine.
+     * @return true if extending or implementing type is in collection of inner
+     *         private types
+     */
+    private boolean
+            isExtendsOrImplementsPrivate(DetailAST classOrInterfaceDefAst) {
+<span class="fc" id="L276">        boolean result = false;</span>
+
+<span class="fc" id="L278">        final Set&lt;String&gt; inheritedTypesNamesSet = new HashSet&lt;&gt;();</span>
+<span class="fc" id="L279">        DetailAST currentNode = classOrInterfaceDefAst;</span>
+
+<span class="fc bfc" id="L281" title="All 2 branches covered.">        while (currentNode != null) {</span>
+<span class="fc bfc" id="L282" title="All 2 branches covered.">            if (currentNode.getType() == TokenTypes.EXTENDS_CLAUSE</span>
+<span class="fc bfc" id="L283" title="All 2 branches covered.">                    || currentNode.getType() == TokenTypes.IMPLEMENTS_CLAUSE) {</span>
+<span class="fc" id="L284">                DetailAST implementingOrExtendingAst = currentNode;</span>
+
+<span class="fc bfc" id="L286" title="All 2 branches covered.">                while (implementingOrExtendingAst != null) {</span>
+<span class="fc" id="L287">                    implementingOrExtendingAst = SevntuUtil.getNextSubTreeNode(</span>
+<span class="fc" id="L288">                            implementingOrExtendingAst, currentNode);</span>
+<span class="fc bfc" id="L289" title="All 2 branches covered.">                    if (implementingOrExtendingAst != null</span>
+<span class="fc bfc" id="L290" title="All 2 branches covered.">                            &amp;&amp; implementingOrExtendingAst.getType() == TokenTypes.IDENT) {</span>
+<span class="fc" id="L291">                        inheritedTypesNamesSet</span>
+<span class="fc" id="L292">                                .add(implementingOrExtendingAst.getText());</span>
+                    }
+                }
+            }
+<span class="fc" id="L296">            currentNode = SevntuUtil.getNextSubTreeNode(currentNode, classOrInterfaceDefAst);</span>
+        }
+
+<span class="fc" id="L299">        final Set&lt;String&gt; existingPrivateTypes = new HashSet&lt;&gt;();</span>
+<span class="fc bfc" id="L300" title="All 2 branches covered.">        for (DetailAST privateType : privateTypes) {</span>
+<span class="fc" id="L301">            existingPrivateTypes.add(privateType.getText());</span>
+        }
+<span class="fc bfc" id="L303" title="All 2 branches covered.">        if (existingPrivateTypes.containsAll(inheritedTypesNamesSet)) {</span>
+<span class="fc" id="L304">            result = true;</span>
+        }
+
+<span class="fc" id="L307">        return result;</span>
+    }
+
+    /**
+     * Checks if class, interface, enumeration, method or field definition has an
+     * access modifier of specified type.
+     * @param modifierType modifier type
+     * @param defAst definition ast (METHOD_DEF, FIELD_DEF, etc.)
+     * @return true if class, interface, enumeration, method or field definition has an
+     *     access modifier of specified type
+     */
+    public static boolean
+            hasModifier(int modifierType, DetailAST defAst) {
+<span class="fc" id="L320">        final DetailAST modifiersToken = defAst.getFirstChild();</span>
+<span class="fc bfc" id="L321" title="All 2 branches covered.">        return modifiersToken.findFirstToken(modifierType) != null;</span>
+    }
+
+    /**
+     * Checks if method or field is defined in top-level class.
+     * @param methodOrFieldDefAst The token to examine.
+     * @return true if method is defined in top-level class
+     */
+    private static boolean
+            isDefinedInTopLevelClass(DetailAST methodOrFieldDefAst) {
+<span class="fc bfc" id="L331" title="All 2 branches covered.">        return methodOrFieldDefAst.getParent().getParent().getParent() == null;</span>
+    }
+
+}
+</pre><div class="footer"><span class="right">Created with <a href="http://www.eclemma.org/jacoco">JaCoCo</a> 0.7.1.201405082137</span></div></body></html>

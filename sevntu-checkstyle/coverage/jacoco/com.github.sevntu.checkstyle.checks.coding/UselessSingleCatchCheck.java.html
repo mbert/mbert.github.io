@@ -1,0 +1,129 @@
+<?xml version="1.0" encoding="UTF-8"?><!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Strict//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-strict.dtd"><html xmlns="http://www.w3.org/1999/xhtml" lang="en"><head><meta http-equiv="Content-Type" content="text/html;charset=UTF-8"/><link rel="stylesheet" href="../.resources/report.css" type="text/css"/><link rel="shortcut icon" href="../.resources/report.gif" type="image/gif"/><title>UselessSingleCatchCheck.java</title><link rel="stylesheet" href="../.resources/prettify.css" type="text/css"/><script type="text/javascript" src="../.resources/prettify.js"></script></head><body onload="window['PR_TAB_WIDTH']=4;prettyPrint()"><div class="breadcrumb" id="breadcrumb"><span class="info"><a href="../.sessions.html" class="el_session">Sessions</a></span><a href="../index.html" class="el_report">sevntu-checks</a> &gt; <a href="index.source.html" class="el_package">com.github.sevntu.checkstyle.checks.coding</a> &gt; <span class="el_source">UselessSingleCatchCheck.java</span></div><h1>UselessSingleCatchCheck.java</h1><pre class="source lang-java linenums">////////////////////////////////////////////////////////////////////////////////
+// checkstyle: Checks Java source code for adherence to a set of rules.
+// Copyright (C) 2001-2019 the original author or authors.
+//
+// This library is free software; you can redistribute it and/or
+// modify it under the terms of the GNU Lesser General Public
+// License as published by the Free Software Foundation; either
+// version 2.1 of the License, or (at your option) any later version.
+//
+// This library is distributed in the hope that it will be useful,
+// but WITHOUT ANY WARRANTY; without even the implied warranty of
+// MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the GNU
+// Lesser General Public License for more details.
+//
+// You should have received a copy of the GNU Lesser General Public
+// License along with this library; if not, write to the Free Software
+// Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA
+////////////////////////////////////////////////////////////////////////////////
+
+package com.github.sevntu.checkstyle.checks.coding;
+
+import com.puppycrawl.tools.checkstyle.api.AbstractCheck;
+import com.puppycrawl.tools.checkstyle.api.DetailAST;
+import com.puppycrawl.tools.checkstyle.api.TokenTypes;
+
+/**
+ * Checks for the presence of useless single catch blocks. Catch block can be
+ * considered useless if it is the only catch block for try, contains only one
+ * statement which rethrows catched exception. Fox example:
+ * &lt;pre&gt;
+ *  try {
+ *      ...
+ *  }
+ *  catch(Exception e) {
+ *      throw e;
+ *  }
+ *  &lt;/pre&gt;
+ *
+ * @author &lt;a href=&quot;mailto:zuy_alexey@mail.ru&quot;&gt;Zuy Alexey&lt;/a&gt;
+ * @since 1.13.0
+ */
+<span class="fc" id="L42">public class UselessSingleCatchCheck extends AbstractCheck {</span>
+
+    /**
+     * A key is pointing to the warning message text in &quot;messages.properties&quot;
+     * file.
+     */
+    public static final String MSG_KEY = &quot;useless.single.catch.check&quot;;
+
+    @Override
+    public int[] getDefaultTokens() {
+<span class="fc" id="L52">        return new int[] {</span>
+<span class="fc" id="L53">            TokenTypes.LITERAL_TRY,</span>
+        };
+    }
+
+    @Override
+    public int[] getAcceptableTokens() {
+<span class="fc" id="L59">        return getDefaultTokens();</span>
+    }
+
+    @Override
+    public int[] getRequiredTokens() {
+<span class="fc" id="L64">        return getDefaultTokens();</span>
+    }
+
+    @Override
+    public void visitToken(DetailAST tryBlockNode) {
+<span class="fc" id="L69">        final int catchBlocksCount = tryBlockNode.getChildCount(TokenTypes.LITERAL_CATCH);</span>
+
+<span class="fc bfc" id="L71" title="All 2 branches covered.">        if (catchBlocksCount == 1) {</span>
+<span class="fc" id="L72">            final DetailAST catchNode = tryBlockNode.findFirstToken(TokenTypes.LITERAL_CATCH);</span>
+
+<span class="fc" id="L74">            final DetailAST catchStatementListNode = catchNode.findFirstToken(TokenTypes.SLIST);</span>
+
+<span class="fc" id="L76">            final DetailAST firstStatementNode = catchStatementListNode.getFirstChild();</span>
+
+<span class="fc bfc" id="L78" title="All 2 branches covered.">            if (firstStatementNode.getType() == TokenTypes.LITERAL_THROW</span>
+<span class="fc bfc" id="L79" title="All 2 branches covered.">                    &amp;&amp; isSimpleRethrow(firstStatementNode)) {</span>
+<span class="fc" id="L80">                final String catchParameterName = getCatchParameterName(catchNode);</span>
+
+<span class="fc" id="L82">                final String throwParameterName = getThrowParameterName(firstStatementNode);</span>
+
+<span class="fc bfc" id="L84" title="All 2 branches covered.">                if (catchParameterName.equals(throwParameterName)) {</span>
+<span class="fc" id="L85">                    log(catchNode, MSG_KEY);</span>
+                }
+            }
+        }
+<span class="fc" id="L89">    }</span>
+
+    /**
+     * Determines whether throw node is of form
+     * &lt;code&gt;throw exceptionObject;&lt;/code&gt;.
+     * @param throwNode
+     *        node of type TokenTypes.LITERAL_THROW
+     * @return whether this throw node is of specified form
+     */
+    private static boolean isSimpleRethrow(DetailAST throwNode) {
+<span class="fc" id="L99">        final DetailAST exprNode = throwNode.findFirstToken(TokenTypes.EXPR);</span>
+
+<span class="fc bfc" id="L101" title="All 2 branches covered.">        return exprNode.getChildCount() == 1</span>
+<span class="fc bfc" id="L102" title="All 2 branches covered.">                &amp;&amp; exprNode.getFirstChild().getType() == TokenTypes.IDENT;</span>
+    }
+
+    /**
+     * Gets catch parameter name.
+     * @param catchNode
+     *        node of type TokenTypes.LITERAL_CATCH
+     * @return catch parameter name
+     */
+    private static String getCatchParameterName(DetailAST catchNode) {
+<span class="fc" id="L112">        final DetailAST parameterDefNode = catchNode.findFirstToken(TokenTypes.PARAMETER_DEF);</span>
+
+<span class="fc" id="L114">        return parameterDefNode.findFirstToken(TokenTypes.IDENT).getText();</span>
+    }
+
+    /**
+     * Gets throw parameter name. throw node must be of the form
+     * &lt;code&gt;throw exceptionObject;&lt;/code&gt;
+     * @param throwNode
+     *        node of type TokenTypes.LITERAL_THROW
+     * @return throw parameter name
+     */
+    private static String getThrowParameterName(DetailAST throwNode) {
+<span class="fc" id="L125">        return throwNode.findFirstToken(TokenTypes.EXPR).getFirstChild().getText();</span>
+    }
+
+}
+</pre><div class="footer"><span class="right">Created with <a href="http://www.eclemma.org/jacoco">JaCoCo</a> 0.7.1.201405082137</span></div></body></html>

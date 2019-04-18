@@ -1,0 +1,378 @@
+<?xml version="1.0" encoding="UTF-8"?><!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Strict//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-strict.dtd"><html xmlns="http://www.w3.org/1999/xhtml" lang="en"><head><meta http-equiv="Content-Type" content="text/html;charset=UTF-8"/><link rel="stylesheet" href="../.resources/report.css" type="text/css"/><link rel="shortcut icon" href="../.resources/report.gif" type="image/gif"/><title>ConfusingConditionCheck.java</title><link rel="stylesheet" href="../.resources/prettify.css" type="text/css"/><script type="text/javascript" src="../.resources/prettify.js"></script></head><body onload="window['PR_TAB_WIDTH']=4;prettyPrint()"><div class="breadcrumb" id="breadcrumb"><span class="info"><a href="../.sessions.html" class="el_session">Sessions</a></span><a href="../index.html" class="el_report">sevntu-checks</a> &gt; <a href="index.source.html" class="el_package">com.github.sevntu.checkstyle.checks.coding</a> &gt; <span class="el_source">ConfusingConditionCheck.java</span></div><h1>ConfusingConditionCheck.java</h1><pre class="source lang-java linenums">////////////////////////////////////////////////////////////////////////////////
+// checkstyle: Checks Java source code for adherence to a set of rules.
+// Copyright (C) 2001-2019 the original author or authors.
+//
+// This library is free software; you can redistribute it and/or
+// modify it under the terms of the GNU Lesser General Public
+// License as published by the Free Software Foundation; either
+// version 2.1 of the License, or (at your option) any later version.
+//
+// This library is distributed in the hope that it will be useful,
+// but WITHOUT ANY WARRANTY; without even the implied warranty of
+// MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the GNU
+// Lesser General Public License for more details.
+//
+// You should have received a copy of the GNU Lesser General Public
+// License along with this library; if not, write to the Free Software
+// Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA
+////////////////////////////////////////////////////////////////////////////////
+
+package com.github.sevntu.checkstyle.checks.coding;
+
+import com.puppycrawl.tools.checkstyle.api.AbstractCheck;
+import com.puppycrawl.tools.checkstyle.api.DetailAST;
+import com.puppycrawl.tools.checkstyle.api.TokenTypes;
+
+/**
+ * This check prevents negation within an &quot;if&quot; expression if &quot;else&quot; is present.
+ * &lt;br&gt;
+ * For example, rephrase: &lt;br&gt;
+ * if (x != y) smth1(); else smth2(); as: if (x == y) smth2(); else smth1();
+ *
+ * &lt;p&gt;
+ * Examples:&lt;br&gt;
+ * &quot;if&quot; expression contains negation
+ * &lt;/p&gt;
+ * &lt;pre&gt;
+ *  if (a != b &amp;amp;&amp;amp; c != d)
+ *      {
+ *          smth1();
+ *      }
+ *      else
+ *      {
+ *          smth2();
+ *      }
+ * &lt;/pre&gt;
+ * &lt;p&gt;
+ * You can escape of negation in &quot;if&quot; expression&lt;br&gt;
+ * and swapped code in &quot;if&quot; and &quot;else&quot; block:
+ * &lt;/p&gt;
+ * &lt;pre&gt;
+ *  if (a == b || c == d)
+ *      {
+ *          smth2();
+ *      }
+ *      else
+ *      {
+ *          smth1();
+ *      }
+ * &lt;/pre&gt;
+ *
+ * @author &lt;a href=&quot;mailto:vadim.panasiuk@gmail.com&quot;&gt;Vadim Panasiuk&lt;/a&gt;
+ * @since 1.9.0
+ */
+<span class="fc" id="L64">public class ConfusingConditionCheck extends AbstractCheck {</span>
+
+    /**
+     * The key is pointing to the message text String in
+     * &quot;messages.properties file&quot;.This message used for common cases.
+     */
+    public static final String MSG_KEY = &quot;confusing.condition.check&quot;;
+
+    /**
+     * Number which defines, how many lines of code in &quot;if&quot; block must be exceed
+     * line of code in &quot;else&quot; block for this check was ignored.
+     */
+    private static final int MULTIPLY_FACTOR_FOR_ELSE_BLOCK = 4;
+
+    /**
+     * Allow to ignore &quot;else&quot; block if its length is in
+     * &quot;multiplyFactorForElseBlocks&quot; time less then &quot;if&quot; block.
+     */
+<span class="fc" id="L82">    private int multiplyFactorForElseBlocks = MULTIPLY_FACTOR_FOR_ELSE_BLOCK;</span>
+
+    /**
+     * Disable warnings for all &quot;if&quot; that follows the &quot;else&quot;. It is useful for
+     * save similarity with all &quot;if-then-else&quot; statement.
+     */
+<span class="fc" id="L88">    private boolean ignoreInnerIf = true;</span>
+
+    /**
+     * Disable warnings for all sequential &quot;if&quot;.
+     */
+<span class="fc" id="L93">    private boolean ignoreSequentialIf = true;</span>
+
+    /**
+     * Disable warnings for &quot;if&quot; if it condition contains &quot;null&quot;.
+     */
+<span class="fc" id="L98">    private boolean ignoreNullCaseInIf = true;</span>
+
+    /**
+     * Disable warnings for &quot;if&quot; if &quot;else&quot; block contain &quot;throw&quot;.
+     */
+<span class="fc" id="L103">    private boolean ignoreThrowInElse = true;</span>
+
+    /**
+     * Enable(true) | Disable(false) warnings for all inner &quot;if&quot;.
+     *
+     * @param aIgnoreInnerIf ignore inner if
+     */
+    public void setIgnoreInnerIf(final boolean aIgnoreInnerIf) {
+<span class="fc" id="L111">        ignoreInnerIf = aIgnoreInnerIf;</span>
+<span class="fc" id="L112">    }</span>
+
+    /**
+     * Enable(true) | Disable(false) warnings for all &quot;if&quot; that follows the
+     * &quot;else&quot;.
+     *
+     * @param ignoreSequentialIf ignore sequential if
+     */
+    public void setIgnoreSequentialIf(final boolean ignoreSequentialIf) {
+<span class="fc" id="L121">        this.ignoreSequentialIf = ignoreSequentialIf;</span>
+<span class="fc" id="L122">    }</span>
+
+    /**
+     * Disable(true) | Enable(false) warnings.
+     *
+     * @param ignoreNullCaseInIf
+     *            if true disable warnings for &quot;if&quot;.
+     */
+    public void setIgnoreNullCaseInIf(final boolean ignoreNullCaseInIf) {
+<span class="fc" id="L131">        this.ignoreNullCaseInIf = ignoreNullCaseInIf;</span>
+<span class="fc" id="L132">    }</span>
+
+    /**
+     * Disable(true) | Enable(false) warnings.
+     *
+     * @param ignoreThrowInElse
+     *            if true disable warnings for &quot;if&quot;.
+     */
+    public void setIgnoreThrowInElse(final boolean ignoreThrowInElse) {
+<span class="fc" id="L141">        this.ignoreThrowInElse = ignoreThrowInElse;</span>
+<span class="fc" id="L142">    }</span>
+
+    /**
+     * Sets multiplyFactorForElseBlocks field.
+     *
+     * @param multiplyFactorForElseBlocks
+     *            define multiplyFactorForElseBlocks field.
+     * @see ConfusingConditionCheck#multiplyFactorForElseBlocks
+     */
+    public void setMultiplyFactorForElseBlocks(int multiplyFactorForElseBlocks) {
+<span class="fc" id="L152">        this.multiplyFactorForElseBlocks = multiplyFactorForElseBlocks;</span>
+<span class="fc" id="L153">    }</span>
+
+    @Override
+    public int[] getDefaultTokens() {
+<span class="fc" id="L157">        return new int[] {</span>
+<span class="fc" id="L158">            TokenTypes.LITERAL_IF,</span>
+        };
+    }
+
+    @Override
+    public int[] getAcceptableTokens() {
+<span class="fc" id="L164">        return getDefaultTokens();</span>
+    }
+
+    @Override
+    public int[] getRequiredTokens() {
+<span class="fc" id="L169">        return getDefaultTokens();</span>
+    }
+
+    @Override
+    public void visitToken(DetailAST literalIf) {
+<span class="fc bfc" id="L174" title="All 2 branches covered.">        if (isIfEndsWithElse(literalIf)</span>
+<span class="fc bfc" id="L175" title="All 2 branches covered.">                &amp;&amp; !canIgnore(literalIf)</span>
+<span class="fc bfc" id="L176" title="All 2 branches covered.">                &amp;&amp; isRatioBetweenIfAndElseBlockSuitable(literalIf)</span>
+<span class="fc bfc" id="L177" title="All 2 branches covered.">                &amp;&amp; isConditionAllNegative(literalIf)) {</span>
+<span class="fc" id="L178">            log(literalIf, MSG_KEY);</span>
+        }
+<span class="fc" id="L180">    }</span>
+
+    /**
+     * Checks if the given AST can be ignored.
+     * @param literalIf The AST to check.
+     * @return {@code true} if it can be ignored.
+     */
+    private boolean canIgnore(DetailAST literalIf) {
+<span class="fc bfc" id="L188" title="All 4 branches covered.">        return ignoreSequentialIf &amp;&amp; isSequentialIf(literalIf)</span>
+<span class="fc bfc" id="L189" title="All 4 branches covered.">            || ignoreInnerIf &amp;&amp; isInnerIf(literalIf)</span>
+<span class="fc bfc" id="L190" title="All 4 branches covered.">            || ignoreThrowInElse &amp;&amp; isElseWithThrow(literalIf)</span>
+<span class="fc bfc" id="L191" title="All 4 branches covered.">            || ignoreNullCaseInIf &amp;&amp; isIfWithNull(literalIf);</span>
+    }
+
+    /**
+     * If ELSE following the IF block.
+     *
+     * @param literalIf The token to examine.
+     * @return true if ELSE is following the IF block.
+     */
+    private static boolean isIfEndsWithElse(DetailAST literalIf) {
+<span class="fc" id="L201">        final DetailAST lastChildAfterIf = literalIf.getLastChild();</span>
+<span class="fc bfc" id="L202" title="All 2 branches covered.">        return lastChildAfterIf.getType() == TokenTypes.LITERAL_ELSE;</span>
+    }
+
+    /**
+     * Check the sequential IF or not.
+     *
+     * @param literalIf The token to examine.
+     * @return true if the IF is sequential.
+     */
+    private static boolean isSequentialIf(DetailAST literalIf) {
+<span class="fc" id="L212">        final DetailAST lastChildAfterIf = literalIf.getLastChild();</span>
+<span class="fc bfc" id="L213" title="All 2 branches covered.">        return lastChildAfterIf.getFirstChild()</span>
+<span class="fc" id="L214">                .getType() == TokenTypes.LITERAL_IF;</span>
+    }
+
+    /**
+     * Check the inner IF or not.
+     *
+     * @param literalIf The token to examine.
+     * @return true if the if is inner.
+     */
+    private static boolean isInnerIf(DetailAST literalIf) {
+<span class="fc" id="L224">        final DetailAST childIf = literalIf.getFirstChild().getNextSibling()</span>
+<span class="fc" id="L225">                .getNextSibling().getNextSibling();</span>
+<span class="fc" id="L226">        return childIf.branchContains(TokenTypes.LITERAL_IF);</span>
+    }
+
+    /**
+     * Check IF - ELSE or not that contained THROW in the expression in a block
+     * ELSE.
+     *
+     * @param literalIf The token to examine.
+     * @return true if the ELSE contains a THROW.
+     */
+    private static boolean isElseWithThrow(DetailAST literalIf) {
+<span class="fc" id="L237">        final DetailAST lastChildAfterIf = literalIf.getLastChild();</span>
+<span class="fc" id="L238">        return lastChildAfterIf.getFirstChild().branchContains(</span>
+<span class="fc" id="L239">                TokenTypes.LITERAL_THROW);</span>
+    }
+
+    /**
+     * Display if the ratio of the number of rows in an IF and ELSE. If the
+     * condition is met, checkIfElseCodeLinesRatio = true.
+     *
+     * @param literalIf The token to examine.
+     * @return If the condition is met (true) |Isn't men (false).
+     */
+    private boolean isRatioBetweenIfAndElseBlockSuitable(DetailAST literalIf) {
+<span class="fc" id="L250">        boolean result = true;</span>
+
+<span class="fc" id="L252">        final DetailAST lastChildAfterIf = literalIf.getLastChild();</span>
+<span class="fc" id="L253">        final int linesOfCodeInElseBlock = getAmountOfCodeRowsInBlock(lastChildAfterIf);</span>
+<span class="fc bfc" id="L254" title="All 2 branches covered.">        if (linesOfCodeInElseBlock &gt; 0) {</span>
+<span class="fc" id="L255">            final int linesOfCodeInIfBlock = getAmountOfCodeRowsInBlock(literalIf);</span>
+<span class="fc bfc" id="L256" title="All 2 branches covered.">            result = linesOfCodeInIfBlock / linesOfCodeInElseBlock &lt; multiplyFactorForElseBlocks;</span>
+        }
+<span class="fc" id="L258">        return result;</span>
+    }
+
+    /**
+     * Counts code lines in block IF or ELSE tree.
+     *
+     * @param detailAST The token to examine.
+     * @return linesOfCodeInIfBlock line of code in block.
+     */
+    private static int getAmountOfCodeRowsInBlock(DetailAST detailAST) {
+<span class="fc" id="L268">        final DetailAST firstBrace = getFirstBrace(detailAST);</span>
+        int linesOfCodeInIfBlock;
+
+<span class="fc bfc" id="L271" title="All 2 branches covered.">        if (firstBrace == null) {</span>
+<span class="fc" id="L272">            linesOfCodeInIfBlock = 0;</span>
+<span class="fc" id="L273">        }</span>
+        else {
+<span class="fc" id="L275">            final DetailAST lastBrace = firstBrace.getLastChild();</span>
+<span class="fc" id="L276">            linesOfCodeInIfBlock = lastBrace.getLineNo()</span>
+<span class="fc" id="L277">                    - firstBrace.getLineNo();</span>
+            // If the closing brace on a separate line - ignore this line.
+<span class="fc bfc" id="L279" title="All 2 branches covered.">            if (lastBrace.getLineNo() != lastBrace.getParent().getLineNo()) {</span>
+<span class="fc" id="L280">                linesOfCodeInIfBlock -= 1;</span>
+            }
+        }
+
+<span class="fc" id="L284">        return linesOfCodeInIfBlock;</span>
+    }
+
+    /**
+     * Retrieves the first, opening brace of an {@code if} or {@code else} statement.
+     * @param detailAST The token to examine.
+     * @return The opening brace token or {@code null} if it doesn't exist.
+     */
+    private static DetailAST getFirstBrace(DetailAST detailAST) {
+<span class="fc" id="L293">        DetailAST firstBrace = null;</span>
+
+<span class="fc bfc" id="L295" title="All 2 branches covered.">        if (detailAST.getType() == TokenTypes.LITERAL_ELSE) {</span>
+<span class="fc" id="L296">            firstBrace = detailAST.getFirstChild();</span>
+
+<span class="fc bfc" id="L298" title="All 2 branches covered.">            if (firstBrace.getType() == TokenTypes.LITERAL_IF) {</span>
+<span class="fc" id="L299">                firstBrace = getFirstBrace(firstBrace);</span>
+            }
+<span class="fc" id="L301">        }</span>
+        else {
+<span class="fc" id="L303">            firstBrace = detailAST.getFirstChild().getNextSibling()</span>
+<span class="fc" id="L304">                    .getNextSibling().getNextSibling();</span>
+        }
+
+<span class="fc bfc" id="L307" title="All 4 branches covered.">        if (firstBrace != null &amp;&amp; firstBrace.getType() != TokenTypes.SLIST) {</span>
+<span class="fc" id="L308">            firstBrace = null;</span>
+        }
+
+<span class="fc" id="L311">        return firstBrace;</span>
+    }
+
+    /**
+     * Number of comparison operators in IF must be one less than negative
+     * symbols.
+     *
+     * @param literalIf The token to examine.
+     * @return true
+     */
+    private static boolean isConditionAllNegative(DetailAST literalIf) {
+<span class="fc" id="L322">        boolean result = false;</span>
+
+<span class="fc" id="L324">        final DetailAST ifExpr = literalIf.getFirstChild().getNextSibling();</span>
+<span class="fc" id="L325">        final int countOfLnot = getCountOfToken(ifExpr, TokenTypes.LNOT);</span>
+<span class="fc" id="L326">        final int countOfNotequal = getCountOfToken(ifExpr,</span>
+<span class="fc" id="L327">                TokenTypes.NOT_EQUAL);</span>
+<span class="fc" id="L328">        final int countOfNegativeSymbolInIf = countOfLnot + countOfNotequal;</span>
+<span class="fc bfc" id="L329" title="All 2 branches covered.">        if (countOfNegativeSymbolInIf &gt; 0) {</span>
+<span class="fc" id="L330">            final int countOfLand = getCountOfToken(ifExpr, TokenTypes.LAND);</span>
+<span class="fc" id="L331">            final int countOfLor = getCountOfToken(ifExpr, TokenTypes.LOR);</span>
+<span class="fc" id="L332">            final int countOfComparisonOperators = countOfLand + countOfLor;</span>
+<span class="fc bfc" id="L333" title="All 2 branches covered.">            if (countOfNegativeSymbolInIf - countOfComparisonOperators == 1) {</span>
+<span class="fc" id="L334">                result = true;</span>
+            }
+        }
+<span class="fc" id="L337">        return result;</span>
+    }
+
+    /**
+     * Check IF or not that contained NULL in the expression IF.
+     *
+     * @param literalIf The token to examine.
+     * @return true if the IF contains a NULL.
+     * @see ignoreNullCaseInIf
+     */
+
+    private static boolean isIfWithNull(DetailAST literalIf) {
+<span class="fc" id="L349">        return literalIf.getFirstChild().getNextSibling()</span>
+<span class="fc" id="L350">                .branchContains(TokenTypes.LITERAL_NULL);</span>
+    }
+
+    /**
+     * Recursive method which counts a tokens of the provided type in detAst
+     * tree.
+     *
+     * @param detAst a tree for &quot;atype&quot; tokens searching.
+     * @param type a TokenType
+     * @return The number of tokens found.
+     */
+    private static int getCountOfToken(DetailAST detAst, int type) {
+<span class="fc" id="L362">        int count = 0;</span>
+<span class="fc bfc" id="L363" title="All 2 branches covered.">        if (detAst.branchContains(type)) {</span>
+<span class="fc" id="L364">            DetailAST node = detAst;</span>
+<span class="fc bfc" id="L365" title="All 2 branches covered.">            while (node != null) {</span>
+<span class="fc" id="L366">                count += node.getChildCount(type);</span>
+<span class="fc" id="L367">                final DetailAST detAstChild = node.getFirstChild();</span>
+<span class="fc bfc" id="L368" title="All 2 branches covered.">                if (detAstChild != null) {</span>
+<span class="fc" id="L369">                    count += getCountOfToken(detAstChild, type);</span>
+                }
+<span class="fc" id="L371">                node = node.getNextSibling();</span>
+            }
+        }
+<span class="fc" id="L374">        return count;</span>
+    }
+
+}
+</pre><div class="footer"><span class="right">Created with <a href="http://www.eclemma.org/jacoco">JaCoCo</a> 0.7.1.201405082137</span></div></body></html>

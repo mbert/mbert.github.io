@@ -1,0 +1,386 @@
+<?xml version="1.0" encoding="UTF-8"?><!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Strict//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-strict.dtd"><html xmlns="http://www.w3.org/1999/xhtml" lang="en"><head><meta http-equiv="Content-Type" content="text/html;charset=UTF-8"/><link rel="stylesheet" href="../.resources/report.css" type="text/css"/><link rel="shortcut icon" href="../.resources/report.gif" type="image/gif"/><title>NoNullForCollectionReturnCheck.java</title><link rel="stylesheet" href="../.resources/prettify.css" type="text/css"/><script type="text/javascript" src="../.resources/prettify.js"></script></head><body onload="window['PR_TAB_WIDTH']=4;prettyPrint()"><div class="breadcrumb" id="breadcrumb"><span class="info"><a href="../.sessions.html" class="el_session">Sessions</a></span><a href="../index.html" class="el_report">sevntu-checks</a> &gt; <a href="index.source.html" class="el_package">com.github.sevntu.checkstyle.checks.coding</a> &gt; <span class="el_source">NoNullForCollectionReturnCheck.java</span></div><h1>NoNullForCollectionReturnCheck.java</h1><pre class="source lang-java linenums">////////////////////////////////////////////////////////////////////////////////
+// checkstyle: Checks Java source code for adherence to a set of rules.
+// Copyright (C) 2001-2019 the original author or authors.
+//
+// This library is free software; you can redistribute it and/or
+// modify it under the terms of the GNU Lesser General Public
+// License as published by the Free Software Foundation; either
+// version 2.1 of the License, or (at your option) any later version.
+//
+// This library is distributed in the hope that it will be useful,
+// but WITHOUT ANY WARRANTY; without even the implied warranty of
+// MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the GNU
+// Lesser General Public License for more details.
+//
+// You should have received a copy of the GNU Lesser General Public
+// License along with this library; if not, write to the Free Software
+// Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA
+////////////////////////////////////////////////////////////////////////////////
+
+package com.github.sevntu.checkstyle.checks.coding;
+
+import java.util.HashSet;
+import java.util.LinkedList;
+import java.util.List;
+import java.util.Set;
+
+import com.github.sevntu.checkstyle.SevntuUtil;
+import com.puppycrawl.tools.checkstyle.api.AbstractCheck;
+import com.puppycrawl.tools.checkstyle.api.DetailAST;
+import com.puppycrawl.tools.checkstyle.api.TokenTypes;
+
+/**
+ * &lt;p&gt;
+ * This check report you, when method, that must return array or collection,
+ * return null value instead of empty collection or empty array.
+ * &lt;/p&gt;
+ * &lt;p&gt;
+ * Returning Null is error prone as developers forget to review method
+ * implementation or Java doc for nuances of Null meaning.
+ * &lt;/p&gt;
+ * &lt;p&gt;
+ * List of collections set by default:
+ * AbstractCollection, AbstractList, AbstractQueue, AbstractSequentialList, AbstractSet,
+ * ArrayBlockingQueue, ArrayDeque, ArrayList, AttributeList, BeanContextServicesSupport,
+ * BeanContextSupport, ConcurrentLinkedDeque, ConcurrentLinkedQueue, ConcurrentSkipListSet,
+ * CopyOnWriteArrayList, CopyOnWriteArraySet, DelayQueue, EnumSet, HashSet, JobStateReasons,
+ * LinkedBlockingDeque, LinkedBlockingQueue, LinkedHashSet, LinkedList, LinkedTransferQueue,
+ * PriorityBlockingQueue, PriorityQueue, RoleList, RoleUnresolvedList, Stack, SynchronousQueue,
+ * TreeSet, Vector, Collection, List, Map, Set.
+ * &lt;/p&gt;
+ * @author &lt;a href=&quot;mailto:IliaDubinin91@gmail.com&quot;&gt;Ilja Dubinin&lt;/a&gt;
+ * @since 1.9.0
+ */
+public class NoNullForCollectionReturnCheck extends AbstractCheck {
+
+    /**
+     * Warning message key.
+     */
+    public static final String MSG_KEY = &quot;no.null.for.collections&quot;;
+
+    /**
+     * Default list of collection implementing classes.
+     */
+    private static final String DEFAULT_COLLECTIONS = &quot;AbstractCollection AbstractList &quot;
+            + &quot;AbstractQueue AbstractSequentialList AbstractSet ArrayBlockingQueue ArrayDeque &quot;
+            + &quot;ArrayList AttributeList BeanContextServicesSupport BeanContextSupport &quot;
+            + &quot;ConcurrentLinkedDeque ConcurrentLinkedQueue ConcurrentSkipListSet &quot;
+            + &quot;CopyOnWriteArrayList CopyOnWriteArraySet DelayQueue EnumSet HashSet &quot;
+            + &quot;JobStateReasons LinkedBlockingDeque LinkedBlockingQueue LinkedHashSet &quot;
+            + &quot;LinkedList LinkedTransferQueue PriorityBlockingQueue PriorityQueue RoleList &quot;
+            + &quot;RoleUnresolvedList Stack SynchronousQueue TreeSet Vector Collection List Map Set&quot;;
+    /**
+     * List of collection, that will be check.
+     */
+<span class="fc" id="L75">    private final Set&lt;String&gt; collectionList = new HashSet&lt;&gt;();</span>
+
+    /**
+     * &lt;p&gt;
+     * Search not only in return line.
+     * &lt;/p&gt;
+     */
+    private boolean searchThroughMethodBody;
+
+    /**
+     * &lt;p&gt;
+     * List of the method definition tokens, that returns collection.
+     * &lt;/p&gt;
+     */
+<span class="fc" id="L89">    private final List&lt;DetailAST&gt; methodDefs = new LinkedList&lt;&gt;();</span>
+
+    /** Default constructor. */
+<span class="fc" id="L92">    public NoNullForCollectionReturnCheck() {</span>
+<span class="fc" id="L93">        setCollectionList(DEFAULT_COLLECTIONS);</span>
+<span class="fc" id="L94">    }</span>
+
+    /**
+     * &lt;p&gt;
+     * Setter for list of known collections.
+     * &lt;/p&gt;
+     * @param collectionList
+     *        - line contains all collection names.
+     */
+    public final void setCollectionList(String collectionList) {
+<span class="fc" id="L104">        this.collectionList.clear();</span>
+<span class="fc bfc" id="L105" title="All 2 branches covered.">        for (String currentCollection : collectionList.split(&quot;\\s+&quot;)) {</span>
+<span class="fc" id="L106">            this.collectionList.add(currentCollection);</span>
+        }
+<span class="fc" id="L108">    }</span>
+
+    /**
+     * &lt;p&gt;
+     * Setter for searching through body of the method.
+     * &lt;/p&gt;
+     * @param searchThroughMethodBody
+     *        - deep search value.
+     */
+    public void setSearchThroughMethodBody(boolean searchThroughMethodBody) {
+<span class="fc" id="L118">        this.searchThroughMethodBody = searchThroughMethodBody;</span>
+<span class="fc" id="L119">    }</span>
+
+    @Override
+    public int[] getDefaultTokens() {
+<span class="fc" id="L123">        return new int[] {</span>
+<span class="fc" id="L124">            TokenTypes.METHOD_DEF,</span>
+<span class="fc" id="L125">            TokenTypes.LITERAL_RETURN,</span>
+        };
+    }
+
+    @Override
+    public int[] getAcceptableTokens() {
+<span class="fc" id="L131">        return getDefaultTokens();</span>
+    }
+
+    @Override
+    public int[] getRequiredTokens() {
+<span class="fc" id="L136">        return getDefaultTokens();</span>
+    }
+
+    @Override
+    public void beginTree(DetailAST rootAST) {
+<span class="fc" id="L141">        methodDefs.clear();</span>
+<span class="fc" id="L142">    }</span>
+
+    @Override
+    public void visitToken(DetailAST detailAST) {
+<span class="pc bpc" id="L146" title="1 of 3 branches missed.">        switch (detailAST.getType()) {</span>
+            case TokenTypes.METHOD_DEF:
+<span class="pc bpc" id="L148" title="1 of 4 branches missed.">                if (isReturnCollection(detailAST)) {</span>
+<span class="fc" id="L149">                    methodDefs.add(detailAST);</span>
+                }
+<span class="fc" id="L151">                break;</span>
+
+            case TokenTypes.LITERAL_RETURN:
+<span class="pc bpc" id="L154" title="1 of 4 branches missed.">                if (!methodDefs.isEmpty()) {</span>
+<span class="fc" id="L155">                    final DetailAST currentMethodDef = getMethodDef(detailAST);</span>
+<span class="fc bfc" id="L156" title="All 2 branches covered.">                    if (methodDefs.contains(currentMethodDef)</span>
+<span class="fc bfc" id="L157" title="All 2 branches covered.">                        &amp;&amp; (hasNullLiteralInReturn(detailAST)</span>
+<span class="fc bfc" id="L158" title="All 2 branches covered.">                            || searchThroughMethodBody</span>
+<span class="fc bfc" id="L159" title="All 2 branches covered.">                                &amp;&amp; isReturnedValueBeNull(detailAST))) {</span>
+<span class="fc" id="L160">                        log(detailAST, MSG_KEY);</span>
+                    }
+                }
+<span class="fc" id="L163">                break;</span>
+
+            default:
+<span class="nc bnc" id="L166" title="All 2 branches missed.">                SevntuUtil.reportInvalidToken(detailAST.getType());</span>
+                break;
+        }
+<span class="fc" id="L169">    }</span>
+
+    /**
+     * &lt;p&gt;
+     * Returns true, when method type is a collection or an array.
+     * &lt;/p&gt;
+     * @param methodDef
+     *        - DetailAST contains method definition node.
+     * @return true, when method return collection.
+     */
+    private boolean isReturnCollection(DetailAST methodDef) {
+<span class="fc" id="L180">        DetailAST methodType = methodDef.findFirstToken(TokenTypes.TYPE);</span>
+<span class="fc" id="L181">        methodType = methodType.getFirstChild();</span>
+<span class="fc bfc" id="L182" title="All 2 branches covered.">        return methodType.getType() == TokenTypes.ARRAY_DECLARATOR</span>
+<span class="fc bfc" id="L183" title="All 2 branches covered.">                || collectionList.contains(methodType.getText());</span>
+    }
+
+    /**
+     * &lt;p&gt;
+     * Returns true when null literal has in return expression.
+     * &lt;/p&gt;
+     * @param returnLit
+     *        - DetailAST contains return literal
+     * @return true when null literal has in return expression.
+     */
+    private static boolean hasNullLiteralInReturn(DetailAST returnLit) {
+<span class="fc" id="L195">        DetailAST returnExpression = returnLit.findFirstToken(TokenTypes.EXPR);</span>
+<span class="fc" id="L196">        boolean result = false;</span>
+<span class="pc bpc" id="L197" title="1 of 2 branches missed.">        if (returnExpression != null) {</span>
+<span class="fc" id="L198">            final DetailAST ternary = returnExpression.getFirstChild();</span>
+<span class="fc bfc" id="L199" title="All 2 branches covered.">            if (TokenTypes.QUESTION == ternary.getType()) {</span>
+<span class="fc" id="L200">                returnExpression = ternary;</span>
+            }
+<span class="fc bfc" id="L202" title="All 2 branches covered.">            result = returnExpression.getChildCount(TokenTypes.LITERAL_NULL) &gt; 0;</span>
+        }
+<span class="fc" id="L204">        return result;</span>
+    }
+
+    /**
+     * &lt;p&gt;
+     * Returns true, when variable in return may be null.
+     * &lt;/p&gt;
+     * @param returnLit
+     *        - DetailAST contains LITERAL_RETURN
+     * @return true, when variable may be null.
+     */
+    private static boolean isReturnedValueBeNull(DetailAST returnLit) {
+<span class="fc" id="L216">        boolean result = false;</span>
+<span class="fc" id="L217">        final DetailAST returnedExpression = returnLit.getFirstChild();</span>
+<span class="pc bpc" id="L218" title="1 of 2 branches missed.">        if (returnedExpression.getType() != TokenTypes.SEMI) {</span>
+<span class="fc" id="L219">            final DetailAST variable = returnedExpression.findFirstToken(TokenTypes.IDENT);</span>
+<span class="fc bfc" id="L220" title="All 2 branches covered.">            if (variable != null) {</span>
+<span class="fc" id="L221">                final String variableName = variable.getText();</span>
+<span class="fc" id="L222">                final DetailAST methodDef = getMethodDef(returnLit);</span>
+<span class="fc" id="L223">                final List&lt;DetailAST&gt; subblocks = getAllSubblocks(methodDef);</span>
+<span class="fc" id="L224">                subblocks.add(0, methodDef);</span>
+
+<span class="fc" id="L226">                result = hasNullInDefinition(subblocks, variableName);</span>
+
+                //searching for not a null value into variable assignment
+<span class="fc bfc" id="L229" title="All 2 branches covered.">                if (result) {</span>
+<span class="fc bfc" id="L230" title="All 2 branches covered.">                    for (DetailAST subblock : subblocks) {</span>
+<span class="fc" id="L231">                        final List&lt;DetailAST&gt; expressions =</span>
+<span class="fc" id="L232">                                getChildren(getBlockBody(subblock), TokenTypes.EXPR);</span>
+<span class="fc bfc" id="L233" title="All 2 branches covered.">                        for (DetailAST expression : expressions) {</span>
+<span class="fc" id="L234">                            final DetailAST assign = expression.findFirstToken(TokenTypes.ASSIGN);</span>
+<span class="pc bpc" id="L235" title="1 of 2 branches missed.">                            if (assign != null</span>
+<span class="fc" id="L236">                                    &amp;&amp; variableName.equals(assign.findFirstToken(TokenTypes.IDENT)</span>
+<span class="pc bpc" id="L237" title="1 of 2 branches missed.">                                            .getText())</span>
+<span class="fc bfc" id="L238" title="All 2 branches covered.">                                    &amp;&amp; !assign.branchContains(TokenTypes.LITERAL_NULL)) {</span>
+<span class="fc" id="L239">                                result = false;</span>
+<span class="fc" id="L240">                                break;</span>
+                            }
+                        }
+<span class="fc bfc" id="L243" title="All 2 branches covered.">                        if (!result) {</span>
+<span class="fc" id="L244">                            break;</span>
+                        }
+                    }
+                }
+            }
+        }
+<span class="fc" id="L250">        return result;</span>
+    }
+
+    /**
+     * &lt;p&gt;
+     * Return all the nested subblocks in block.
+     * &lt;/p&gt;
+     * @param blockDef
+     *        - node of the block.
+     * @return all the nested subblocks in block.
+     */
+    private static List&lt;DetailAST&gt; getAllSubblocks(DetailAST blockDef) {
+<span class="fc" id="L262">        final DetailAST blockBody = getBlockBody(blockDef);</span>
+<span class="fc" id="L263">        final LinkedList&lt;DetailAST&gt; subblocks = new LinkedList&lt;&gt;();</span>
+<span class="fc" id="L264">        subblocks.addAll(getChildren(blockBody, TokenTypes.LITERAL_IF));</span>
+<span class="fc" id="L265">        final List&lt;DetailAST&gt; elseBlocks = new LinkedList&lt;&gt;();</span>
+<span class="fc bfc" id="L266" title="All 2 branches covered.">        for (DetailAST currentIf : subblocks) {</span>
+<span class="fc bfc" id="L267" title="All 2 branches covered.">            if (currentIf.getChildCount(TokenTypes.LITERAL_ELSE) &gt; 0) {</span>
+<span class="fc" id="L268">                elseBlocks.add(currentIf.findFirstToken(TokenTypes.LITERAL_ELSE));</span>
+            }
+        }
+<span class="fc bfc" id="L271" title="All 2 branches covered.">        if (!elseBlocks.isEmpty()) {</span>
+<span class="fc" id="L272">            subblocks.addAll(elseBlocks);</span>
+        }
+<span class="fc" id="L274">        subblocks.addAll(getChildren(blockBody, TokenTypes.LITERAL_WHILE));</span>
+<span class="fc" id="L275">        subblocks.addAll(getChildren(blockBody, TokenTypes.LITERAL_DO));</span>
+<span class="fc" id="L276">        subblocks.addAll(getChildren(blockBody, TokenTypes.LITERAL_FOR));</span>
+<span class="fc" id="L277">        subblocks.addAll(getChildren(blockBody, TokenTypes.LITERAL_TRY));</span>
+<span class="fc" id="L278">        final List&lt;DetailAST&gt; nestedSubblocks = new LinkedList&lt;&gt;();</span>
+<span class="fc bfc" id="L279" title="All 2 branches covered.">        for (DetailAST currentSubblock : subblocks) {</span>
+<span class="pc bpc" id="L280" title="1 of 2 branches missed.">            if (currentSubblock.findFirstToken(TokenTypes.SLIST) != null) {</span>
+<span class="fc" id="L281">                nestedSubblocks.addAll(getAllSubblocks(currentSubblock));</span>
+            }
+        }
+<span class="fc" id="L284">        subblocks.addAll(nestedSubblocks);</span>
+<span class="fc" id="L285">        return subblocks;</span>
+    }
+
+    /**
+     * &lt;p&gt;
+     * Return true when variable is null into the variable definition.
+     * &lt;/p&gt;
+     * @param subBlocks
+     *        - list contains subblocks.
+     * @param variableName
+     *        - name of returned variable.
+     * @return true when variable is null into the variable definition.
+     */
+    private static boolean hasNullInDefinition(List&lt;DetailAST&gt; subBlocks, String variableName) {
+<span class="fc" id="L299">        boolean result = false;</span>
+<span class="pc bpc" id="L300" title="1 of 2 branches missed.">        for (DetailAST subblock : subBlocks) {</span>
+<span class="fc" id="L301">            final List&lt;DetailAST&gt; variableDefs =</span>
+<span class="fc" id="L302">                    getChildren(getBlockBody(subblock), TokenTypes.VARIABLE_DEF);</span>
+<span class="fc" id="L303">            boolean isFinded = false;</span>
+<span class="pc bpc" id="L304" title="1 of 2 branches missed.">            for (DetailAST currentDef : variableDefs) {</span>
+<span class="fc" id="L305">                final DetailAST variable = currentDef.findFirstToken(TokenTypes.IDENT);</span>
+
+<span class="pc bpc" id="L307" title="1 of 2 branches missed.">                if (variableName.equals(variable.getText())) {</span>
+<span class="fc" id="L308">                    final DetailAST variableDef = currentDef;</span>
+<span class="fc" id="L309">                    DetailAST variableValue = variableDef.findFirstToken(TokenTypes.ASSIGN);</span>
+<span class="fc bfc" id="L310" title="All 2 branches covered.">                    if (variableValue == null) {</span>
+<span class="fc" id="L311">                        result = true;</span>
+<span class="fc" id="L312">                    }</span>
+                    else {
+<span class="fc" id="L314">                        variableValue = variableValue.findFirstToken(TokenTypes.EXPR);</span>
+<span class="fc bfc" id="L315" title="All 2 branches covered.">                        result = variableValue.getFirstChild().getType() == TokenTypes.LITERAL_NULL;</span>
+                    }
+<span class="fc" id="L317">                    isFinded = true;</span>
+<span class="fc" id="L318">                    break;</span>
+                }
+            }
+<span class="pc bpc" id="L321" title="1 of 2 branches missed.">            if (isFinded) {</span>
+<span class="fc" id="L322">                break;</span>
+            }
+        }
+<span class="fc" id="L325">        return result;</span>
+    }
+
+    /**
+     * &lt;p&gt;
+     * Returns all children of that have the specified type.
+     * &lt;/p&gt;
+     * @param root
+     *        - root token of a block
+     * @param type
+     *        - type of children
+     * @return all children of that have the specified type.
+     */
+    private static List&lt;DetailAST&gt; getChildren(DetailAST root, int type) {
+<span class="fc" id="L339">        final List&lt;DetailAST&gt; children = new LinkedList&lt;&gt;();</span>
+<span class="fc" id="L340">        DetailAST currentChild = root.findFirstToken(type);</span>
+<span class="fc bfc" id="L341" title="All 2 branches covered.">        if (currentChild != null) {</span>
+<span class="fc" id="L342">            children.add(currentChild);</span>
+        }
+<span class="fc bfc" id="L344" title="All 2 branches covered.">        while (children.size() &lt; root.getChildCount(type)) {</span>
+<span class="fc" id="L345">            currentChild = currentChild.getNextSibling();</span>
+<span class="fc bfc" id="L346" title="All 2 branches covered.">            if (currentChild.getType() == type) {</span>
+<span class="fc" id="L347">                children.add(currentChild);</span>
+            }
+        }
+<span class="fc" id="L350">        return children;</span>
+    }
+
+    /**
+     * &lt;p&gt;
+     * Return DetailAST that contained method definition.
+     * &lt;/p&gt;
+     * @param returnLit
+     *        - DetailAST contains LITERAL_RETURN.
+     * @return DetailAST contains METHOD_DEF
+     */
+    private static DetailAST getMethodDef(DetailAST returnLit) {
+<span class="fc" id="L362">        DetailAST methodDef = returnLit;</span>
+<span class="fc bfc" id="L363" title="All 4 branches covered.">        while (methodDef != null &amp;&amp; methodDef.getType() != TokenTypes.METHOD_DEF) {</span>
+<span class="fc" id="L364">            methodDef = methodDef.getParent();</span>
+        }
+<span class="fc" id="L366">        return methodDef;</span>
+    }
+
+    /**
+     * &lt;p&gt;
+     * Return body of the block.
+     * &lt;/p&gt;
+     * @param blockDef
+     *        - block definition node
+     * @return body of the block.
+     */
+    private static DetailAST getBlockBody(DetailAST blockDef) {
+<span class="fc" id="L378">        DetailAST blockBody = blockDef.findFirstToken(TokenTypes.SLIST);</span>
+<span class="pc bpc" id="L379" title="1 of 2 branches missed.">        if (blockBody == null) {</span>
+<span class="nc" id="L380">            blockBody = blockDef;</span>
+        }
+<span class="fc" id="L382">        return blockBody;</span>
+    }
+
+}
+</pre><div class="footer"><span class="right">Created with <a href="http://www.eclemma.org/jacoco">JaCoCo</a> 0.7.1.201405082137</span></div></body></html>

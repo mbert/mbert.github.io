@@ -1,0 +1,293 @@
+<?xml version="1.0" encoding="UTF-8"?><!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Strict//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-strict.dtd"><html xmlns="http://www.w3.org/1999/xhtml" lang="en"><head><meta http-equiv="Content-Type" content="text/html;charset=UTF-8"/><link rel="stylesheet" href="../.resources/report.css" type="text/css"/><link rel="shortcut icon" href="../.resources/report.gif" type="image/gif"/><title>ForbidCertainMethodCheck.java</title><link rel="stylesheet" href="../.resources/prettify.css" type="text/css"/><script type="text/javascript" src="../.resources/prettify.js"></script></head><body onload="window['PR_TAB_WIDTH']=4;prettyPrint()"><div class="breadcrumb" id="breadcrumb"><span class="info"><a href="../.sessions.html" class="el_session">Sessions</a></span><a href="../index.html" class="el_report">sevntu-checks</a> &gt; <a href="index.source.html" class="el_package">com.github.sevntu.checkstyle.checks.coding</a> &gt; <span class="el_source">ForbidCertainMethodCheck.java</span></div><h1>ForbidCertainMethodCheck.java</h1><pre class="source lang-java linenums">////////////////////////////////////////////////////////////////////////////////
+// checkstyle: Checks Java source code for adherence to a set of rules.
+// Copyright (C) 2001-2019 the original author or authors.
+//
+// This library is free software; you can redistribute it and/or
+// modify it under the terms of the GNU Lesser General Public
+// License as published by the Free Software Foundation; either
+// version 2.1 of the License, or (at your option) any later version.
+//
+// This library is distributed in the hope that it will be useful,
+// but WITHOUT ANY WARRANTY; without even the implied warranty of
+// MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the GNU
+// Lesser General Public License for more details.
+//
+// You should have received a copy of the GNU Lesser General Public
+// License along with this library; if not, write to the Free Software
+// Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA
+////////////////////////////////////////////////////////////////////////////////
+
+package com.github.sevntu.checkstyle.checks.coding;
+
+import java.util.ArrayList;
+import java.util.Collections;
+import java.util.List;
+import java.util.regex.Matcher;
+import java.util.regex.Pattern;
+
+import com.github.sevntu.checkstyle.SevntuUtil;
+import com.puppycrawl.tools.checkstyle.api.AbstractCheck;
+import com.puppycrawl.tools.checkstyle.api.CheckstyleException;
+import com.puppycrawl.tools.checkstyle.api.DetailAST;
+import com.puppycrawl.tools.checkstyle.api.TokenTypes;
+import com.puppycrawl.tools.checkstyle.utils.CommonUtil;
+
+/**
+ * Check that forbidden method is not used. We can forbid a method by method name and number of
+ * arguments.
+ * This can be used to enforce things like:
+ * &lt;ul&gt;
+ * &lt;li&gt; exit() method of System class should not be called.&lt;/li&gt;
+ * &lt;li&gt; assertTrue() and assertFalse() methods of Assert class have a 1 arg variant that does not
+ * provide a helpful message on failure. These methods should not be used.
+ * &lt;/ul&gt;
+ * Parameters are:
+ * &lt;ul&gt;
+ * &lt;li&gt;&lt;b&gt;methodName&lt;/b&gt; - Regex to match name of the method to be forbidden.
+ * When blank or unspecified, all the methods are allowed.&lt;/li&gt;
+ * &lt;li&gt;&lt;b&gt;argumentCount&lt;/b&gt; - Number or range to match number of arguments the method takes.
+ * Multiple numbers/ranges must be comma separated. When unspecified, defaults to &quot;0-&quot;.
+ * &lt;/ul&gt;
+ *
+ * &lt;p&gt;An example configuration:
+ * &lt;pre&gt;
+ * &amp;lt;module name=&quot;ForbidCertainMethodCheck&quot;&amp;gt;
+ *    &amp;lt;property name=&quot;methodName&quot; value=&quot;exit&quot;/&amp;gt;
+ * &amp;lt;/module&amp;gt;
+ * &amp;lt;module name=&quot;ForbidCertainMethodCheck&quot;&amp;gt;
+ *    &amp;lt;property name=&quot;methodName&quot; value=&quot;assert(True|False)&quot;/&amp;gt;
+ *    &amp;lt;property name=&quot;argumentCount&quot; value=&quot;1&quot;/&amp;gt;
+ * &amp;lt;/module&amp;gt;
+ * &amp;lt;module name=&quot;ForbidCertainMethodCheck&quot;&amp;gt;
+ *    &amp;lt;property name=&quot;methodName&quot; value=&quot;assertEquals&quot;/&amp;gt;
+ *    &amp;lt;property name=&quot;argumentCount&quot; value=&quot;2&quot;/&amp;gt;
+ * &amp;lt;/module&amp;gt;
+ * &lt;/pre&gt;
+ * Argument count can be bounded range (e.g.: {@code 2-4}) or unbounded range
+ * (e.g.: {@code -5, 6-}). Unbounded range can be unbounded only on one side.
+ * Multiple ranges must be comma separated.
+ * For example, the following will allow only 4 and 8 arguments.
+ *
+ * &lt;pre&gt;
+ * &amp;lt;module name=&quot;ForbidCertainMethodCheck&quot;&amp;gt;
+ *    &amp;lt;property name=&quot;methodName&quot; value=&quot;asList&quot;/&amp;gt;
+ *    &amp;lt;property name=&quot;argumentCount&quot; value=&quot;-3, 5-7, 9-&quot;/&amp;gt;
+ * &amp;lt;/module&amp;gt;
+ * &lt;/pre&gt;
+ *
+ * &lt;p&gt;
+ * Note: The check only matches method name. Matching on class/object of the
+ * method is not done. For e.g. there is no way to forbid only &quot;System.exit()&quot;. You can match
+ * by methodName=&quot;exit&quot;, but beware that it will violate &quot;System.exit()&quot; and &quot;MySystem.exit()&quot;,
+ * so use it with caution.
+ * &lt;/p&gt;
+ *
+ * @author &lt;a href=&quot;mailto:raghavgautam@gmail.com&quot;&gt;Raghav Kumar Gautam&lt;/a&gt;
+ * @since 1.28.0
+ */
+<span class="fc" id="L88">public class ForbidCertainMethodCheck extends AbstractCheck {</span>
+
+    /** Key is pointing to the warning message text in &quot;messages.properties&quot; file. */
+    public static final String MSG_KEY = &quot;forbid.certain.method&quot;;
+    /** Regex for splitting string on comma. */
+<span class="fc" id="L93">    private static final Pattern COMMA_REGEX = Pattern.compile(&quot;,&quot;);</span>
+
+    /** Name of the method. */
+<span class="fc" id="L96">    private Pattern methodName = CommonUtil.createPattern(&quot;^$&quot;);</span>
+
+    /** Range for number of arguments. */
+<span class="fc" id="L99">    private String argumentCount = &quot;0-&quot;;</span>
+    /** Range objects for matching number of arguments. */
+<span class="fc" id="L101">    private final List&lt;IntRange&gt; argumentCountRanges = new ArrayList&lt;&gt;(</span>
+<span class="fc" id="L102">        Collections.singletonList(new IntRange(0, Integer.MAX_VALUE)));</span>
+
+    /**
+     * Set method name regex for the forbidden method.
+     * @param methodName regex for the method name
+     */
+    public void setMethodName(String methodName) {
+<span class="fc" id="L109">        this.methodName = CommonUtil.createPattern(methodName);</span>
+<span class="fc" id="L110">    }</span>
+
+    /**
+     * Set number or range to match number of arguments of the forbidden method.
+     * Multiple values must be comma separated.
+     * @param argumentCount range for matching number of arguments
+     * @throws CheckstyleException when argumentCount is not a valid range
+     */
+    public void setArgumentCount(String argumentCount) throws CheckstyleException {
+<span class="fc" id="L119">        this.argumentCount = argumentCount;</span>
+<span class="fc bfc" id="L120" title="All 2 branches covered.">        if (CommonUtil.isBlank(argumentCount)) {</span>
+<span class="fc" id="L121">            throw new CheckstyleException(</span>
+<span class="fc" id="L122">                &quot;argumentCount must be non-empty, found: &quot; + argumentCount);</span>
+        }
+
+<span class="fc" id="L125">        final String[] rangeTokens = COMMA_REGEX.split(argumentCount);</span>
+<span class="fc" id="L126">        argumentCountRanges.clear();</span>
+<span class="fc bfc" id="L127" title="All 2 branches covered.">        for (String oneToken : rangeTokens) {</span>
+<span class="fc" id="L128">            argumentCountRanges.add(IntRange.from(oneToken));</span>
+        }
+<span class="fc" id="L130">    }</span>
+
+    @Override
+    public int[] getDefaultTokens() {
+<span class="fc" id="L134">        return getRequiredTokens();</span>
+    }
+
+    @Override
+    public int[] getAcceptableTokens() {
+<span class="fc" id="L139">        return getRequiredTokens();</span>
+    }
+
+    @Override
+    public int[] getRequiredTokens() {
+<span class="fc" id="L144">        return new int[] {</span>
+<span class="fc" id="L145">            TokenTypes.METHOD_CALL,</span>
+        };
+    }
+
+    @Override
+    public void visitToken(DetailAST ast) {
+<span class="pc bpc" id="L151" title="1 of 2 branches missed.">        if (ast.getType() == TokenTypes.METHOD_CALL) {</span>
+<span class="fc" id="L152">            final DetailAST dot = ast.getFirstChild();</span>
+            // method that looks like: method()
+            final String methodNameInCode;
+<span class="fc bfc" id="L155" title="All 2 branches covered.">            if (dot.getType() == TokenTypes.IDENT) {</span>
+<span class="fc" id="L156">                methodNameInCode = dot.getText();</span>
+<span class="fc" id="L157">            }</span>
+            // method that looks like: obj.method()
+            else {
+<span class="fc" id="L160">                methodNameInCode = dot.getLastChild().getText();</span>
+            }
+<span class="fc" id="L162">            final int numArgsInCode = getMethodCallParameterCount(ast);</span>
+<span class="fc bfc" id="L163" title="All 2 branches covered.">            if (isForbiddenMethod(methodNameInCode, numArgsInCode)) {</span>
+<span class="fc" id="L164">                log(ast, MSG_KEY, methodNameInCode, methodName,</span>
+<span class="fc" id="L165">                    numArgsInCode, argumentCount);</span>
+            }
+<span class="fc" id="L167">        }</span>
+        else {
+<span class="nc" id="L169">            SevntuUtil.reportInvalidToken(ast.getType());</span>
+        }
+<span class="fc" id="L171">    }</span>
+
+    /**
+     * Count the parameters given to a method call.
+     * @param ast The method call AST.
+     * @return The number of parameters.
+     */
+    private static int getMethodCallParameterCount(DetailAST ast) {
+<span class="fc" id="L179">        int paramCount = 0;</span>
+<span class="fc" id="L180">        final DetailAST expressionList = ast.getFirstChild().getNextSibling();</span>
+        // This works by counting the number of commas separating the
+        // expressions passed to the method, if any
+<span class="fc bfc" id="L183" title="All 2 branches covered.">        if (expressionList.getChildCount() &gt; 0) {</span>
+            // We have at least one parameter, so the total number of
+            // parameters is the number of commas plus one
+<span class="fc" id="L186">            paramCount = expressionList.getChildCount(TokenTypes.COMMA) + 1;</span>
+        }
+<span class="fc" id="L188">        return paramCount;</span>
+    }
+
+    /**
+     * Check if the method/constructor call against defined rules.
+     * @param name ruleName of the the method
+     * @param argCount number of arguments of the method
+     * @return true if method name and argument matches, false otherwise.
+     */
+    private boolean isForbiddenMethod(String name, int argCount) {
+<span class="fc" id="L198">        boolean matched = false;</span>
+<span class="fc bfc" id="L199" title="All 2 branches covered.">        if (methodName.matcher(name).matches()) {</span>
+<span class="fc bfc" id="L200" title="All 2 branches covered.">            for (IntRange intRange : argumentCountRanges) {</span>
+<span class="fc bfc" id="L201" title="All 2 branches covered.">                if (intRange.contains(argCount)) {</span>
+<span class="fc" id="L202">                    matched = true;</span>
+<span class="fc" id="L203">                    break;</span>
+                }
+            }
+        }
+<span class="fc" id="L207">        return matched;</span>
+    }
+
+    /**
+     * Represents a range of non-negative integers.
+     * Range must be bounded on one side or both sides.
+     * It can't be unbounded on both side.
+     * &lt;br&gt;
+     * Some examples of valid ranges:
+     * &lt;ul&gt;
+     * &lt;li&gt;1-10: 1 and 10 and all numbers between 1 and 10&lt;/li&gt;
+     * &lt;li&gt;-10: same as 0-10&lt;/li&gt;
+     * &lt;li&gt;5-: same as 5-infinity&lt;/li&gt;
+     * &lt;li&gt;1: same as 1-1&lt;/li&gt;
+     * &lt;/ul&gt;
+     */
+    /* package */ static class IntRange {
+        /** Regex for matching range. */
+<span class="fc" id="L225">        private static final Pattern RANGE_PATTERN =</span>
+<span class="fc" id="L226">            Pattern.compile(&quot;^\\s*+(\\d*+)\\s*+-\\s*+(\\d*+)\\s*+$&quot;);</span>
+        /** Lower limit of the range. No lower limit when null. */
+        private final int lowerLimit;
+        /** Upper limit of the range. No upper limit when null. */
+        private final int upperLimit;
+
+        /**
+         * Initialize IntRange object with a lower limit and an upper limit.
+         * @param lowerLimit lower limit of the range, must be &gt;= 0, null is equivalent to 0
+         * @param upperLimit upper limit of the range, null is equivalent to infinity
+         */
+<span class="fc" id="L237">        /* package */ IntRange(int lowerLimit, int upperLimit) {</span>
+<span class="fc" id="L238">            this.lowerLimit = lowerLimit;</span>
+<span class="fc" id="L239">            this.upperLimit = upperLimit;</span>
+<span class="fc" id="L240">        }</span>
+
+        /**
+         * Create a range object corresponding to it string representation.
+         * @param range string representation of the range
+         * @return IntRange object for the string
+         *
+         * @throws CheckstyleException if the specified range is not valid
+         */
+        private static IntRange from(String range) throws CheckstyleException {
+<span class="fc" id="L250">            int lowerLimit = 0;</span>
+<span class="fc" id="L251">            int upperLimit = Integer.MAX_VALUE;</span>
+<span class="fc bfc" id="L252" title="All 2 branches covered.">            if (range.contains(&quot;-&quot;)) {</span>
+<span class="fc" id="L253">                final Matcher matcher = RANGE_PATTERN.matcher(range);</span>
+<span class="fc bfc" id="L254" title="All 2 branches covered.">                if (!matcher.find()) {</span>
+<span class="fc" id="L255">                    throw new CheckstyleException(&quot;Specified range is not valid: &quot; + range);</span>
+                }
+<span class="fc" id="L257">                final String lowerLimitString = matcher.group(1);</span>
+<span class="fc" id="L258">                final String upperLimitString = matcher.group(2);</span>
+<span class="fc bfc" id="L259" title="All 4 branches covered.">                if (lowerLimitString.length() == 0 &amp;&amp; upperLimitString.length() == 0) {</span>
+<span class="fc" id="L260">                    throw new CheckstyleException(&quot;Specified range is unbounded on both side: &quot;</span>
+<span class="fc" id="L261">                        + range);</span>
+                }
+<span class="fc bfc" id="L263" title="All 2 branches covered.">                if (lowerLimitString.length() &gt; 0) {</span>
+<span class="fc" id="L264">                    lowerLimit = Integer.parseInt(lowerLimitString);</span>
+                }
+<span class="fc bfc" id="L266" title="All 2 branches covered.">                if (upperLimitString.length() &gt; 0) {</span>
+<span class="fc" id="L267">                    upperLimit = Integer.parseInt(upperLimitString);</span>
+                }
+<span class="fc bfc" id="L269" title="All 2 branches covered.">                if (lowerLimit &gt; upperLimit) {</span>
+<span class="fc" id="L270">                    throw new CheckstyleException(</span>
+<span class="fc" id="L271">                        &quot;Lower limit of the range is larger than the upper limit: &quot; + range);</span>
+                }
+            }
+            else {
+<span class="fc" id="L275">                lowerLimit = Integer.parseInt(range.trim());</span>
+<span class="fc" id="L276">                upperLimit = lowerLimit;</span>
+            }
+<span class="fc" id="L278">            return new IntRange(lowerLimit, upperLimit);</span>
+        }
+
+        /**
+         * Check if range contain given number. Range is closed.
+         * If lower/upper bound is absent, it is considered unbounded on lower/upper side.
+         * @param num the number to be checked
+         * @return true if number is contained in the range, false otherwise
+         */
+        public boolean contains(int num) {
+<span class="fc bfc" id="L288" title="All 4 branches covered.">            return num &gt;= lowerLimit &amp;&amp; num &lt;= upperLimit;</span>
+        }
+    }
+
+}
+</pre><div class="footer"><span class="right">Created with <a href="http://www.eclemma.org/jacoco">JaCoCo</a> 0.7.1.201405082137</span></div></body></html>

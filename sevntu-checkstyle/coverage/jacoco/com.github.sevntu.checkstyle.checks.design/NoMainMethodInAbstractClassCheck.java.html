@@ -1,0 +1,277 @@
+<?xml version="1.0" encoding="UTF-8"?><!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Strict//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-strict.dtd"><html xmlns="http://www.w3.org/1999/xhtml" lang="en"><head><meta http-equiv="Content-Type" content="text/html;charset=UTF-8"/><link rel="stylesheet" href="../.resources/report.css" type="text/css"/><link rel="shortcut icon" href="../.resources/report.gif" type="image/gif"/><title>NoMainMethodInAbstractClassCheck.java</title><link rel="stylesheet" href="../.resources/prettify.css" type="text/css"/><script type="text/javascript" src="../.resources/prettify.js"></script></head><body onload="window['PR_TAB_WIDTH']=4;prettyPrint()"><div class="breadcrumb" id="breadcrumb"><span class="info"><a href="../.sessions.html" class="el_session">Sessions</a></span><a href="../index.html" class="el_report">sevntu-checks</a> &gt; <a href="index.source.html" class="el_package">com.github.sevntu.checkstyle.checks.design</a> &gt; <span class="el_source">NoMainMethodInAbstractClassCheck.java</span></div><h1>NoMainMethodInAbstractClassCheck.java</h1><pre class="source lang-java linenums">////////////////////////////////////////////////////////////////////////////////
+// checkstyle: Checks Java source code for adherence to a set of rules.
+// Copyright (C) 2001-2019 the original author or authors.
+//
+// This library is free software; you can redistribute it and/or
+// modify it under the terms of the GNU Lesser General Public
+// License as published by the Free Software Foundation; either
+// version 2.1 of the License, or (at your option) any later version.
+//
+// This library is distributed in the hope that it will be useful,
+// but WITHOUT ANY WARRANTY; without even the implied warranty of
+// MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the GNU
+// Lesser General Public License for more details.
+//
+// You should have received a copy of the GNU Lesser General Public
+// License along with this library; if not, write to the Free Software
+// Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA
+////////////////////////////////////////////////////////////////////////////////
+
+package com.github.sevntu.checkstyle.checks.design;
+
+import java.util.Deque;
+import java.util.LinkedList;
+
+import com.puppycrawl.tools.checkstyle.api.AbstractCheck;
+import com.puppycrawl.tools.checkstyle.api.DetailAST;
+import com.puppycrawl.tools.checkstyle.api.TokenTypes;
+
+/**
+ * Forbids main methods in abstract classes. Existence of 'main' method can
+ * mislead a developer to consider this class as a ready-to-use implementation.
+ * @author Baratali Izmailov &lt;a href=&quot;mailto:barataliba@gmail.com&quot;&gt;email&lt;/a&gt;
+ * @since 1.9.0
+ */
+<span class="fc" id="L35">public class NoMainMethodInAbstractClassCheck extends AbstractCheck {</span>
+
+    /**
+     * Key for error message.
+     */
+    public static final String MSG_KEY = &quot;avoid.main.method.in.abstract.class&quot;;
+
+    /** String representation of string class. */
+    private static final String STRING_CLASS = &quot;String&quot;;
+
+    /**
+     * Keep OBJBLOCKs of classes that are under validation.
+     */
+<span class="fc" id="L48">    private final Deque&lt;DetailAST&gt; objBlockTokensStack =</span>
+<span class="fc" id="L49">            new LinkedList&lt;&gt;();</span>
+
+    @Override
+    public final int[] getDefaultTokens() {
+<span class="fc" id="L53">        return new int[] {</span>
+<span class="fc" id="L54">            TokenTypes.CLASS_DEF,</span>
+<span class="fc" id="L55">            TokenTypes.METHOD_DEF,</span>
+        };
+    }
+
+    @Override
+    public int[] getAcceptableTokens() {
+<span class="fc" id="L61">        return getDefaultTokens();</span>
+    }
+
+    @Override
+    public int[] getRequiredTokens() {
+<span class="fc" id="L66">        return getDefaultTokens();</span>
+    }
+
+    @Override
+    public final void visitToken(final DetailAST ast) {
+<span class="fc bfc" id="L71" title="All 2 branches covered.">        if (ast.getType() == TokenTypes.CLASS_DEF) {</span>
+<span class="fc bfc" id="L72" title="All 2 branches covered.">            if (isNotInnerClass(ast)) {</span>
+                // remove all tokens from stack
+<span class="fc" id="L74">                objBlockTokensStack.clear();</span>
+            }
+<span class="fc bfc" id="L76" title="All 2 branches covered.">            if (hasAbstractModifier(ast)) {</span>
+<span class="fc" id="L77">                objBlockTokensStack.push(</span>
+<span class="fc" id="L78">                        ast.findFirstToken(TokenTypes.OBJBLOCK));</span>
+            }
+<span class="fc" id="L80">        }</span>
+        // type of token is METHOD_DEF
+<span class="fc bfc" id="L82" title="All 4 branches covered.">        else if (isChildOfCurrentObjBlockToken(ast) &amp;&amp; isMainMethod(ast)) {</span>
+<span class="fc" id="L83">            log(ast, MSG_KEY);</span>
+            // remove current objblock
+<span class="fc" id="L85">            objBlockTokensStack.pop();</span>
+        }
+<span class="fc" id="L87">    }</span>
+
+    /**
+     * Verify that class is not inner.
+     * @param classDefAST
+     *        DetailAST of class definition.
+     * @return true if class is not inner, false otherwise.
+     */
+    private boolean isNotInnerClass(final DetailAST classDefAST) {
+<span class="fc" id="L96">        boolean result = true;</span>
+<span class="fc" id="L97">        final DetailAST objBlockAST = classDefAST.getParent();</span>
+<span class="fc bfc" id="L98" title="All 2 branches covered.">        for (DetailAST currentObjBlock : objBlockTokensStack) {</span>
+<span class="fc bfc" id="L99" title="All 2 branches covered.">            if (objBlockAST == currentObjBlock) {</span>
+<span class="fc" id="L100">                result = false;</span>
+<span class="fc" id="L101">                break;</span>
+            }
+        }
+<span class="fc" id="L104">        return result;</span>
+    }
+
+    /**
+     * Verify that aMethodDefAST is child token of considered objblock.
+     * @param methodDefAST DetailAST of method definition.
+     * @return true if aMethodDefAST is child of of considered objblock.
+     */
+    private boolean isChildOfCurrentObjBlockToken(final DetailAST methodDefAST) {
+<span class="fc" id="L113">        final DetailAST objBlockAST = objBlockTokensStack.peek();</span>
+<span class="fc bfc" id="L114" title="All 2 branches covered.">        return objBlockAST != null</span>
+<span class="fc bfc" id="L115" title="All 2 branches covered.">                &amp;&amp; methodDefAST.getParent() == objBlockAST;</span>
+    }
+
+    /**
+     * Return true if AST has abstract modifier.
+     * @param classDefAST
+     *        AST which has modifier
+     * @return true if AST has abstract modifier, false otherwise.
+     */
+    private static boolean hasAbstractModifier(final DetailAST classDefAST) {
+<span class="fc" id="L125">        final DetailAST modifiers =</span>
+<span class="fc" id="L126">                classDefAST.findFirstToken(TokenTypes.MODIFIERS);</span>
+<span class="fc" id="L127">        return hasChildToken(modifiers, TokenTypes.ABSTRACT);</span>
+    }
+
+    /**
+     * Verifies that the given DetailAST is a main method.
+     * @param methodAST
+     *        DetailAST instance.
+     * @return true if aMethodAST is a main method, false otherwise.
+     */
+    private static boolean isMainMethod(final DetailAST methodAST) {
+<span class="fc" id="L137">        boolean result = true;</span>
+<span class="fc" id="L138">        final String methodName = getIdentifier(methodAST);</span>
+<span class="fc bfc" id="L139" title="All 2 branches covered.">        if (&quot;main&quot;.equals(methodName)) {</span>
+<span class="fc bfc" id="L140" title="All 2 branches covered.">            result = isVoidType(methodAST)</span>
+<span class="fc bfc" id="L141" title="All 2 branches covered.">                    &amp;&amp; isMainMethodModifiers(methodAST)</span>
+<span class="fc bfc" id="L142" title="All 2 branches covered.">                    &amp;&amp; isMainMethodParameters(methodAST);</span>
+<span class="fc" id="L143">        }</span>
+        else {
+<span class="fc" id="L145">            result = false;</span>
+        }
+<span class="fc" id="L147">        return result;</span>
+    }
+
+    /**
+     * Get identifier of AST. These can be names of types, subpackages,
+     * fields, methods, parameters, and local variables.
+     * @param ast
+     *        DetailAST instance
+     * @return identifier of AST, null if AST does not have name.
+     */
+    private static String getIdentifier(final DetailAST ast) {
+<span class="fc" id="L158">        final DetailAST ident = ast.findFirstToken(TokenTypes.IDENT);</span>
+<span class="fc" id="L159">        return ident.getText();</span>
+    }
+
+    /**
+     * Verifies that given AST has appropriate modifiers for main method.
+     * @param methodAST
+     *        DetailAST instance.
+     * @return true if aMethodAST has (public &amp; static &amp; !abstract) modifiers,
+     *         false otherwise.
+     */
+    private static boolean isMainMethodModifiers(final DetailAST methodAST) {
+<span class="fc" id="L170">        final DetailAST modifiers =</span>
+<span class="fc" id="L171">                methodAST.findFirstToken(TokenTypes.MODIFIERS);</span>
+<span class="fc bfc" id="L172" title="All 2 branches covered.">        return hasChildToken(modifiers, TokenTypes.LITERAL_PUBLIC)</span>
+<span class="fc bfc" id="L173" title="All 2 branches covered.">                &amp;&amp; hasChildToken(modifiers, TokenTypes.LITERAL_STATIC);</span>
+    }
+
+    /**
+     * Verifies that given AST has type and this type is void.
+     * @param methodAST
+     *        DetailAST instance.
+     * @return true if AST's type void, false otherwise.
+     */
+    private static boolean isVoidType(final DetailAST methodAST) {
+<span class="fc" id="L183">        final DetailAST methodTypeAST = methodAST.findFirstToken(TokenTypes.TYPE);</span>
+<span class="fc" id="L184">        return hasChildToken(methodTypeAST, TokenTypes.LITERAL_VOID);</span>
+    }
+
+    /**
+     * Verifies that given AST has appropriate for main method parameters.
+     * @param methodAST
+     *        instance of a method
+     * @return true if parameters of aMethodAST are appropriate for main method,
+     *         false otherwise.
+     */
+    private static boolean isMainMethodParameters(final DetailAST methodAST) {
+<span class="fc" id="L195">        final DetailAST params =</span>
+<span class="fc" id="L196">                methodAST.findFirstToken(TokenTypes.PARAMETERS);</span>
+<span class="fc bfc" id="L197" title="All 2 branches covered.">        return hasOnlyStringArrayParameter(params)</span>
+<span class="fc bfc" id="L198" title="All 2 branches covered.">                || hasOnlyStringEllipsisParameter(params);</span>
+    }
+
+    /**
+     * Return true if AST of method parameters has String[] parameter child
+     * token.
+     * @param parametersAST
+     *        DetailAST of method parameters.
+     * @return true if AST has String[] parameter child token, false otherwise.
+     */
+    private static boolean hasOnlyStringArrayParameter(final DetailAST parametersAST) {
+<span class="fc" id="L209">        boolean result = true;</span>
+<span class="fc bfc" id="L210" title="All 2 branches covered.">        if (parametersAST.getChildCount(TokenTypes.PARAMETER_DEF) == 1) {</span>
+<span class="fc" id="L211">            final DetailAST parameterDefinitionAST =</span>
+<span class="fc" id="L212">                    parametersAST.findFirstToken(TokenTypes.PARAMETER_DEF);</span>
+<span class="fc" id="L213">            final DetailAST parameterTypeAST = parameterDefinitionAST</span>
+<span class="fc" id="L214">                    .findFirstToken(TokenTypes.TYPE);</span>
+<span class="fc bfc" id="L215" title="All 2 branches covered.">            if (hasChildToken(parameterTypeAST, TokenTypes.ARRAY_DECLARATOR)) {</span>
+<span class="fc" id="L216">                final DetailAST arrayDeclaratorAST = parameterTypeAST</span>
+<span class="fc" id="L217">                        .findFirstToken(TokenTypes.ARRAY_DECLARATOR);</span>
+<span class="fc" id="L218">                final String parameterName =</span>
+<span class="fc" id="L219">                        getIdentifier(arrayDeclaratorAST);</span>
+<span class="fc" id="L220">                result = STRING_CLASS.equals(parameterName);</span>
+<span class="fc" id="L221">            }</span>
+            else {
+<span class="fc" id="L223">                result = false;</span>
+            }
+<span class="fc" id="L225">        }</span>
+        else {
+            // there is none or multiple parameters
+<span class="fc" id="L228">            result = false;</span>
+        }
+<span class="fc" id="L230">        return result;</span>
+    }
+
+    /**
+     * Return true if AST of method parameters has String... parameter child
+     * token.
+     * @param parametersAST
+     *        DetailAST of method parameters.
+     * @return true if aParametersAST has String... parameter child token, false
+     *         otherwise.
+     */
+    private static boolean hasOnlyStringEllipsisParameter(final DetailAST parametersAST) {
+<span class="fc" id="L242">        boolean result = true;</span>
+<span class="fc bfc" id="L243" title="All 2 branches covered.">        if (parametersAST.getChildCount(TokenTypes.PARAMETER_DEF) == 1) {</span>
+<span class="fc" id="L244">            final DetailAST parameterDefinitionAST =</span>
+<span class="fc" id="L245">                    parametersAST.findFirstToken(TokenTypes.PARAMETER_DEF);</span>
+<span class="fc bfc" id="L246" title="All 2 branches covered.">            if (hasChildToken(parameterDefinitionAST, TokenTypes.ELLIPSIS)) {</span>
+<span class="fc" id="L247">                final DetailAST parameterTypeAST =</span>
+<span class="fc" id="L248">                        parameterDefinitionAST.findFirstToken(TokenTypes.TYPE);</span>
+<span class="fc" id="L249">                final String parameterName =</span>
+<span class="fc" id="L250">                        getIdentifier(parameterTypeAST);</span>
+<span class="fc" id="L251">                result = STRING_CLASS.equals(parameterName);</span>
+<span class="fc" id="L252">            }</span>
+            else {
+<span class="fc" id="L254">                result = false;</span>
+            }
+<span class="fc" id="L256">        }</span>
+        else {
+            // there is none or multiple parameters
+<span class="fc" id="L259">            result = false;</span>
+        }
+<span class="fc" id="L261">        return result;</span>
+    }
+
+    /**
+     * Return true if aAST has token of aTokenType type.
+     * @param ast
+     *        DetailAST instance.
+     * @param tokenType
+     *        one of TokenTypes
+     * @return true if aAST has token of given type, or false otherwise.
+     */
+    private static boolean hasChildToken(DetailAST ast, int tokenType) {
+<span class="fc bfc" id="L273" title="All 2 branches covered.">        return ast.findFirstToken(tokenType) != null;</span>
+    }
+
+}
+</pre><div class="footer"><span class="right">Created with <a href="http://www.eclemma.org/jacoco">JaCoCo</a> 0.7.1.201405082137</span></div></body></html>

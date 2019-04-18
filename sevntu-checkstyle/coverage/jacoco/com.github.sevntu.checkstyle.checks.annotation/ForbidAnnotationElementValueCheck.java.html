@@ -1,0 +1,403 @@
+<?xml version="1.0" encoding="UTF-8"?><!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Strict//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-strict.dtd"><html xmlns="http://www.w3.org/1999/xhtml" lang="en"><head><meta http-equiv="Content-Type" content="text/html;charset=UTF-8"/><link rel="stylesheet" href="../.resources/report.css" type="text/css"/><link rel="shortcut icon" href="../.resources/report.gif" type="image/gif"/><title>ForbidAnnotationElementValueCheck.java</title><link rel="stylesheet" href="../.resources/prettify.css" type="text/css"/><script type="text/javascript" src="../.resources/prettify.js"></script></head><body onload="window['PR_TAB_WIDTH']=4;prettyPrint()"><div class="breadcrumb" id="breadcrumb"><span class="info"><a href="../.sessions.html" class="el_session">Sessions</a></span><a href="../index.html" class="el_report">sevntu-checks</a> &gt; <a href="index.source.html" class="el_package">com.github.sevntu.checkstyle.checks.annotation</a> &gt; <span class="el_source">ForbidAnnotationElementValueCheck.java</span></div><h1>ForbidAnnotationElementValueCheck.java</h1><pre class="source lang-java linenums">////////////////////////////////////////////////////////////////////////////////
+// checkstyle: Checks Java source code for adherence to a set of rules.
+// Copyright (C) 2001-2019 the original author or authors.
+//
+// This library is free software; you can redistribute it and/or
+// modify it under the terms of the GNU Lesser General Public
+// License as published by the Free Software Foundation; either
+// version 2.1 of the License, or (at your option) any later version.
+//
+// This library is distributed in the hope that it will be useful,
+// but WITHOUT ANY WARRANTY; without even the implied warranty of
+// MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the GNU
+// Lesser General Public License for more details.
+//
+// You should have received a copy of the GNU Lesser General Public
+// License along with this library; if not, write to the Free Software
+// Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA
+////////////////////////////////////////////////////////////////////////////////
+
+package com.github.sevntu.checkstyle.checks.annotation;
+
+import java.util.LinkedList;
+import java.util.List;
+import java.util.regex.Matcher;
+import java.util.regex.Pattern;
+
+import com.google.common.base.CharMatcher;
+import com.puppycrawl.tools.checkstyle.api.AbstractCheck;
+import com.puppycrawl.tools.checkstyle.api.DetailAST;
+import com.puppycrawl.tools.checkstyle.api.FullIdent;
+import com.puppycrawl.tools.checkstyle.api.TokenTypes;
+
+/**
+ * &lt;p&gt;
+ * Forbids specific
+ * &lt;a href= 'https://docs.oracle.com/javase/specs/jls/se7/html/jls-9.html#jls-9.6.1'&gt;element
+ * value&lt;/a&gt; for specific annotation. You can configure this check using following options:
+ * &lt;/p&gt;
+ * &lt;ul&gt;
+ * &lt;li&gt;Annotation name&lt;/li&gt;
+ * &lt;li&gt;Annotation element name&lt;/li&gt;
+ * &lt;li&gt;Forbidden annotation element value pattern&lt;/li&gt;
+ * &lt;/ul&gt;
+ * Example of usage:&lt;br&gt;
+ * &lt;p&gt;
+ * Here is XML configs and according code samples needed to forbid.
+ * &lt;/p&gt;
+ * &lt;p&gt;To configure the check to forbid junit Test annotations with the element name &quot;expected&quot;:&lt;/p&gt;
+ * &lt;p&gt;
+ * Config
+ * &lt;/p&gt;
+ *
+ * &lt;pre&gt;
+ * &amp;lt;module name=&quot;ForbidAnnotationElementValue&quot;&amp;gt;
+ * &amp;lt;/module&amp;gt;
+ * &lt;/pre&gt;
+ * &lt;p&gt;
+ * Code
+ * &lt;/p&gt;
+ *
+ * &lt;pre&gt;
+ *  &amp;#64;Test(expected = Exception.class)
+ * &lt;/pre&gt;
+ * &lt;p&gt;
+ * To configure the check to forbid
+ * &lt;a href= 'https://docs.oracle.com/javase/specs/jls/se7/html/jls-9.html#jls-9.7.3'&gt;single-element
+ * &lt;/a&gt; annotation element value, like 'SuppressWarnings', elementName option should be specified
+ * as &quot;value&quot;.
+ * &lt;/p&gt;
+ * &lt;p&gt;
+ * Config
+ * &lt;/p&gt;
+ *
+ * &lt;pre&gt;
+ * &amp;lt;module name=&quot;ForbidAnnotationElementValue&quot;&amp;gt;
+ * &amp;lt;property name=&quot;annotationName&quot; value=&quot;SuppressWarnings&quot;/&amp;gt;
+ * &amp;lt;property name=&quot;elementName&quot; value=&quot;value&quot;/&amp;gt;
+ * &amp;lt;property name=&quot;forbiddenElementValueRegexp&quot; value=&quot;unchecked&quot;/&amp;gt;
+ * &amp;lt;/module&amp;gt;
+ * &lt;/pre&gt;
+ * &lt;p&gt;
+ * Code
+ * &lt;/p&gt;
+ *
+ * &lt;pre&gt;
+ * &amp;#64;SuppressWarnings(&quot;unchecked&quot;)
+ * &lt;/pre&gt;
+ * &lt;p&gt;
+ * To forbid any array-valued element, forbiddenElementValueRegexp option should be: &quot;\{.*\}&quot;.
+ * &lt;/p&gt;
+ * &lt;p&gt;
+ * Config
+ * &lt;/p&gt;
+ *
+ * &lt;pre&gt;
+ * &amp;lt;module name=&quot;ForbidAnnotationElementValue&quot;&amp;gt;
+ * &amp;lt;property name=&quot;annotationName&quot; value=&quot;SuppressWarnings&quot;/&amp;gt;
+ * &amp;lt;property name=&quot;elementName&quot; value=&quot;value&quot;/&amp;gt;
+ * &amp;lt;property name=&quot;forbiddenElementValueRegexp&quot; value=&quot;\{.*\}&quot;/&amp;gt;
+ * &amp;lt;/module&amp;gt;
+ * &lt;/pre&gt;
+ *
+ * &lt;p&gt;
+ * Code
+ * &lt;/p&gt;
+ *
+ * &lt;pre&gt;
+ * &amp;#64;SuppressWarnings({&quot;unused&quot;, &quot;unchecked&quot;})
+ * &lt;/pre&gt;
+ *
+ * @author &lt;a href=&quot;mailto:drozzds@gmail.com&quot;&gt; Sergey Drozd &lt;/a&gt;
+ * @author Richard Veach
+ * @since 1.22.0
+ */
+<span class="fc" id="L115">public class ForbidAnnotationElementValueCheck extends AbstractCheck {</span>
+
+    /** Message key. */
+    public static final String MSG_KEY = &quot;annotation.forbid.element.value&quot;;
+
+    /** CharMatcher using to trimming quotes from Strings. */
+<span class="fc" id="L121">    private static final CharMatcher QUOTE_MATCHER = CharMatcher.is('\&quot;');</span>
+
+    /** Default annotation element name when none specified. */
+<span class="fc" id="L124">    private static final String ELEMENT_NAME_DEFAULT = &quot;value&quot;;</span>
+
+    /** Forbidden annotation name. */
+<span class="fc" id="L127">    private String annotationName = &quot;Test&quot;;</span>
+
+    /** Forbidden annotation element name. */
+<span class="fc" id="L130">    private String elementName = &quot;expected&quot;;</span>
+
+    /** Precompiled forbidden element value pattern. */
+<span class="fc" id="L133">    private Pattern forbiddenElementValueRegexp = Pattern.compile(&quot;.*&quot;);</span>
+
+    /**
+     * Sets Annotation Name Check property.
+     *
+     * @param annotationName The annotation name.
+     */
+    public void setAnnotationName(String annotationName) {
+<span class="fc" id="L141">        this.annotationName = annotationName;</span>
+<span class="fc" id="L142">    }</span>
+
+    /**
+     * Sets Annotation Element Check property.
+     *
+     * @param elementName The annotation element name.
+     */
+    public void setElementName(String elementName) {
+<span class="fc" id="L150">        this.elementName = elementName;</span>
+<span class="fc" id="L151">    }</span>
+
+    /**
+     * Sets Forbidden Element Value Pattern Check property.
+     *
+     * @param forbiddenElementValueRegexp
+     *        The forbidden element value pattern to set.
+     */
+    public void setForbiddenElementValueRegexp(String forbiddenElementValueRegexp) {
+<span class="fc" id="L160">        this.forbiddenElementValueRegexp = Pattern.compile(forbiddenElementValueRegexp);</span>
+<span class="fc" id="L161">    }</span>
+
+    @Override
+    public int[] getDefaultTokens() {
+<span class="fc" id="L165">        return new int[] {</span>
+<span class="fc" id="L166">            TokenTypes.ANNOTATION,</span>
+        };
+    }
+
+    @Override
+    public int[] getAcceptableTokens() {
+<span class="fc" id="L172">        return getDefaultTokens();</span>
+    }
+
+    @Override
+    public int[] getRequiredTokens() {
+<span class="fc" id="L177">        return getDefaultTokens();</span>
+    }
+
+    @Override
+    public void visitToken(DetailAST ast) {
+<span class="fc bfc" id="L182" title="All 2 branches covered.">        if (getAnnotationName(ast).equals(annotationName)) {</span>
+<span class="fc bfc" id="L183" title="All 4 branches covered.">            if (ELEMENT_NAME_DEFAULT.equals(elementName) &amp;&amp; isSingleElementAnnotation(ast)) {</span>
+<span class="fc" id="L184">                final DetailAST forbiddenElement = getSingleElementWithForbiddenValue(ast);</span>
+
+<span class="fc" id="L186">                log(forbiddenElement, MSG_KEY, elementName, annotationName);</span>
+<span class="fc" id="L187">            }</span>
+            else {
+<span class="fc bfc" id="L189" title="All 2 branches covered.">                for (DetailAST forbiddenElement : getForbiddenElements(ast)) {</span>
+<span class="fc" id="L190">                    log(forbiddenElement, MSG_KEY, elementName, annotationName);</span>
+                }
+            }
+        }
+<span class="fc" id="L194">    }</span>
+
+    /**
+     * Determining that annotation is single-element.
+     *
+     * @param annotation
+     *        DetailAST node of type {@link TokenTypes#ANNOTATION}
+     * @return True if the annotation is a single-element.
+     */
+    private boolean isSingleElementAnnotation(DetailAST annotation) {
+<span class="fc bfc" id="L204" title="All 2 branches covered.">        return getSingleElementWithForbiddenValue(annotation) != null;</span>
+    }
+
+    /**
+     * Returns single element of specified annotation that matches forbidden element value.
+     *
+     * @param annotation
+     *        DetailAST node of type {@link TokenTypes#ANNOTATION}
+     * @return DetailAST node of type {@link TokenTypes#EXPR}
+     */
+    private DetailAST getSingleElementWithForbiddenValue(DetailAST annotation) {
+<span class="fc" id="L215">        DetailAST singleElement = null;</span>
+<span class="fc" id="L216">        DetailAST currentNode = annotation.getFirstChild();</span>
+
+<span class="fc bfc" id="L218" title="All 2 branches covered.">        while (currentNode != null) {</span>
+<span class="fc bfc" id="L219" title="All 2 branches covered.">            if (currentNode.getType() == TokenTypes.EXPR</span>
+<span class="fc bfc" id="L220" title="All 2 branches covered.">                    || currentNode.getType() == TokenTypes.ANNOTATION_ARRAY_INIT) {</span>
+<span class="fc" id="L221">                final String elementValue = getSingleElementValue(currentNode);</span>
+
+<span class="fc bfc" id="L223" title="All 2 branches covered.">                if (forbiddenElementValueRegexp.matcher(elementValue).find()) {</span>
+<span class="fc" id="L224">                    singleElement = currentNode;</span>
+<span class="fc" id="L225">                    break;</span>
+                }
+            }
+
+<span class="fc" id="L229">            currentNode = currentNode.getNextSibling();</span>
+        }
+
+<span class="fc" id="L232">        return singleElement;</span>
+    }
+
+    /**
+     * Gets all forbidden children one level below on the current DetailAST parent node.
+     *
+     * @param annotation
+     *        DetailAST node of type {@link TokenTypes#ANNOTATION}
+     * @return List of forbidden elements.
+     */
+    private List&lt;DetailAST&gt; getForbiddenElements(DetailAST annotation) {
+<span class="fc" id="L243">        final List&lt;DetailAST&gt; forbiddenElements = new LinkedList&lt;&gt;();</span>
+<span class="fc" id="L244">        DetailAST currentNode = annotation.getFirstChild();</span>
+
+<span class="fc bfc" id="L246" title="All 2 branches covered.">        while (currentNode != null) {</span>
+<span class="fc bfc" id="L247" title="All 2 branches covered.">            if (currentNode.getType() == TokenTypes.ANNOTATION_MEMBER_VALUE_PAIR</span>
+<span class="fc bfc" id="L248" title="All 2 branches covered.">                    &amp;&amp; isElementForbidden(currentNode)) {</span>
+<span class="fc" id="L249">                forbiddenElements.add(currentNode);</span>
+            }
+
+<span class="fc" id="L252">            currentNode = currentNode.getNextSibling();</span>
+        }
+
+<span class="fc" id="L255">        return forbiddenElements;</span>
+    }
+
+    /**
+     * Checks a member-value pair in AST tree for forbidden element.
+     *
+     * @param memberValuePair
+     *        DetailAST node of type {@link TokenTypes#ANNOTATION_MEMBER_VALUE_PAIR}
+     * @return True if element is forbidden.
+     */
+    private boolean isElementForbidden(DetailAST memberValuePair) {
+<span class="fc" id="L266">        final String elementValue = getElementValue(memberValuePair);</span>
+<span class="fc" id="L267">        final Matcher elementValueMatcher = forbiddenElementValueRegexp.matcher(elementValue);</span>
+
+<span class="fc bfc" id="L269" title="All 4 branches covered.">        return getElementName(memberValuePair).equals(elementName) &amp;&amp; elementValueMatcher.find();</span>
+    }
+
+    /**
+     * Gets annotation element value as String from member-value pair node of syntax tree.
+     *
+     * @param memberValuePair
+     *        DetailAST node of type {@link TokenTypes#ANNOTATION_MEMBER_VALUE_PAIR}
+     * @return String-represented element value
+     */
+    private static String getElementValue(DetailAST memberValuePair) {
+        final String elementValue;
+<span class="fc" id="L281">        DetailAST elementValueAst = memberValuePair.findFirstToken(TokenTypes.EXPR);</span>
+
+<span class="fc bfc" id="L283" title="All 2 branches covered.">        if (elementValueAst == null) {</span>
+<span class="fc" id="L284">            elementValueAst = memberValuePair.findFirstToken(TokenTypes.ANNOTATION_ARRAY_INIT);</span>
+<span class="fc" id="L285">            elementValue = getListOfValuesAsText(elementValueAst);</span>
+<span class="fc" id="L286">        }</span>
+        else {
+<span class="fc" id="L288">            elementValue = getExpressionText(elementValueAst);</span>
+        }
+
+<span class="fc" id="L291">        return elementValue;</span>
+    }
+
+    /**
+     * Returns parameter value for single-element annotation.
+     *
+     * @param parameter
+     *        DetailAST node of type {@link TokenTypes#ANNOTATION}
+     * @return String-represented parameter value
+     */
+    private static String getSingleElementValue(DetailAST parameter) {
+        final String parameterValue;
+
+<span class="fc bfc" id="L304" title="All 2 branches covered.">        if (parameter.getType() == TokenTypes.EXPR) {</span>
+<span class="fc" id="L305">            parameterValue = getExpressionText(parameter);</span>
+<span class="fc" id="L306">        }</span>
+        else {
+<span class="fc" id="L308">            parameterValue = getListOfValuesAsText(parameter);</span>
+        }
+
+<span class="fc" id="L311">        return parameterValue;</span>
+    }
+
+    /**
+     * Returns expression text.
+     *
+     * @param expression
+     *        DetailAST node of type {@link TokenTypes#EXPR}
+     * @return String-represented expression
+     */
+    private static String getExpressionText(DetailAST expression) {
+<span class="fc" id="L322">        final DetailAST expressionValue = expression.getFirstChild();</span>
+        final String elementValue;
+
+<span class="fc bfc" id="L325" title="All 2 branches covered.">        if (expressionValue.getType() == TokenTypes.DOT) {</span>
+<span class="fc" id="L326">            final FullIdent fullExpression = FullIdent.createFullIdent(expressionValue);</span>
+<span class="fc" id="L327">            elementValue = fullExpression.getText();</span>
+<span class="fc" id="L328">        }</span>
+        else {
+<span class="fc" id="L330">            elementValue = expressionValue.getText();</span>
+        }
+
+<span class="fc" id="L333">        return trimQuotes(elementValue);</span>
+    }
+
+    /**
+     * Gets String-represented array from provided left brace.
+     *
+     * @param brace
+     *        DetailAST node of type {@link TokenTypes#ANNOTATION_ARRAY_INIT}
+     * @return String-represented array. For example &quot;{1,2,3,4}&quot;
+     */
+    private static String getListOfValuesAsText(DetailAST brace) {
+<span class="fc" id="L344">        String fullText = &quot;{&quot;;</span>
+<span class="fc" id="L345">        DetailAST currentNode = brace.getFirstChild();</span>
+
+<span class="fc bfc" id="L347" title="All 2 branches covered.">        while (currentNode != null) {</span>
+<span class="fc bfc" id="L348" title="All 2 branches covered.">            if (currentNode.getType() == TokenTypes.EXPR) {</span>
+<span class="fc" id="L349">                fullText += currentNode.getFirstChild().getText();</span>
+<span class="fc" id="L350">            }</span>
+            else {
+<span class="fc" id="L352">                fullText += currentNode.getText();</span>
+            }
+
+<span class="fc" id="L355">            currentNode = currentNode.getNextSibling();</span>
+        }
+
+<span class="fc" id="L358">        return fullText;</span>
+    }
+
+    /**
+     * Trims quotes from input string.
+     *
+     * @param input
+     *        string with quotes
+     * @return quotes trimmed
+     */
+    private static String trimQuotes(String input) {
+<span class="fc" id="L369">        return QUOTE_MATCHER.trimFrom(input);</span>
+    }
+
+    /**
+     * Gets annotation name as String value from annotation node of syntax tree.
+     *
+     * @param annotation
+     *        DetailAST node of type {@link TokenTypes#ANNOTATION}
+     * @return String-represented annotation name
+     */
+    private static String getAnnotationName(DetailAST annotation) {
+<span class="fc" id="L380">        DetailAST annotationName = annotation.findFirstToken(TokenTypes.IDENT);</span>
+
+<span class="fc bfc" id="L382" title="All 2 branches covered.">        if (annotationName == null) {</span>
+            // full classpath
+<span class="fc" id="L384">            annotationName = annotation.findFirstToken(TokenTypes.DOT).getLastChild();</span>
+        }
+
+<span class="fc" id="L387">        return annotationName.getText();</span>
+    }
+
+    /**
+     * Gets annotation element name as String value from member-value pair node of syntax tree.
+     *
+     * @param memberValuePair
+     *        DetailAST node of type {@link TokenTypes#ANNOTATION_MEMBER_VALUE_PAIR}
+     * @return String-represented parameter name
+     */
+    private static String getElementName(DetailAST memberValuePair) {
+<span class="fc" id="L398">        final DetailAST elementName = memberValuePair.findFirstToken(TokenTypes.IDENT);</span>
+<span class="fc" id="L399">        return elementName.getText();</span>
+    }
+
+}
+</pre><div class="footer"><span class="right">Created with <a href="http://www.eclemma.org/jacoco">JaCoCo</a> 0.7.1.201405082137</span></div></body></html>

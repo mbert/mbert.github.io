@@ -1,0 +1,936 @@
+<?xml version="1.0" encoding="UTF-8"?><!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Strict//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-strict.dtd"><html xmlns="http://www.w3.org/1999/xhtml" lang="en"><head><meta http-equiv="Content-Type" content="text/html;charset=UTF-8"/><link rel="stylesheet" href="../.resources/report.css" type="text/css"/><link rel="shortcut icon" href="../.resources/report.gif" type="image/gif"/><title>OverridableMethodInConstructorCheck.java</title><link rel="stylesheet" href="../.resources/prettify.css" type="text/css"/><script type="text/javascript" src="../.resources/prettify.js"></script></head><body onload="window['PR_TAB_WIDTH']=4;prettyPrint()"><div class="breadcrumb" id="breadcrumb"><span class="info"><a href="../.sessions.html" class="el_session">Sessions</a></span><a href="../index.html" class="el_report">sevntu-checks</a> &gt; <a href="index.source.html" class="el_package">com.github.sevntu.checkstyle.checks.coding</a> &gt; <span class="el_source">OverridableMethodInConstructorCheck.java</span></div><h1>OverridableMethodInConstructorCheck.java</h1><pre class="source lang-java linenums">////////////////////////////////////////////////////////////////////////////////
+// checkstyle: Checks Java source code for adherence to a set of rules.
+// Copyright (C) 2001-2019 the original author or authors.
+//
+// This library is free software; you can redistribute it and/or
+// modify it under the terms of the GNU Lesser General Public
+// License as published by the Free Software Foundation; either
+// version 2.1 of the License, or (at your option) any later version.
+//
+// This library is distributed in the hope that it will be useful,
+// but WITHOUT ANY WARRANTY; without even the implied warranty of
+// MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the GNU
+// Lesser General Public License for more details.
+//
+// You should have received a copy of the GNU Lesser General Public
+// License along with this library; if not, write to the Free Software
+// Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA
+////////////////////////////////////////////////////////////////////////////////
+
+package com.github.sevntu.checkstyle.checks.coding;
+
+import java.io.Serializable;
+import java.util.LinkedList;
+import java.util.List;
+
+import com.github.sevntu.checkstyle.SevntuUtil;
+import com.puppycrawl.tools.checkstyle.api.AbstractCheck;
+import com.puppycrawl.tools.checkstyle.api.DetailAST;
+import com.puppycrawl.tools.checkstyle.api.TokenTypes;
+
+/**
+ * Detects overridable methods in constructors.
+ * &lt;p&gt;
+ * This check prevents any calls to overridable methods that are take place in:
+ * &lt;/p&gt;
+ * &lt;ol&gt;&lt;li&gt;
+ * Any constructor body (verification is always done by default and not
+ * configurable).
+ * &lt;li&gt;
+ * Any method which works same as a constructor: clone() method from Cloneable
+ * interface and readObject() method from Serializable interface (you can
+ * individually switch on/off these methods verification by changing
+ * CheckCloneMethod and CheckReadObjectMethod properties).&lt;/li&gt;
+ * &lt;/ol&gt;
+ * Rationale:
+ * &lt;ol&gt;
+ * &lt;li&gt;Constructors must not invoke overridable methods, directly or
+ * indirectly. If you violate this rule, program failure will result. The
+ * superclass constructor runs before the subclass constructor, so the
+ * overriding method in the subclass will be invoked before the subclass
+ * constructor has run. If the overriding method depends on any
+ * initialization performed by the subclass constructor, the method will
+ * not behave as expected.
+ * &lt;li&gt;If you do decide to implement Cloneable or Serializable in a class
+ * designed for inheritance, you should be aware that because the clone and
+ * readObject methods behave a lot like constructors, a similar restriction
+ * applies: neither clone nor readObject may invoke an overridable method,
+ * directly or indirectly.
+ * &lt;/ol&gt;
+ * [Joshua Bloch - Effective Java 2nd Edition, Chapter 4, Item 17]
+ * &lt;br&gt; Here's an example to illustrate: &lt;pre&gt;
+ * public class Example {
+ *    public static void main(String[] args) {
+ *        abstract class Base {
+ *            Base() { overrideMe(); }
+ *            abstract void overrideMe();
+ *        }
+ *        class Child extends Base {
+ *            final int x;
+ *            Child(int x) { this.x = x; }
+ *            void overrideMe() {
+ *                System.out.println(x);
+ *            }
+ *        }
+ *        new Child(42); // prints &quot;0&quot;
+ *    }
+ * }&lt;/pre&gt;
+ * &lt;p&gt;
+ * Here, when Base constructor calls overrideMe, Child has not finished
+ * initializing the final int x, and the method gets the wrong value. This will
+ * almost certainly lead to bugs and errors.
+ * &lt;/p&gt;
+ * &lt;p&gt;
+ * &lt;i&gt;&lt;b&gt;Notes:&lt;/b&gt;&lt;br&gt;&lt;br&gt;This check doesn`t handle the situation when there
+ * is a call to an overloaded method(s).&lt;/i&gt;&lt;br&gt;Here`s an example:
+ * &lt;/p&gt;
+ *
+ * &lt;pre&gt; public class Test {
+ *
+ *   public static void main(String[] args) {
+ *
+ *       class Base {
+ *           Base() {
+ *               System.out.println(&quot;Base C-tor &quot;);
+ *               overrideMe(&quot;Foo!&quot;); // no warnings here, because the method
+ *                                   // named &quot;overrideMe&quot; is overloaded.
+ *           }
+ *           void overrideMe() { }
+ *           void overrideMe(String str) {
+ *               System.out.println(&quot;Base overrideMe(String str) &quot;);
+ *           }
+ *       }
+ *
+ *       class Child extends Base {
+ *           final int x;
+ *           Child(int x) {
+ *               this.x = x;
+ *           }
+ *           void overrideMe(String str) {
+ *               System.out.println(&quot;Child`s overrideMe(): &quot; + x);
+ *           }
+ *       }
+ *     new Child(999);
+ *   }
+ * } &lt;/pre&gt;
+ *
+ *&lt;p&gt;&lt;br&gt;
+ * &lt;i&gt;Some specific method call types that aren`t supported by check:&lt;/i&gt;
+ * &lt;/p&gt;
+ * &lt;ul&gt;
+ * &lt;li&gt;BaseClass.InnerClass.this.methodName();&lt;/li&gt;
+ * &lt;li&gt;InnerClass.this.methodName();&lt;/li&gt;
+ * &lt;li&gt;and so on, using a similar hierarchy&lt;/li&gt;
+ * &lt;/ul&gt;
+ *&lt;br&gt;
+ *
+ * @author &lt;a href=&quot;mailto:Daniil.Yaroslavtsev@gmail.com&quot;&gt; Daniil
+ *         Yaroslavtsev&lt;/a&gt;
+ * @author &lt;a href=&quot;mailto:IliaDubinin91@gmail.com&quot;&gt;Ilja Dubinin&lt;/a&gt;
+ * @since 1.8.0
+ */
+<span class="fc" id="L132">public class OverridableMethodInConstructorCheck extends AbstractCheck {</span>
+
+    /**
+     * A key is pointing to the warning message text in &quot;messages.properties&quot;
+     * file.
+     * */
+    public static final String MSG_KEY = &quot;overridable.method&quot;;
+
+    /**
+     * A key is pointing to the warning message text in &quot;messages.properties&quot;
+     * file.
+     * */
+    public static final String MSG_KEY_LEADS = &quot;overridable.method.leads&quot;;
+
+    /**
+     * A key is using to build a warning message about calls of an overridable
+     * methods from any constructor body.
+     * */
+    private static final String KEY_CTOR = &quot;constructor&quot;;
+
+    /**
+     * A key is using to build a warning message about calls of an overridable
+     * methods from any clone() method is implemented from Cloneable interface.
+     * */
+    private static final String KEY_CLONE = &quot;'clone()' method&quot;;
+
+    /**
+     * A key is using to build a warning message about calls of an overridable
+     * methods from any readObject() method is implemented from Serializable
+     * interface.
+     * */
+    private static final String KEY_READ_OBJECT = &quot;'readObject()' method&quot;;
+
+    /** String representation of this keyword. */
+    private static final String LITERAL_THIS = &quot;this&quot;;
+
+    /** Path string to separate layers of packages. */
+    private static final String PATH_SEPARATOR = &quot;.&quot;;
+
+    /**
+     * A list contains all METHOD_CALL DetailAST nodes that have been already
+     * visited by check.
+     * */
+<span class="fc" id="L175">    private final List&lt;DetailAST&gt; visitedMethodCalls = new LinkedList&lt;&gt;();</span>
+
+    /**
+     * A current MethodDef AST is being processed by check.
+     * */
+    private DetailAST curMethodDef;
+
+    /**
+     * A current root of the syntax tree is being processed.
+     * */
+    private DetailAST treeRootAST;
+
+    /**
+     * A boolean check box that enables the searching of calls to overridable
+     * methods from the body of any clone() method is implemented from Cloneable
+     * interface.
+     * */
+    private boolean checkCloneMethod;
+
+    /**
+     * A boolean check box that enables the searching of calls to overridable
+     * methods from the body of any readObject() method is implemented from
+     * Serializable interface.
+     */
+    private boolean checkReadObjectMethod;
+
+    /**
+     * A boolean check box that enables the matching methods by number of
+     * their parameters.
+     */
+    private boolean matchMethodsByArgCount;
+
+    /**
+     * The name of current overridable method is being processed.
+     */
+    private String curOverridableMetName;
+
+    /**
+     * Method definitions counter for class is currently being processed.
+     */
+    private int curMethodDefCount;
+
+    /**
+     * Enable|Disable searching of calls to overridable methods from body of any
+     * clone() method is implemented from Cloneable interface.
+     *
+     * @param value
+     *            The state of a boolean check box that enables the searching of
+     *            calls to overridable methods from body of any clone() method
+     *            is implemented from Cloneable interface.
+     */
+    public void setCheckCloneMethod(final boolean value) {
+<span class="fc" id="L227">        checkCloneMethod = value;</span>
+<span class="fc" id="L228">    }</span>
+
+    /**
+     * Enable|Disable matching methods by arguments count.
+     *
+     * @param value
+     *            The state of a boolean check box that enables the matching of
+     *            methods by arguments count.
+     */
+    public void setMatchMethodsByArgCount(final boolean value) {
+<span class="fc" id="L238">        matchMethodsByArgCount = value;</span>
+<span class="fc" id="L239">    }</span>
+
+    /**
+     * Enable|Disable searching of calls to overridable methods from body of any
+     * readObject() method is implemented from Serializable interface.
+     *
+     * @param value
+     *            The state of a boolean check box that enables the searching of
+     *            calls to overridable methods from body of any readObject()
+     *            method is implemented from Serializable interface.
+     */
+    public void setCheckReadObjectMethod(final boolean value) {
+<span class="fc" id="L251">        checkReadObjectMethod = value;</span>
+<span class="fc" id="L252">    }</span>
+
+    @Override
+    public int[] getDefaultTokens() {
+<span class="fc" id="L256">        return new int[] {TokenTypes.CTOR_DEF, TokenTypes.METHOD_DEF};</span>
+    }
+
+    @Override
+    public int[] getAcceptableTokens() {
+<span class="fc" id="L261">        return getDefaultTokens();</span>
+    }
+
+    @Override
+    public int[] getRequiredTokens() {
+<span class="fc" id="L266">        return getDefaultTokens();</span>
+    }
+
+    @Override
+    public void beginTree(DetailAST rootAST) {
+<span class="fc" id="L271">        treeRootAST = rootAST;</span>
+<span class="fc" id="L272">    }</span>
+
+    @Override
+    public void visitToken(final DetailAST detailAST) {
+<span class="fc" id="L276">        final DetailAST classDef = getClassDef(detailAST);</span>
+
+<span class="fc bfc" id="L278" title="All 4 branches covered.">        if (classDef != null &amp;&amp; !hasModifier(classDef, TokenTypes.FINAL)) {</span>
+<span class="pc bpc" id="L279" title="1 of 3 branches missed.">            switch (detailAST.getType()) {</span>
+                case TokenTypes.CTOR_DEF:
+<span class="pc bpc" id="L281" title="1 of 2 branches missed.">                    logWarnings(detailAST, KEY_CTOR);</span>
+<span class="fc" id="L282">                    break;</span>
+
+                case TokenTypes.METHOD_DEF:
+
+<span class="pc bpc" id="L286" title="1 of 2 branches missed.">                    final String methodName = detailAST.findFirstToken(</span>
+<span class="fc" id="L287">                        TokenTypes.IDENT).getText();</span>
+
+<span class="fc bfc" id="L289" title="All 4 branches covered.">                    if (checkCloneMethod &amp;&amp; &quot;clone&quot;.equals(methodName)</span>
+<span class="fc bfc" id="L290" title="All 2 branches covered.">                        &amp;&amp; realizesAnInterface(classDef, Cloneable.class.getSimpleName())) {</span>
+<span class="fc" id="L291">                        logWarnings(detailAST, KEY_CLONE);</span>
+<span class="fc" id="L292">                    }</span>
+<span class="fc bfc" id="L293" title="All 2 branches covered.">                    else if (checkReadObjectMethod</span>
+<span class="fc bfc" id="L294" title="All 2 branches covered.">                        &amp;&amp; &quot;readObject&quot;.equals(methodName)</span>
+<span class="fc bfc" id="L295" title="All 2 branches covered.">                        &amp;&amp; realizesAnInterface(classDef, Serializable.class.getSimpleName())) {</span>
+<span class="fc" id="L296">                        logWarnings(detailAST, KEY_READ_OBJECT);</span>
+                    }
+<span class="fc" id="L298">                    break;</span>
+
+                default:
+<span class="nc bnc" id="L301" title="All 2 branches missed.">                    SevntuUtil.reportInvalidToken(detailAST.getType());</span>
+                    break;
+            }
+        }
+<span class="fc" id="L305">    }</span>
+
+    /**
+     * Gets all METHOD_CALL DetailASTs that are pointing to overridable methods
+     * calls from current method or c-tor body and logs them.
+     *
+     * @param detailAST
+     *            A DetailAST node which is pointing to current method or c-tor
+     *            body is being processed to retrieve overridable method calls
+     *            list.
+     * @param key
+     *            A string is using to retrieve the warning message text from
+     *            &quot;messages.properties&quot; file.
+     */
+    private void logWarnings(final DetailAST detailAST, final String key) {
+<span class="fc" id="L320">        final List&lt;OverridableMetCall&gt; methodCallsToWarnList =</span>
+<span class="fc" id="L321">            getOverridables(detailAST);</span>
+
+<span class="fc bfc" id="L323" title="All 2 branches covered.">        for (OverridableMetCall omc : methodCallsToWarnList) {</span>
+<span class="fc" id="L324">            final DetailAST methodDef = getMethodDef(omc.metCallAST);</span>
+<span class="fc bfc" id="L325" title="All 2 branches covered.">            if (hasModifier(methodDef, TokenTypes.LITERAL_PRIVATE)</span>
+<span class="fc bfc" id="L326" title="All 2 branches covered.">                    || hasModifier(methodDef, TokenTypes.FINAL)) {</span>
+<span class="fc" id="L327">                log(omc.metCallAST, MSG_KEY_LEADS, getMethodName(omc.metCallAST),</span>
+<span class="fc" id="L328">                        key, omc.overridableMetName);</span>
+<span class="fc" id="L329">            }</span>
+            else {
+<span class="fc" id="L331">                log(omc.metCallAST, MSG_KEY, getMethodName(omc.metCallAST),</span>
+<span class="fc" id="L332">                    key, omc.overridableMetName);</span>
+            }
+        }
+<span class="fc" id="L335">    }</span>
+
+    /**
+     * Searches for all METHOD_CALL DetailASTs that are pointing to overridable
+     * methods calls in current method or c-tor body and generates a list of
+     * them.
+     *
+     * @param parentAST
+     *            A DetailAST METHOD_DEF of CTOR_DEF node which is pointing to
+     *            the current method or c-tor body is being processed to
+     *            retrieve overridable method calls.
+     * @return A list of overridable methods calls for current method or
+     *         constructor body.
+     */
+    private List&lt;OverridableMetCall&gt; getOverridables(final DetailAST parentAST) {
+<span class="fc" id="L350">        final List&lt;OverridableMetCall&gt; result =</span>
+<span class="fc" id="L351">            new LinkedList&lt;&gt;();</span>
+<span class="fc" id="L352">        final List&lt;DetailAST&gt; methodCallsList = getMethodCallsList(parentAST);</span>
+
+<span class="fc bfc" id="L354" title="All 2 branches covered.">        for (DetailAST curNode : methodCallsList) {</span>
+<span class="fc" id="L355">            visitedMethodCalls.clear();</span>
+<span class="fc" id="L356">            final DetailAST methodDef = getMethodDef(curNode);</span>
+<span class="fc bfc" id="L357" title="All 2 branches covered.">            if (methodDef != null</span>
+<span class="pc bpc" id="L358" title="1 of 2 branches missed.">                    &amp;&amp; getMethodParamsCount(curNode)</span>
+<span class="fc" id="L359">                        == getMethodParamsCount(methodDef)</span>
+<span class="fc bfc" id="L360" title="All 2 branches covered.">                    &amp;&amp; isOverridableMethodCall(curNode)) {</span>
+<span class="fc" id="L361">                result.add(new OverridableMetCall(curNode,</span>
+<span class="fc" id="L362">                        curOverridableMetName));</span>
+            }
+        }
+<span class="fc" id="L365">        return result;</span>
+    }
+
+    /**
+     * Checks that current processed METHOD_CALL DetailAST is pointing to
+     * overridable method call.
+     *
+     * @param methodCallAST
+     *            A METHOD_CALL DetailAST is currently being processed.
+     * @return true if current processed METHOD_CALL node is pointing to the
+     *         overridable method call and false otherwise.
+     */
+    private boolean isOverridableMethodCall(final DetailAST methodCallAST) {
+<span class="fc" id="L378">        boolean result = false;</span>
+<span class="fc" id="L379">        visitedMethodCalls.add(methodCallAST);</span>
+
+<span class="fc" id="L381">        final String methodName = getMethodName(methodCallAST);</span>
+<span class="fc" id="L382">        final DetailAST methodDef = getMethodDef(methodCallAST);</span>
+
+<span class="fc bfc" id="L384" title="All 2 branches covered.">        if (methodName != null</span>
+<span class="fc bfc" id="L385" title="All 4 branches covered.">                &amp;&amp; methodDef != null &amp;&amp; !hasModifier(methodDef, TokenTypes.LITERAL_STATIC)) {</span>
+<span class="fc bfc" id="L386" title="All 2 branches covered.">            if (hasModifier(methodDef, TokenTypes.LITERAL_PRIVATE)</span>
+<span class="fc bfc" id="L387" title="All 2 branches covered.">                || hasModifier(methodDef, TokenTypes.FINAL)) {</span>
+<span class="fc" id="L388">                final List&lt;DetailAST&gt; methodCallsList = getMethodCallsList(</span>
+<span class="fc" id="L389">                        methodDef);</span>
+<span class="fc bfc" id="L390" title="All 2 branches covered.">                for (DetailAST curNode : methodCallsList) {</span>
+<span class="fc bfc" id="L391" title="All 2 branches covered.">                    if (!visitedMethodCalls.contains(curNode)</span>
+<span class="fc bfc" id="L392" title="All 2 branches covered.">                            &amp;&amp; isOverridableMethodCall(curNode)) {</span>
+<span class="fc" id="L393">                        result = true;</span>
+<span class="fc" id="L394">                        break;</span>
+                    }
+                }
+<span class="fc" id="L397">            }</span>
+            else {
+<span class="fc" id="L399">                curOverridableMetName = methodName;</span>
+<span class="fc" id="L400">                result = true;</span>
+            }
+        }
+<span class="fc" id="L403">        return result;</span>
+    }
+
+    /**
+     * Gets all METHOD_CALL nodes which are below on the current parent
+     * METHOD_DEF or CTOR_DEF node.
+     *
+     * @param parentAST
+     *            The current parent METHOD_DEF or CTOR_DEF node.
+     * @return List contains all METHOD_CALL nodes which are below on the
+     *         current parent node.
+     */
+    private List&lt;DetailAST&gt; getMethodCallsList(final DetailAST parentAST) {
+<span class="fc" id="L416">        final List&lt;DetailAST&gt; result = new LinkedList&lt;&gt;();</span>
+
+<span class="fc bfc" id="L418" title="All 2 branches covered.">        for (DetailAST curNode : getChildren(parentAST)) {</span>
+<span class="fc bfc" id="L419" title="All 2 branches covered.">            if (curNode.getNumberOfChildren() &gt; 0) {</span>
+<span class="fc bfc" id="L420" title="All 2 branches covered.">                if (curNode.getType() == TokenTypes.METHOD_CALL) {</span>
+<span class="fc" id="L421">                    result.add(curNode);</span>
+<span class="fc" id="L422">                }</span>
+                else {
+<span class="fc" id="L424">                    result.addAll(getMethodCallsList(curNode));</span>
+                }
+            }
+        }
+<span class="fc" id="L428">        return result;</span>
+    }
+
+    /**
+     * Gets the method name is related to the current METHOD_CALL DetailAST.
+     *
+     * @param methodCallAST
+     *            A METHOD_CALL DetailAST node is currently being processed.
+     * @return The method name is related to the current METHOD_CALL DetailAST.
+     */
+    private String getMethodName(final DetailAST methodCallAST) {
+<span class="fc" id="L439">        String result = null;</span>
+
+<span class="fc" id="L441">        final DetailAST ident = methodCallAST.findFirstToken(TokenTypes.IDENT);</span>
+
+<span class="fc bfc" id="L443" title="All 2 branches covered.">        if (ident == null) {</span>
+<span class="fc" id="L444">            final DetailAST childAST = methodCallAST.getFirstChild();</span>
+
+<span class="pc bpc" id="L446" title="2 of 4 branches missed.">            if (childAST != null &amp;&amp; childAST.getType() == TokenTypes.DOT) {</span>
+<span class="fc" id="L447">                final DetailAST firstChild = childAST.getFirstChild();</span>
+<span class="fc" id="L448">                final DetailAST lastChild = childAST.getLastChild();</span>
+
+<span class="fc bfc" id="L450" title="All 2 branches covered.">                if (firstChild.getType() == TokenTypes.LITERAL_THIS</span>
+<span class="fc bfc" id="L451" title="All 2 branches covered.">                        || firstChild.getType() == TokenTypes.LPAREN</span>
+<span class="fc bfc" id="L452" title="All 2 branches covered.">                        || firstChild.getType() == TokenTypes.DOT) {</span>
+<span class="fc" id="L453">                    result = lastChild.getText();</span>
+<span class="fc" id="L454">                }</span>
+<span class="fc bfc" id="L455" title="All 2 branches covered.">                else if (firstChild.getType() == TokenTypes.IDENT</span>
+<span class="pc bpc" id="L456" title="1 of 2 branches missed.">                        &amp;&amp; lastChild.getType() == TokenTypes.IDENT) {</span>
+<span class="fc" id="L457">                    final String curClassName = getClassDef(methodCallAST)</span>
+<span class="fc" id="L458">                            .findFirstToken(TokenTypes.IDENT).getText();</span>
+<span class="fc bfc" id="L459" title="All 2 branches covered.">                    if (firstChild.getText().equals(curClassName)</span>
+<span class="fc bfc" id="L460" title="All 2 branches covered.">                            || getClassDef(treeRootAST,</span>
+<span class="fc" id="L461">                                    firstChild.getText()) != null) {</span>
+<span class="fc" id="L462">                        result = lastChild.getText();</span>
+                    }
+                }
+            }
+<span class="fc" id="L466">        }</span>
+        else {
+<span class="fc" id="L468">            result = ident.getText();</span>
+        }
+<span class="fc" id="L470">        return result;</span>
+    }
+
+    /**
+     * Gets the method definition is related to the current METHOD_CALL
+     * DetailAST node. If method definition doesn't find, will returned null.
+     * @param methodCallAST
+     *            A METHOD_CALL DetailAST node is currently being processed.
+     * @return the METHOD_DEF DetailAST node is pointing to the method
+     *         definition which is related to the current METHOD_CALL DetailAST
+     *         node.
+     */
+    private DetailAST getMethodDef(final DetailAST methodCallAST) {
+<span class="fc" id="L483">        DetailAST result = null;</span>
+
+<span class="fc" id="L485">        curMethodDef = null;</span>
+<span class="fc" id="L486">        curMethodDefCount = 0;</span>
+
+<span class="fc" id="L488">        final String methodName = getMethodName(methodCallAST);</span>
+<span class="fc bfc" id="L489" title="All 2 branches covered.">        if (methodName != null) {</span>
+<span class="fc" id="L490">            final DetailAST curClassAST = getClassDef(methodCallAST);</span>
+<span class="fc" id="L491">            final DetailAST callsChild = methodCallAST.getFirstChild();</span>
+<span class="fc" id="L492">            final String variableTypeName = getVariableType(methodCallAST);</span>
+
+<span class="pc bpc" id="L494" title="1 of 2 branches missed.">            if (variableTypeName == null</span>
+<span class="fc bfc" id="L495" title="All 2 branches covered.">                    || callsChild.getType() != TokenTypes.DOT</span>
+<span class="fc bfc" id="L496" title="All 2 branches covered.">                    || isItTypeOfCurrentClass(variableTypeName, curClassAST)</span>
+<span class="fc bfc" id="L497" title="All 2 branches covered.">                    || isItCallMethodViaKeywordThis(variableTypeName, curClassAST)) {</span>
+<span class="fc" id="L498">                getMethodDef(curClassAST, methodName);</span>
+            }
+
+<span class="fc bfc" id="L501" title="All 2 branches covered.">            if (curMethodDefCount == 0) {</span>
+<span class="fc" id="L502">                final List&lt;DetailAST&gt; baseClasses = getBaseClasses(curClassAST);</span>
+
+<span class="fc bfc" id="L504" title="All 2 branches covered.">                for (DetailAST curBaseClass : baseClasses) {</span>
+<span class="fc" id="L505">                    curMethodDef = null;</span>
+<span class="fc" id="L506">                    curMethodDefCount = 0;</span>
+<span class="fc" id="L507">                    getMethodDef(curBaseClass, methodName);</span>
+<span class="fc bfc" id="L508" title="All 2 branches covered.">                    if (curMethodDefCount == 1) {</span>
+<span class="fc" id="L509">                        result = curMethodDef;</span>
+<span class="fc" id="L510">                        break;</span>
+                    }
+                }
+<span class="fc" id="L513">            }</span>
+<span class="fc bfc" id="L514" title="All 2 branches covered.">            else if (curMethodDefCount == 1) {</span>
+<span class="fc" id="L515">                result = curMethodDef;</span>
+<span class="fc" id="L516">            }</span>
+            else {
+<span class="fc bfc" id="L518" title="All 2 branches covered.">                if (matchMethodsByArgCount) {</span>
+<span class="fc" id="L519">                    int sameDefinitionCounter = 0;</span>
+<span class="fc" id="L520">                    final int curMethodParamCount =</span>
+<span class="fc" id="L521">                            getMethodParamsCount(methodCallAST);</span>
+<span class="fc bfc" id="L522" title="All 2 branches covered.">                    for (DetailAST currentDefinition : getMethodDef(curClassAST, methodName)) {</span>
+<span class="fc bfc" id="L523" title="All 2 branches covered.">                        if (getMethodParamsCount(currentDefinition) == curMethodParamCount) {</span>
+<span class="fc" id="L524">                            result = currentDefinition;</span>
+<span class="fc" id="L525">                            sameDefinitionCounter++;</span>
+                        }
+                    }
+                    //you have a lot same method definitions and you can't
+                    //select one of them and be sure that you are right
+<span class="fc bfc" id="L530" title="All 2 branches covered.">                    if (sameDefinitionCounter &gt; 1) {</span>
+<span class="fc" id="L531">                        result = null;</span>
+                    }
+                }
+            }
+        }
+<span class="fc" id="L536">        return result;</span>
+    }
+
+    /**
+     * Gets the method definition is related to the current METHOD_CALL
+     * DetailAST using the name of method to be searched. Ignores overloaded
+     * methods (retrieves only one METHOD_DEF node).
+     *
+     * @param parentAST
+     *            A parent CLASS_DEF DetailAST node which uses as a start point
+     *            when searching.
+     * @param methodName
+     *            String containing the name of method is currently being
+     *            searched.
+     * @return a List of method definition
+     */
+    private List&lt;DetailAST&gt; getMethodDef(final DetailAST parentAST,
+            final String methodName) {
+<span class="fc" id="L554">        List&lt;DetailAST&gt; definitionsList = new LinkedList&lt;&gt;();</span>
+
+<span class="fc bfc" id="L556" title="All 2 branches covered.">        for (DetailAST curNode : getChildren(parentAST)) {</span>
+<span class="fc bfc" id="L557" title="All 2 branches covered.">            if (curNode.getNumberOfChildren() &gt; 0) {</span>
+<span class="fc bfc" id="L558" title="All 2 branches covered.">                if (curNode.getType() == TokenTypes.METHOD_DEF) {</span>
+<span class="fc" id="L559">                    final String curMethodName = curNode.findFirstToken(</span>
+<span class="fc" id="L560">                            TokenTypes.IDENT).getText();</span>
+<span class="fc bfc" id="L561" title="All 2 branches covered.">                    if (methodName.equals(curMethodName)) {</span>
+<span class="fc" id="L562">                        curMethodDef = curNode;</span>
+<span class="fc" id="L563">                        definitionsList.add(0, curNode);</span>
+<span class="fc" id="L564">                        curMethodDefCount++;</span>
+                    }
+                }
+
+<span class="fc" id="L568">                final int type = curNode.getType();</span>
+
+<span class="fc bfc" id="L570" title="All 4 branches covered.">                if (type != TokenTypes.CLASS_DEF &amp;&amp; type != TokenTypes.CTOR_DEF</span>
+<span class="fc bfc" id="L571" title="All 2 branches covered.">                        &amp;&amp; type != TokenTypes.MODIFIERS</span>
+<span class="fc bfc" id="L572" title="All 2 branches covered.">                        &amp;&amp; type != TokenTypes.IMPLEMENTS_CLAUSE</span>
+<span class="fc bfc" id="L573" title="All 2 branches covered.">                        &amp;&amp; type != TokenTypes.METHOD_DEF) {</span>
+<span class="fc" id="L574">                    definitionsList = getMethodDef(curNode, methodName);</span>
+                }
+            }
+        }
+<span class="fc" id="L578">        return definitionsList;</span>
+    }
+
+    /**
+     * Return type of the variable, if it is declaration procedure.
+     * @param methodCall The token to examine.
+     * @return variables type name
+     */
+    private static String getVariableType(DetailAST methodCall) {
+<span class="fc" id="L587">        final DetailAST callsChild = methodCall.getFirstChild();</span>
+<span class="fc" id="L588">        String typeName = &quot;&quot;;</span>
+<span class="fc bfc" id="L589" title="All 2 branches covered.">        if (callsChild.getType() == TokenTypes.DOT) {</span>
+<span class="fc" id="L590">            final DetailAST dotChild = callsChild.getFirstChild();</span>
+<span class="fc bfc" id="L591" title="All 2 branches covered.">            if (dotChild.getType() == TokenTypes.LITERAL_THIS) {</span>
+<span class="fc" id="L592">                typeName = LITERAL_THIS;</span>
+<span class="fc" id="L593">            }</span>
+<span class="fc bfc" id="L594" title="All 2 branches covered.">            else if (callsChild.getChildCount(TokenTypes.TYPECAST) &gt; 0) {</span>
+<span class="fc" id="L595">                final DetailAST typeCast = callsChild</span>
+<span class="fc" id="L596">                        .findFirstToken(TokenTypes.TYPECAST);</span>
+<span class="fc" id="L597">                final DetailAST type = typeCast.getFirstChild().getFirstChild();</span>
+<span class="fc" id="L598">                typeName = type.getText();</span>
+<span class="fc" id="L599">            }</span>
+<span class="fc bfc" id="L600" title="All 2 branches covered.">            else if (dotChild.getType() == TokenTypes.DOT) {</span>
+<span class="fc" id="L601">                typeName = dotChild.getFirstChild().getText()</span>
+<span class="fc" id="L602">                        + PATH_SEPARATOR + dotChild.getLastChild().getText();</span>
+            }
+        }
+<span class="fc" id="L605">        return typeName;</span>
+    }
+
+    /**
+     * Return true when usedIbjectName contains current class name or base class
+     * name.
+     * @param objectTypeName The object type name to check against.
+     * @param classDefNode The token to examine.
+     * @return true if the type is the same as the current class.
+     */
+    private static boolean
+            isItTypeOfCurrentClass(String objectTypeName, DetailAST classDefNode) {
+<span class="fc" id="L617">        final DetailAST className = classDefNode.findFirstToken(TokenTypes.IDENT);</span>
+<span class="fc" id="L618">        boolean result = false;</span>
+<span class="fc bfc" id="L619" title="All 2 branches covered.">        if (objectTypeName.equals(className.getText())) {</span>
+<span class="fc" id="L620">            result = true;</span>
+<span class="fc" id="L621">        }</span>
+        else {
+<span class="fc" id="L623">            DetailAST baseClass = classDefNode.findFirstToken(</span>
+<span class="fc" id="L624">                    TokenTypes.EXTENDS_CLAUSE);</span>
+<span class="fc bfc" id="L625" title="All 2 branches covered.">            if (baseClass != null) {</span>
+<span class="fc" id="L626">                baseClass = baseClass.getFirstChild();</span>
+
+<span class="fc bfc" id="L628" title="All 2 branches covered.">                if (objectTypeName.equals(baseClass.getText())) {</span>
+<span class="fc" id="L629">                    result = true;</span>
+                }
+            }
+        }
+<span class="fc" id="L633">        return result;</span>
+    }
+
+    /**
+     * Return true when the method called via keyword &quot;this&quot; (this.methodName
+     * or ClassName.this.methodName)
+     * @param firstPartOfTheMethodCall The first part of the method call.
+     * @param classDefNode The token to examine.
+     * @return If the method is called via keyword &quot;this&quot;.
+     */
+    private static boolean
+            isItCallMethodViaKeywordThis(String firstPartOfTheMethodCall, DetailAST classDefNode) {
+<span class="fc" id="L645">        final String className = classDefNode.findFirstToken(TokenTypes.IDENT).getText();</span>
+        // -@cs[EqualsAvoidNull] need parenthesis around '+' otherwise PMD will complain
+<span class="fc bfc" id="L647" title="All 2 branches covered.">        return LITERAL_THIS.equals(firstPartOfTheMethodCall)</span>
+<span class="fc bfc" id="L648" title="All 2 branches covered.">                || firstPartOfTheMethodCall.equals(className + PATH_SEPARATOR + LITERAL_THIS);</span>
+    }
+
+    /**
+     * Gets the count of parameters for current method definition or
+     * method call.
+     * @param methodDefOrCallAST METHOD_DEF or METHOD_CALL
+     *     DetailAST node
+     * @return the count of parameters for current method.
+     */
+    private static int getMethodParamsCount(DetailAST methodDefOrCallAST) {
+<span class="fc" id="L659">        int result = 0;</span>
+<span class="fc" id="L660">        DetailAST paramsParentAST = null;</span>
+
+<span class="fc bfc" id="L662" title="All 2 branches covered.">        if (methodDefOrCallAST.getType() == TokenTypes.METHOD_CALL) {</span>
+<span class="fc" id="L663">            paramsParentAST = methodDefOrCallAST</span>
+<span class="fc" id="L664">                    .findFirstToken(TokenTypes.ELIST);</span>
+<span class="fc" id="L665">        }</span>
+<span class="pc bpc" id="L666" title="1 of 2 branches missed.">        else if (methodDefOrCallAST.getType() == TokenTypes.METHOD_DEF) {</span>
+<span class="fc" id="L667">            paramsParentAST = methodDefOrCallAST</span>
+<span class="fc" id="L668">                    .findFirstToken(TokenTypes.PARAMETERS);</span>
+        }
+
+<span class="pc bpc" id="L671" title="1 of 4 branches missed.">        if (paramsParentAST != null &amp;&amp; paramsParentAST.getChildCount() != 0) {</span>
+<span class="fc bfc" id="L672" title="All 2 branches covered.">            for (DetailAST curNode : getChildren(paramsParentAST)) {</span>
+<span class="fc bfc" id="L673" title="All 2 branches covered.">                if (curNode.getType() == TokenTypes.COMMA) {</span>
+<span class="fc" id="L674">                    result++;</span>
+                }
+            }
+<span class="fc" id="L677">            result++;</span>
+        }
+<span class="fc" id="L679">        return result;</span>
+    }
+
+    /**
+     * Checks that method or class is related to the current METHOD_DEF or
+     * CLASS_DEF DetailAST node has a specified modifier (private, final etc).
+     *
+     * @param methodOrClassDefAST
+     *            A METHOD_DEF or CLASS_DEF DetailAST node is currently being
+     *            processed.
+     * @param modifierType
+     *            desired modifier type.
+     * @return true if method is related to current aMethodDefAST METHOD_DEF
+     *         node has &quot;private&quot; or &quot;final&quot; modifier and false otherwise.
+     */
+    private static boolean hasModifier(final DetailAST methodOrClassDefAST,
+        int modifierType) {
+<span class="fc" id="L696">        boolean result = false;</span>
+<span class="fc" id="L697">        final DetailAST modifiers = methodOrClassDefAST</span>
+<span class="fc" id="L698">                .findFirstToken(TokenTypes.MODIFIERS);</span>
+
+<span class="pc bpc" id="L700" title="1 of 4 branches missed.">        if (modifiers != null &amp;&amp; modifiers.getChildCount() != 0) {</span>
+<span class="fc bfc" id="L701" title="All 2 branches covered.">            for (DetailAST curNode : getChildren(modifiers)) {</span>
+<span class="fc bfc" id="L702" title="All 2 branches covered.">                if (curNode.getType() == modifierType) {</span>
+<span class="fc" id="L703">                    result = true;</span>
+<span class="fc" id="L704">                    break;</span>
+                }
+            }
+        }
+<span class="fc" id="L708">        return result;</span>
+    }
+
+    /**
+     * Gets a parent CLASS_DEF DetailAST node for current METHOD_CALL DetailAST
+     * node.
+     *
+     * @param methodNode
+     *            A METHOD_DEF or METHOD_CALL DetailAST node for current method.
+     * @return The parent CLASS_DEF node for the class that owns a METHOD_CALL
+     *         node named aMethodNode.
+     * */
+    private static DetailAST getClassDef(final DetailAST methodNode) {
+<span class="fc" id="L721">        DetailAST curNode = methodNode;</span>
+
+<span class="fc bfc" id="L723" title="All 4 branches covered.">        while (curNode != null &amp;&amp; curNode.getType() != TokenTypes.CLASS_DEF) {</span>
+<span class="fc" id="L724">            curNode = curNode.getParent();</span>
+        }
+
+<span class="fc" id="L727">        return curNode;</span>
+    }
+
+    /**
+     * Gets the CLASS_DEF DetailAST node for the class is named &quot;aClassName&quot;.
+     *
+     * @param rootNode
+     *            A root node of syntax tree is being processed.
+     * @param className
+     *            The name of class to search.
+     * @return The CLASS_DEF DetailAST node which is related to the class is
+     *         named &quot;aClassName&quot;.
+     */
+    private static DetailAST getClassDef(DetailAST rootNode, String className) {
+<span class="fc" id="L741">        DetailAST curNode = rootNode;</span>
+
+<span class="fc bfc" id="L743" title="All 2 branches covered.">        while (curNode != null) {</span>
+<span class="fc" id="L744">            DetailAST toVisit = curNode.getFirstChild();</span>
+<span class="fc bfc" id="L745" title="All 4 branches covered.">            while (curNode != null &amp;&amp; toVisit == null) {</span>
+<span class="fc" id="L746">                toVisit = curNode.getNextSibling();</span>
+<span class="fc bfc" id="L747" title="All 2 branches covered.">                if (toVisit == null) {</span>
+<span class="fc" id="L748">                    curNode = curNode.getParent();</span>
+                }
+            }
+
+<span class="fc" id="L752">            curNode = toVisit;</span>
+
+<span class="fc bfc" id="L754" title="All 2 branches covered.">            if (curNode != null</span>
+<span class="fc bfc" id="L755" title="All 2 branches covered.">                    &amp;&amp; curNode.getType() == TokenTypes.CLASS_DEF</span>
+<span class="fc" id="L756">                    &amp;&amp; curNode.findFirstToken(TokenTypes.IDENT).getText()</span>
+<span class="fc bfc" id="L757" title="All 2 branches covered.">                            .equals(className)) {</span>
+<span class="fc" id="L758">                break;</span>
+            }
+        }
+<span class="fc" id="L761">        return curNode;</span>
+    }
+
+    /**
+     * Checks that class realizes &quot;anInterfaceName&quot; interface (checks that class
+     * implements this interface or has at least one parent class which
+     * implements this interface).
+     *
+     * @param classDefNode
+     *            A CLASS_DEF DetailAST for class is currently being checked.
+     * @param interfaceName
+     *            The name of the interface to check.
+     * @return true if class realizes &quot;anInterfaceName&quot; interface and false
+     *         otherwise.
+     */
+    private boolean realizesAnInterface(final DetailAST classDefNode,
+            final String interfaceName) {
+<span class="fc" id="L778">        boolean result = false;</span>
+<span class="fc" id="L779">        final List&lt;DetailAST&gt; classWithBaseClasses =</span>
+<span class="fc" id="L780">                getBaseClasses(classDefNode);</span>
+
+<span class="fc" id="L782">        classWithBaseClasses.add(classDefNode);</span>
+
+<span class="fc bfc" id="L784" title="All 2 branches covered.">        for (DetailAST classAST : classWithBaseClasses) {</span>
+<span class="fc bfc" id="L785" title="All 2 branches covered.">            if (implementsAnInterface(classAST, interfaceName)) {</span>
+<span class="fc" id="L786">                result = true;</span>
+<span class="fc" id="L787">                break;</span>
+            }
+        }
+<span class="fc" id="L790">        return result;</span>
+    }
+
+    /**
+     * Checks that class implements &quot;anInterfaceName&quot; interface.
+     *
+     * @param classDefAST
+     *            A CLASS_DEF DetailAST for class is currently being checked.
+     * @param interfaceName
+     *            The name of the interface to check.
+     * @return true if class is related to the current CLASS_DEF DetailAST is
+     *         being processed implements &quot;anInterfaceName&quot; interface and false
+     *         otherwise.
+     */
+    private static boolean implementsAnInterface(final DetailAST classDefAST,
+            final String interfaceName) {
+<span class="fc" id="L806">        boolean result = false;</span>
+<span class="fc" id="L807">        final DetailAST implClause = classDefAST</span>
+<span class="fc" id="L808">                .findFirstToken(TokenTypes.IMPLEMENTS_CLAUSE);</span>
+
+<span class="fc bfc" id="L810" title="All 2 branches covered.">        if (implClause != null) {</span>
+<span class="fc bfc" id="L811" title="All 2 branches covered.">            for (DetailAST ident : getChildren(implClause)) {</span>
+<span class="fc bfc" id="L812" title="All 2 branches covered.">                if (ident.getText().equals(interfaceName)) {</span>
+<span class="fc" id="L813">                    result = true;</span>
+<span class="fc" id="L814">                    break;</span>
+                }
+            }
+        }
+<span class="fc" id="L818">        return result;</span>
+    }
+
+    /**
+     * Gets the list of CLASS_DEF DetailAST nodes that are associated with class
+     * is currently being processed and all it`s base classes.
+     *
+     * @param classDefNode
+     *            A CLASS_DEF DetailAST is related to the class is currently
+     *            being processed.
+     * @return a list of CLASS_DEF DetailAST nodes for class is currently being
+     *         processed and all it`s base classes.
+     */
+    private List&lt;DetailAST&gt; getBaseClasses(final DetailAST classDefNode) {
+<span class="fc" id="L832">        final List&lt;DetailAST&gt; result = new LinkedList&lt;&gt;();</span>
+<span class="fc" id="L833">        String baseClassName = getBaseClassName(classDefNode);</span>
+
+<span class="fc bfc" id="L835" title="All 2 branches covered.">        if (baseClassName != null) {</span>
+<span class="fc" id="L836">            DetailAST curClass = getClassDef(treeRootAST, baseClassName);</span>
+<span class="fc bfc" id="L837" title="All 2 branches covered.">            while (curClass != null) {</span>
+<span class="fc" id="L838">                result.add(curClass);</span>
+<span class="fc" id="L839">                baseClassName = getBaseClassName(curClass);</span>
+<span class="fc bfc" id="L840" title="All 2 branches covered.">                if (baseClassName == null) {</span>
+<span class="fc" id="L841">                    break;</span>
+                }
+
+<span class="fc" id="L844">                final DetailAST nextClass = getClassDef(treeRootAST, baseClassName);</span>
+
+                // prevent infinite loop with similar named classes
+<span class="fc bfc" id="L847" title="All 2 branches covered.">                if (nextClass == curClass) {</span>
+<span class="fc" id="L848">                    curClass = null;</span>
+<span class="fc" id="L849">                }</span>
+                else {
+<span class="fc" id="L851">                    curClass = nextClass;</span>
+                }
+            }
+        }
+<span class="fc" id="L855">        return result;</span>
+    }
+
+    /**
+     * Gets the the base class name for current class.
+     *
+     * @param classDefNode
+     *            A CLASS_DEF DetailAST.
+     * @return The name of a base class for current class.
+     */
+    private static String getBaseClassName(final DetailAST classDefNode) {
+<span class="fc" id="L866">        String result = null;</span>
+<span class="fc" id="L867">        final DetailAST extendsClause = classDefNode</span>
+<span class="fc" id="L868">                .findFirstToken(TokenTypes.EXTENDS_CLAUSE);</span>
+
+<span class="fc bfc" id="L870" title="All 2 branches covered.">        if (extendsClause != null) {</span>
+<span class="fc" id="L871">            final DetailAST dot = extendsClause.findFirstToken(TokenTypes.DOT);</span>
+<span class="fc bfc" id="L872" title="All 2 branches covered.">            if (dot == null) {</span>
+<span class="fc" id="L873">                result = extendsClause.findFirstToken(TokenTypes.IDENT)</span>
+<span class="fc" id="L874">                        .getText();</span>
+<span class="fc" id="L875">            }</span>
+            else {
+<span class="fc" id="L877">                result = dot.findFirstToken(TokenTypes.IDENT).getText();</span>
+            }
+        }
+<span class="fc" id="L880">        return result;</span>
+    }
+
+    /**
+     * Gets all the children one level below on the current DetailAST parent
+     * node.
+     *
+     * @param node
+     *            Current parent node.
+     * @return An array of children one level below on the current parent node
+     *         aNode.
+     */
+    private static List&lt;DetailAST&gt; getChildren(final DetailAST node) {
+<span class="fc" id="L893">        final List&lt;DetailAST&gt; result = new LinkedList&lt;&gt;();</span>
+<span class="fc" id="L894">        DetailAST curNode = node.getFirstChild();</span>
+<span class="fc bfc" id="L895" title="All 2 branches covered.">        while (curNode != null) {</span>
+<span class="fc" id="L896">            result.add(curNode);</span>
+<span class="fc" id="L897">            curNode = curNode.getNextSibling();</span>
+        }
+<span class="fc" id="L899">        return result;</span>
+    }
+
+    /**
+     * Class that encapsulates the DetailAST node related to the method call
+     * that leads to call of the overridable method and the name of
+     * overridable method.
+     */
+    private final class OverridableMetCall {
+
+        /**
+         * DetailAST node is related to the method call that leads to
+         *           call of the overridable method.
+         */
+        private final DetailAST metCallAST;
+        /**
+         * The name of an overridable method.
+         */
+        private final String overridableMetName;
+
+        /**
+         * Creates an instance of OverridableMetCall and initializes fields.
+         * @param methodCallAST
+         *            DetailAST node related to the method call that leads
+         *            to call of the overridable method.
+         * @param overridableMetName
+         *            The name of an overridable method.
+         */
+<span class="fc" id="L927">        /* package */ OverridableMetCall(DetailAST methodCallAST,</span>
+<span class="fc" id="L928">                String overridableMetName) {</span>
+<span class="fc" id="L929">            this.metCallAST = methodCallAST;</span>
+<span class="fc" id="L930">            this.overridableMetName = overridableMetName;</span>
+<span class="fc" id="L931">        }</span>
+
+    }
+
+}
+</pre><div class="footer"><span class="right">Created with <a href="http://www.eclemma.org/jacoco">JaCoCo</a> 0.7.1.201405082137</span></div></body></html>

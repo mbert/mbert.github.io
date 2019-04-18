@@ -1,0 +1,283 @@
+<?xml version="1.0" encoding="UTF-8"?><!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Strict//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-strict.dtd"><html xmlns="http://www.w3.org/1999/xhtml" lang="en"><head><meta http-equiv="Content-Type" content="text/html;charset=UTF-8"/><link rel="stylesheet" href="../.resources/report.css" type="text/css"/><link rel="shortcut icon" href="../.resources/report.gif" type="image/gif"/><title>CauseParameterInExceptionCheck.java</title><link rel="stylesheet" href="../.resources/prettify.css" type="text/css"/><script type="text/javascript" src="../.resources/prettify.js"></script></head><body onload="window['PR_TAB_WIDTH']=4;prettyPrint()"><div class="breadcrumb" id="breadcrumb"><span class="info"><a href="../.sessions.html" class="el_session">Sessions</a></span><a href="../index.html" class="el_report">sevntu-checks</a> &gt; <a href="index.source.html" class="el_package">com.github.sevntu.checkstyle.checks.design</a> &gt; <span class="el_source">CauseParameterInExceptionCheck.java</span></div><h1>CauseParameterInExceptionCheck.java</h1><pre class="source lang-java linenums">////////////////////////////////////////////////////////////////////////////////
+// checkstyle: Checks Java source code for adherence to a set of rules.
+// Copyright (C) 2001-2019 the original author or authors.
+//
+// This library is free software; you can redistribute it and/or
+// modify it under the terms of the GNU Lesser General Public
+// License as published by the Free Software Foundation; either
+// version 2.1 of the License, or (at your option) any later version.
+//
+// This library is distributed in the hope that it will be useful,
+// but WITHOUT ANY WARRANTY; without even the implied warranty of
+// MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the GNU
+// Lesser General Public License for more details.
+//
+// You should have received a copy of the GNU Lesser General Public
+// License along with this library; if not, write to the Free Software
+// Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA
+////////////////////////////////////////////////////////////////////////////////
+
+package com.github.sevntu.checkstyle.checks.design;
+
+import java.util.HashSet;
+import java.util.LinkedList;
+import java.util.List;
+import java.util.Set;
+import java.util.regex.Pattern;
+
+import com.github.sevntu.checkstyle.SevntuUtil;
+import com.puppycrawl.tools.checkstyle.api.AbstractCheck;
+import com.puppycrawl.tools.checkstyle.api.DetailAST;
+import com.puppycrawl.tools.checkstyle.api.TokenTypes;
+
+/**
+ * Checks that any Exception class which matches the defined className regexp
+ * have at least one constructor with Exception cause as a parameter. &lt;br&gt;&lt;p&gt;
+ * Rationale: &lt;br&gt;&lt;br&gt;
+ * &quot;A special form of exception translation called exception chaining is
+ * appropriate in cases where the lower-level exception might be helpful to
+ * someone debugging the problem that caused the higher-level exception. The
+ * lower-level exception (the cause) is passed to the higher-level..&quot;
+ * &lt;i&gt;[Joshua Bloch - Effective Java 2nd Edition, Chapter 4, Item 61]&lt;/i&gt;
+ * &lt;/p&gt;&lt;p&gt; Parameters: &lt;/p&gt;&lt;ol&gt;
+ * &lt;li&gt;Exception classNames regexp. (&quot;classNamesRegexp&quot; option).&lt;/li&gt;
+ * &lt;li&gt;regexp to ignore classes by names (&quot;ignoredClassNamesRegexp&quot; option).
+ * &lt;/li&gt;&lt;li&gt;The names of classes which would be considered as Exception cause
+ * (&quot;allowedCauseTypes&quot; option).&lt;/li&gt;&lt;/ol&gt;&lt;br&gt;
+ * @author &lt;a href=&quot;mailto:Daniil.Yaroslavtsev@gmail.com&quot;&gt; Daniil
+ *         Yaroslavtsev&lt;/a&gt;
+ * @since 1.8.0
+ */
+public class CauseParameterInExceptionCheck extends AbstractCheck {
+
+    /**
+     * A key is pointing to the warning message text in &quot;messages.properties&quot;
+     * file.
+     */
+    public static final String MSG_KEY = &quot;cause.parameter.in.exception&quot;;
+
+    /**
+     * Pattern object is used to store the regexp for the names of classes, that
+     * should be checked. Default value = &quot;.+Exception&quot;.
+     */
+<span class="fc" id="L63">    private Pattern classNamesRegexp = Pattern.compile(&quot;.+Exception&quot;);</span>
+
+    /**
+     * Pattern object is used to store the regexp for the names of classes, that
+     * should be ignored by check.
+     */
+<span class="fc" id="L69">    private Pattern ignoredClassNamesRegexp = Pattern.compile(&quot;&quot;);</span>
+
+    /**
+     * List contains the names of classes which would be considered as Exception
+     * cause. Default value = &quot;Throwable, Exception&quot;.
+     */
+<span class="fc" id="L75">    private final Set&lt;String&gt; allowedCauseTypes = new HashSet&lt;&gt;();</span>
+
+    /**
+     * List of DetailAST objects which are related to Exception classes that
+     * need to be warned.
+     */
+<span class="fc" id="L81">    private final List&lt;DetailAST&gt; exceptionClassesToWarn =</span>
+<span class="fc" id="L82">            new LinkedList&lt;&gt;();</span>
+
+    /**
+     * Creates the new check instance.
+     */
+<span class="fc" id="L87">    public CauseParameterInExceptionCheck() {</span>
+<span class="fc" id="L88">        allowedCauseTypes.add(&quot;Exception&quot;);</span>
+<span class="fc" id="L89">        allowedCauseTypes.add(&quot;Throwable&quot;);</span>
+<span class="fc" id="L90">    }</span>
+
+    /**
+     * Sets the regexp for the names of classes, that should be checked.
+     * @param classNamesRegexp
+     *        String contains the regex to set for the names of classes, that
+     *        should be checked.
+     */
+    public void setClassNamesRegexp(String classNamesRegexp) {
+        final String regexp;
+<span class="fc bfc" id="L100" title="All 2 branches covered.">        if (classNamesRegexp == null) {</span>
+<span class="fc" id="L101">            regexp = &quot;&quot;;</span>
+<span class="fc" id="L102">        }</span>
+        else {
+<span class="fc" id="L104">            regexp = classNamesRegexp;</span>
+        }
+<span class="fc" id="L106">        this.classNamesRegexp = Pattern.compile(regexp);</span>
+<span class="fc" id="L107">    }</span>
+
+    /**
+     * Sets the regexp for the names of classes, that should be ignored by
+     * check.
+     * @param ignoredClassNamesRegexp
+     *        String contains the regex to set for the names of classes, that
+     *        should be ignored by check.
+     */
+    public void setIgnoredClassNamesRegexp(String ignoredClassNamesRegexp) {
+        final String regexp;
+<span class="fc bfc" id="L118" title="All 2 branches covered.">        if (ignoredClassNamesRegexp == null) {</span>
+<span class="fc" id="L119">            regexp = &quot;&quot;;</span>
+<span class="fc" id="L120">        }</span>
+        else {
+<span class="fc" id="L122">            regexp = ignoredClassNamesRegexp;</span>
+        }
+<span class="fc" id="L124">        this.ignoredClassNamesRegexp = Pattern.compile(regexp);</span>
+<span class="fc" id="L125">    }</span>
+
+    /**
+     * Sets the names of classes which would be considered as Exception cause.
+     * @param allowedCauseTypes
+     *        - the list of classNames separated by a comma. ClassName should be
+     *        short, such as &quot;NullpointerException&quot;, do not use full name -
+     *        java.lang.NullpointerException;
+     */
+    public void setAllowedCauseTypes(final String... allowedCauseTypes) {
+<span class="fc" id="L135">        this.allowedCauseTypes.clear();</span>
+<span class="fc bfc" id="L136" title="All 2 branches covered.">        for (String name : allowedCauseTypes) {</span>
+<span class="fc" id="L137">            this.allowedCauseTypes.add(name);</span>
+        }
+<span class="fc" id="L139">    }</span>
+
+    @Override
+    public int[] getDefaultTokens() {
+<span class="fc" id="L143">        return new int[] {</span>
+<span class="fc" id="L144">            TokenTypes.CLASS_DEF,</span>
+<span class="fc" id="L145">            TokenTypes.CTOR_DEF,</span>
+        };
+    }
+
+    @Override
+    public int[] getAcceptableTokens() {
+<span class="fc" id="L151">        return getDefaultTokens();</span>
+    }
+
+    @Override
+    public int[] getRequiredTokens() {
+<span class="fc" id="L156">        return getDefaultTokens();</span>
+    }
+
+    @Override
+    public void beginTree(DetailAST rootAST) {
+<span class="fc" id="L161">        exceptionClassesToWarn.clear();</span>
+<span class="fc" id="L162">    }</span>
+
+    @Override
+    public void visitToken(DetailAST ast) {
+<span class="fc bfc" id="L166" title="All 3 branches covered.">        switch (ast.getType()) {</span>
+            case TokenTypes.CLASS_DEF:
+<span class="pc bpc" id="L168" title="1 of 2 branches missed.">                final String exceptionClassName = getName(ast);</span>
+<span class="fc bfc" id="L169" title="All 2 branches covered.">                if (classNamesRegexp.matcher(exceptionClassName).matches()</span>
+<span class="fc" id="L170">                    &amp;&amp; !ignoredClassNamesRegexp.matcher(exceptionClassName)</span>
+<span class="fc bfc" id="L171" title="All 2 branches covered.">                        .matches()) {</span>
+<span class="fc" id="L172">                    exceptionClassesToWarn.add(ast);</span>
+                }
+<span class="fc" id="L174">                break;</span>
+            case TokenTypes.CTOR_DEF:
+<span class="pc bpc" id="L176" title="1 of 2 branches missed.">                final DetailAST exceptionClass = getClassDef(ast);</span>
+<span class="fc bfc" id="L177" title="All 2 branches covered.">                if (exceptionClassesToWarn.contains(exceptionClass)</span>
+<span class="fc bfc" id="L178" title="All 2 branches covered.">                    &amp;&amp; hasCauseAsParameter(ast)) {</span>
+<span class="fc" id="L179">                    exceptionClassesToWarn.remove(exceptionClass);</span>
+                }
+<span class="fc" id="L181">                break;</span>
+            default:
+<span class="pc bpc" id="L183" title="1 of 2 branches missed.">                SevntuUtil.reportInvalidToken(ast.getType());</span>
+                break;
+        }
+<span class="fc" id="L186">    }</span>
+
+    @Override
+    public void finishTree(DetailAST treeRootAST) {
+<span class="fc bfc" id="L190" title="All 2 branches covered.">        for (DetailAST classDefNode : exceptionClassesToWarn) {</span>
+<span class="fc" id="L191">            log(classDefNode, MSG_KEY, getName(classDefNode));</span>
+        }
+<span class="fc" id="L193">    }</span>
+
+    /**
+     * Checks that the given constructor contains exception cause as a
+     * parameter.
+     * @param ctorDefNode
+     *        The CTOR_DEF DetailAST node is related to the constructor
+     *        definition.
+     * @return true if the given ctor contains exception cause as a parameter
+     *         and false otherwise.
+     */
+    private boolean hasCauseAsParameter(DetailAST ctorDefNode) {
+<span class="fc" id="L205">        boolean result = false;</span>
+<span class="fc" id="L206">        final DetailAST parameters =</span>
+<span class="fc" id="L207">                ctorDefNode.findFirstToken(TokenTypes.PARAMETERS);</span>
+<span class="fc bfc" id="L208" title="All 2 branches covered.">        for (String parameterType : getParameterTypes(parameters)) {</span>
+<span class="fc bfc" id="L209" title="All 2 branches covered.">            if (allowedCauseTypes.contains(parameterType)) {</span>
+<span class="fc" id="L210">                result = true;</span>
+<span class="fc" id="L211">                break;</span>
+            }
+        }
+<span class="fc" id="L214">        return result;</span>
+    }
+
+    /**
+     * Gets the list of classNames for given constructor parameters types.
+     * @param parametersAST - A PARAMETERS DetailAST.
+     * @return the list of classNames for given constructor parameters types.
+     */
+    private static List&lt;String&gt; getParameterTypes(DetailAST parametersAST) {
+<span class="fc" id="L223">        final List&lt;String&gt; result = new LinkedList&lt;&gt;();</span>
+<span class="fc bfc" id="L224" title="All 2 branches covered.">        for (DetailAST parametersChild : getChildren(parametersAST)) {</span>
+<span class="fc bfc" id="L225" title="All 2 branches covered.">            if (parametersChild.getType() == TokenTypes.PARAMETER_DEF) {</span>
+<span class="fc" id="L226">                final DetailAST parameterType = parametersChild</span>
+<span class="fc" id="L227">                        .findFirstToken(TokenTypes.TYPE);</span>
+<span class="fc" id="L228">                final String parameter = parameterType.getFirstChild()</span>
+<span class="fc" id="L229">                        .getText();</span>
+<span class="fc" id="L230">                result.add(parameter);</span>
+            }
+        }
+<span class="fc" id="L233">        return result;</span>
+    }
+
+    /**
+     * Gets the name of given class or constructor.
+     * @param classOrCtorDefNode
+     *        the a CLASS_DEF or CTOR_DEF node
+     * @return the name of class or constructor is related to CLASS_DEF or
+     *         CTOR_DEF node.
+     */
+    private static String getName(final DetailAST classOrCtorDefNode) {
+<span class="fc" id="L244">        final DetailAST classNameIdent = classOrCtorDefNode</span>
+<span class="fc" id="L245">                .findFirstToken(TokenTypes.IDENT);</span>
+<span class="fc" id="L246">        return classNameIdent.getText();</span>
+    }
+
+    /**
+     * Gets the parent CLASS_DEF DetailAST node for given DetailAST node.
+     * @param node
+     *        The DetailAST node.
+     * @return The parent CLASS_DEF node for the class that owns a token is
+     *         related to the given DetailAST node or null if given token is not
+     *         located in any class.
+     */
+    private static DetailAST getClassDef(final DetailAST node) {
+<span class="fc" id="L258">        DetailAST curNode = node;</span>
+<span class="fc bfc" id="L259" title="All 4 branches covered.">        while (curNode != null &amp;&amp; curNode.getType() != TokenTypes.CLASS_DEF) {</span>
+<span class="fc" id="L260">            curNode = curNode.getParent();</span>
+        }
+<span class="fc" id="L262">        return curNode;</span>
+    }
+
+    /**
+     * Gets all the children which are one level below on the current DetailAST
+     * parent node.
+     * @param node
+     *        Current parent node.
+     * @return The list of children one level below on the current parent node.
+     */
+    private static List&lt;DetailAST&gt; getChildren(final DetailAST node) {
+<span class="fc" id="L273">        final List&lt;DetailAST&gt; result = new LinkedList&lt;&gt;();</span>
+<span class="fc" id="L274">        DetailAST curNode = node.getFirstChild();</span>
+<span class="fc bfc" id="L275" title="All 2 branches covered.">        while (curNode != null) {</span>
+<span class="fc" id="L276">            result.add(curNode);</span>
+<span class="fc" id="L277">            curNode = curNode.getNextSibling();</span>
+        }
+<span class="fc" id="L279">        return result;</span>
+    }
+
+}
+</pre><div class="footer"><span class="right">Created with <a href="http://www.eclemma.org/jacoco">JaCoCo</a> 0.7.1.201405082137</span></div></body></html>

@@ -1,0 +1,378 @@
+<?xml version="1.0" encoding="UTF-8"?><!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Strict//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-strict.dtd"><html xmlns="http://www.w3.org/1999/xhtml" lang="en"><head><meta http-equiv="Content-Type" content="text/html;charset=UTF-8"/><link rel="stylesheet" href="../.resources/report.css" type="text/css"/><link rel="shortcut icon" href="../.resources/report.gif" type="image/gif"/><title>RedundantReturnCheck.java</title><link rel="stylesheet" href="../.resources/prettify.css" type="text/css"/><script type="text/javascript" src="../.resources/prettify.js"></script></head><body onload="window['PR_TAB_WIDTH']=4;prettyPrint()"><div class="breadcrumb" id="breadcrumb"><span class="info"><a href="../.sessions.html" class="el_session">Sessions</a></span><a href="../index.html" class="el_report">sevntu-checks</a> &gt; <a href="index.source.html" class="el_package">com.github.sevntu.checkstyle.checks.coding</a> &gt; <span class="el_source">RedundantReturnCheck.java</span></div><h1>RedundantReturnCheck.java</h1><pre class="source lang-java linenums">////////////////////////////////////////////////////////////////////////////////
+// checkstyle: Checks Java source code for adherence to a set of rules.
+// Copyright (C) 2001-2019 the original author or authors.
+//
+// This library is free software; you can redistribute it and/or
+// modify it under the terms of the GNU Lesser General Public
+// License as published by the Free Software Foundation; either
+// version 2.1 of the License, or (at your option) any later version.
+//
+// This library is distributed in the hope that it will be useful,
+// but WITHOUT ANY WARRANTY; without even the implied warranty of
+// MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the GNU
+// Lesser General Public License for more details.
+//
+// You should have received a copy of the GNU Lesser General Public
+// License along with this library; if not, write to the Free Software
+// Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA
+////////////////////////////////////////////////////////////////////////////////
+
+package com.github.sevntu.checkstyle.checks.coding;
+
+import java.util.ArrayList;
+import java.util.List;
+
+import com.github.sevntu.checkstyle.SevntuUtil;
+import com.puppycrawl.tools.checkstyle.api.AbstractCheck;
+import com.puppycrawl.tools.checkstyle.api.DetailAST;
+import com.puppycrawl.tools.checkstyle.api.TokenTypes;
+
+/**
+ * &lt;p&gt;
+ * Highlights usage of redundant returns inside constructors and methods with void
+ * result.
+ * &lt;/p&gt;
+ * &lt;p&gt;
+ * For example:
+ * &lt;/p&gt;
+ * &lt;p&gt;
+ * 1. Non-empty constructor
+ * &lt;/p&gt;
+ * &lt;pre&gt;
+ *    public HelloWorld(){
+ *        doStuff();
+ *        return;
+ *    }&lt;/pre&gt;
+ * &lt;p&gt;
+ * 2. Method with void result
+ * &lt;/p&gt;
+ * &lt;pre&gt;
+ *    public void testMethod1(){
+ *        doStuff();
+ *        return;
+ *    }&lt;/pre&gt;
+ * &lt;p&gt;
+ * However, if your IDE does not support breakpoints on the method entry, you
+ * can allow the use of redundant returns in constructors and methods with void
+ * result without code except for 'return;'.
+ * &lt;/p&gt;
+ * &lt;p&gt;
+ * For example:
+ * &lt;/p&gt;
+ * &lt;p&gt;
+ * 1. Empty constructor
+ * &lt;/p&gt;
+ * &lt;pre&gt;
+ *    public HelloWorld(){
+ *        return;
+ *    }&lt;/pre&gt;
+ * &lt;p&gt;
+ * 2. Method with void result and empty body
+ * &lt;/p&gt;
+ * &lt;pre&gt;
+ *    public void testMethod1(){
+ *        return;
+ *    }&lt;/pre&gt;
+ * @author &lt;a href=&quot;mailto:fishh1991@gmail.com&quot;&gt;Troshin Sergey&lt;/a&gt;
+ * @author &lt;a href=&quot;mailto:maxvetrenko2241@gmail.com&quot;&gt;Max Vetrenko&lt;/a&gt;
+ * @author &lt;a href=&quot;mailto:nesterenko-aleksey@list.ru&quot;&gt;Alexey Nesterenko&lt;/a&gt;
+ * @since 1.8.0
+ */
+<span class="fc" id="L81">public class RedundantReturnCheck extends AbstractCheck {</span>
+
+    /**
+     * A key is pointing to the warning message text in &quot;messages.properties&quot;
+     * file.
+     */
+    public static final String MSG_KEY = &quot;redundant.return.check&quot;;
+
+    /**
+     *  If True, allow 'return' in empty constructors and methods that return void.
+     */
+    private boolean allowReturnInEmptyMethodsAndConstructors;
+
+    /**
+     * Setter for allowReturnInEmptyMethodsAndConstructors.
+     * @param allowEmptyBlocks allow 'return' in empty constructors and methods that return void.
+     */
+    public void setAllowReturnInEmptyMethodsAndConstructors(boolean allowEmptyBlocks) {
+<span class="fc" id="L99">        allowReturnInEmptyMethodsAndConstructors = allowEmptyBlocks;</span>
+<span class="fc" id="L100">    }</span>
+
+    @Override
+    public int[] getDefaultTokens() {
+<span class="fc" id="L104">        return new int[] {</span>
+<span class="fc" id="L105">            TokenTypes.CTOR_DEF,</span>
+<span class="fc" id="L106">            TokenTypes.METHOD_DEF,</span>
+        };
+    }
+
+    @Override
+    public int[] getAcceptableTokens() {
+<span class="fc" id="L112">        return getDefaultTokens();</span>
+    }
+
+    @Override
+    public int[] getRequiredTokens() {
+<span class="fc" id="L117">        return getDefaultTokens();</span>
+    }
+
+    @Override
+    public void visitToken(DetailAST ast) {
+<span class="fc" id="L122">        final DetailAST blockAst = ast.getLastChild();</span>
+
+<span class="fc bfc" id="L124" title="All 3 branches covered.">        switch (ast.getType()) {</span>
+            case TokenTypes.CTOR_DEF:
+<span class="pc bpc" id="L126" title="1 of 6 branches missed.">                if (!ignoreLonelyReturn(blockAst) &amp;&amp; hasNonEmptyBody(ast)) {</span>
+<span class="fc" id="L127">                    final List&lt;DetailAST&gt; redundantReturns = getRedundantReturns(blockAst);</span>
+<span class="fc" id="L128">                    log(redundantReturns);</span>
+                }
+<span class="fc" id="L130">                break;</span>
+
+            case TokenTypes.METHOD_DEF:
+<span class="pc bpc" id="L133" title="1 of 6 branches missed.">                if (!ignoreLonelyReturn(blockAst) &amp;&amp; isVoidMethodWithNonEmptyBody(ast)) {</span>
+<span class="fc" id="L134">                    final List&lt;DetailAST&gt; redundantReturns = getRedundantReturns(blockAst);</span>
+<span class="fc" id="L135">                    log(redundantReturns);</span>
+                }
+<span class="fc" id="L137">                break;</span>
+
+            default:
+<span class="pc bpc" id="L140" title="1 of 2 branches missed.">                SevntuUtil.reportInvalidToken(ast.getType());</span>
+                break;
+        }
+<span class="fc" id="L143">    }</span>
+
+    /**
+     * Ignores method or constructor if it contains &lt;b&gt;only&lt;/b&gt; return statement
+     * in its body.
+     * @param objectBlockAst The token to examine.
+     * @return true if the block can be ignored.
+     */
+    private boolean ignoreLonelyReturn(DetailAST objectBlockAst) {
+<span class="fc bfc" id="L152" title="All 2 branches covered.">        return allowReturnInEmptyMethodsAndConstructors</span>
+<span class="fc bfc" id="L153" title="All 2 branches covered.">                    &amp;&amp; objectBlockAst.getFirstChild() != null</span>
+<span class="fc bfc" id="L154" title="All 2 branches covered.">                    &amp;&amp; objectBlockAst.getFirstChild().getType()</span>
+<span class="fc" id="L155">                        == TokenTypes.LITERAL_RETURN;</span>
+    }
+
+    /**
+     * Checks if method's or ctor's body is not empty.
+     * @param defAst The token to examine.
+     * @return true if body is not empty.
+     */
+    private static boolean hasNonEmptyBody(DetailAST defAst) {
+<span class="fc bfc" id="L164" title="All 2 branches covered.">        return defAst.getLastChild().getChildCount() &gt; 1;</span>
+    }
+
+    /**
+     * Checks if method is void and has a body.
+     * @param methodDefAst The token to examine.
+     * @return true if void method has non-empty body.
+     */
+    private static boolean isVoidMethodWithNonEmptyBody(DetailAST methodDefAst) {
+<span class="fc bfc" id="L173" title="All 2 branches covered.">        return methodDefAst.getLastChild().getType() == TokenTypes.SLIST</span>
+<span class="fc bfc" id="L174" title="All 2 branches covered.">                    &amp;&amp; methodDefAst.findFirstToken(TokenTypes.TYPE)</span>
+<span class="fc" id="L175">                        .findFirstToken(TokenTypes.LITERAL_VOID) != null</span>
+<span class="fc bfc" id="L176" title="All 2 branches covered.">                    &amp;&amp; hasNonEmptyBody(methodDefAst);</span>
+    }
+
+    /**
+     * Puts violation on each redundant return met in object block of
+     * method or ctor.
+     * @param redundantReturnsAst The token to examine.
+     */
+    private void log(List&lt;DetailAST&gt; redundantReturnsAst) {
+<span class="fc bfc" id="L185" title="All 2 branches covered.">        for (DetailAST redundantLiteralReturnAst : redundantReturnsAst) {</span>
+<span class="fc" id="L186">            log(redundantLiteralReturnAst, MSG_KEY);</span>
+        }
+<span class="fc" id="L188">    }</span>
+
+    /**
+     * Returns the list of redundant returns found in method's or ctor's
+     * object block.
+     * @param objectBlockAst
+     *            - a method or constructor object block
+     * @return list of redundant returns or empty list if none were found
+     */
+    private static List&lt;DetailAST&gt; getRedundantReturns(DetailAST objectBlockAst) {
+<span class="fc" id="L198">        final List&lt;DetailAST&gt; redundantReturns = new ArrayList&lt;&gt;();</span>
+
+<span class="fc" id="L200">        final int placeForRedundantReturn = objectBlockAst</span>
+<span class="fc" id="L201">            .getLastChild().getPreviousSibling().getType();</span>
+
+<span class="fc bfc" id="L203" title="All 2 branches covered.">        if (placeForRedundantReturn == TokenTypes.LITERAL_RETURN) {</span>
+<span class="fc" id="L204">            final DetailAST lastChildAst = objectBlockAst.getLastChild();</span>
+
+<span class="fc" id="L206">            final DetailAST redundantReturnAst = lastChildAst.getPreviousSibling();</span>
+
+<span class="fc" id="L208">            redundantReturns.add(redundantReturnAst);</span>
+<span class="fc" id="L209">        }</span>
+<span class="fc bfc" id="L210" title="All 2 branches covered.">        else if (placeForRedundantReturn == TokenTypes.LITERAL_TRY</span>
+<span class="fc" id="L211">                &amp;&amp; !getRedundantReturnsInTryCatchBlock(objectBlockAst</span>
+<span class="fc bfc" id="L212" title="All 2 branches covered.">                    .findFirstToken(TokenTypes.LITERAL_TRY)).isEmpty()) {</span>
+<span class="fc" id="L213">            final List&lt;DetailAST&gt; redundantsAst = getRedundantReturnsInTryCatchBlock(objectBlockAst</span>
+<span class="fc" id="L214">                    .findFirstToken(TokenTypes.LITERAL_TRY));</span>
+
+<span class="fc" id="L216">            redundantReturns.addAll(redundantsAst);</span>
+        }
+
+<span class="fc" id="L219">        return redundantReturns;</span>
+    }
+
+    /**
+     * Returns the list of redundant returns found in try, catch, finally object blocks.
+     * @param tryAst
+     *            - Ast that contain a try node.
+     * @return list of redundant returns or empty list if none were found
+     */
+    private static List&lt;DetailAST&gt; getRedundantReturnsInTryCatchBlock(DetailAST tryAst) {
+<span class="fc" id="L229">        final List&lt;DetailAST&gt; redundantReturns = new ArrayList&lt;&gt;();</span>
+
+<span class="fc" id="L231">        DetailAST tryBlockAst = null;</span>
+
+<span class="fc bfc" id="L233" title="All 2 branches covered.">        if (tryAst.getFirstChild().getType() == TokenTypes.RESOURCE_SPECIFICATION) {</span>
+<span class="fc" id="L234">            tryBlockAst = tryAst.getFirstChild().getNextSibling();</span>
+<span class="fc" id="L235">        }</span>
+        else {
+<span class="fc" id="L237">            tryBlockAst = tryAst.getFirstChild();</span>
+        }
+
+<span class="fc" id="L240">        DetailAST redundantReturnAst =</span>
+<span class="fc" id="L241">            getRedundantReturnInBlock(tryBlockAst.getLastChild().getPreviousSibling());</span>
+
+        // if redundant return is in try block
+<span class="fc bfc" id="L244" title="All 2 branches covered.">        if (redundantReturnAst != null) {</span>
+<span class="fc" id="L245">            redundantReturns.add(redundantReturnAst);</span>
+        }
+
+<span class="fc" id="L248">        DetailAST blockAst = tryBlockAst;</span>
+
+        // look for redundant returns in all catches
+<span class="fc" id="L251">        for (DetailAST catchBlockAst = getNextCatchBlock(blockAst);</span>
+<span class="fc bfc" id="L252" title="All 2 branches covered.">                catchBlockAst != null;</span>
+<span class="fc" id="L253">                        catchBlockAst = getNextCatchBlock(blockAst)) {</span>
+<span class="fc" id="L254">            final DetailAST lastStatementOfCatchBlockAst = catchBlockAst</span>
+<span class="fc" id="L255">                .getLastChild().getLastChild().getPreviousSibling();</span>
+
+<span class="fc bfc" id="L257" title="All 2 branches covered.">            if (lastStatementOfCatchBlockAst != null) {</span>
+<span class="fc" id="L258">                redundantReturnAst = getRedundantReturnInBlock(lastStatementOfCatchBlockAst);</span>
+
+<span class="fc bfc" id="L260" title="All 2 branches covered.">                if (redundantReturnAst != null) {</span>
+<span class="fc" id="L261">                    redundantReturns.add(redundantReturnAst);</span>
+                }
+            }
+<span class="fc" id="L264">            blockAst = blockAst.getNextSibling();</span>
+        }
+
+        // if redundant return is in finally block
+<span class="fc bfc" id="L268" title="All 2 branches covered.">        if (blockAst.getNextSibling() != null) {</span>
+<span class="fc" id="L269">            final DetailAST afterCatchBlockAst = blockAst.getNextSibling().getLastChild()</span>
+<span class="fc" id="L270">                .getLastChild();</span>
+
+<span class="fc" id="L272">            redundantReturnAst = getRedundantReturnInBlock(afterCatchBlockAst.getPreviousSibling());</span>
+
+<span class="fc bfc" id="L274" title="All 2 branches covered.">            if (redundantReturnAst != null) {</span>
+<span class="fc" id="L275">                redundantReturns.add(redundantReturnAst);</span>
+            }
+        }
+
+<span class="fc" id="L279">        return redundantReturns;</span>
+    }
+
+    /**
+     * Gets next catch block in try block if exists.
+     * @param blockAst The token to examine.
+     * @return next found catchBlockAst, if no catch was found - returns null
+     */
+    private static DetailAST getNextCatchBlock(DetailAST blockAst) {
+<span class="fc" id="L288">        DetailAST catchBlockAst = null;</span>
+<span class="fc bfc" id="L289" title="All 2 branches covered.">        if (blockAst.getNextSibling() != null</span>
+<span class="fc bfc" id="L290" title="All 2 branches covered.">                &amp;&amp; blockAst.getNextSibling().getType() == TokenTypes.LITERAL_CATCH) {</span>
+<span class="fc" id="L291">            catchBlockAst = blockAst.getNextSibling();</span>
+        }
+<span class="fc" id="L293">        return catchBlockAst;</span>
+    }
+
+    /**
+     * Returns redundant return from try-catch-finally block.
+     * @param statementAst
+     *            - a place where the redundantReturn is expected.
+     * @return redundant literal return if found, else null.
+     */
+    private static DetailAST getRedundantReturnInBlock(DetailAST statementAst) {
+<span class="fc" id="L303">        DetailAST redundantReturnAst = null;</span>
+
+<span class="fc bfc" id="L305" title="All 2 branches covered.">        if (statementAst != null) {</span>
+<span class="fc bfc" id="L306" title="All 2 branches covered.">            if (statementAst.getType() == TokenTypes.LITERAL_RETURN) {</span>
+<span class="fc" id="L307">                redundantReturnAst = statementAst;</span>
+<span class="fc" id="L308">            }</span>
+            else {
+<span class="fc bfc" id="L310" title="All 2 branches covered.">                if (statementAst.getFirstChild() != null) {</span>
+<span class="fc" id="L311">                    final DetailAST foundRedundantReturnAst =</span>
+<span class="fc" id="L312">                            findRedundantReturnInCatch(statementAst);</span>
+<span class="fc bfc" id="L313" title="All 2 branches covered.">                    if (foundRedundantReturnAst != null) {</span>
+<span class="fc" id="L314">                        redundantReturnAst = foundRedundantReturnAst;</span>
+                    }
+                }
+            }
+        }
+
+<span class="fc" id="L320">        return redundantReturnAst;</span>
+    }
+
+    /**
+     * Looks for literal return in the last statement of a catch block.
+     * @param lastStatementInCatchBlockAst The token to examine.
+     * @return redundant literal return, if there's no one - returns null
+     */
+    private static DetailAST findRedundantReturnInCatch(DetailAST lastStatementInCatchBlockAst) {
+<span class="fc" id="L329">        DetailAST redundantReturnAst = null;</span>
+<span class="fc" id="L330">        DetailAST currentNodeAst = lastStatementInCatchBlockAst;</span>
+<span class="fc" id="L331">        DetailAST returnAst = null;</span>
+<span class="fc" id="L332">        DetailAST toVisitAst = SevntuUtil.getNextSubTreeNode(currentNodeAst, currentNodeAst);</span>
+
+<span class="fc bfc" id="L334" title="All 2 branches covered.">        while (toVisitAst != null) {</span>
+<span class="fc bfc" id="L335" title="All 2 branches covered.">            if (toVisitAst.getType() == TokenTypes.OBJBLOCK) {</span>
+<span class="fc bfc" id="L336" title="All 2 branches covered.">                while (toVisitAst.getNextSibling() == null) {</span>
+<span class="fc" id="L337">                    toVisitAst = toVisitAst.getParent();</span>
+                }
+<span class="fc" id="L339">                toVisitAst = toVisitAst.getNextSibling();</span>
+<span class="fc" id="L340">            }</span>
+<span class="fc bfc" id="L341" title="All 2 branches covered.">            else if (isFinalReturn(toVisitAst)) {</span>
+<span class="fc" id="L342">                returnAst = toVisitAst;</span>
+
+<span class="fc bfc" id="L344" title="All 2 branches covered.">                while (toVisitAst != null</span>
+<span class="fc bfc" id="L345" title="All 2 branches covered.">                            &amp;&amp; toVisitAst.getParent() != currentNodeAst.getLastChild()) {</span>
+<span class="fc" id="L346">                    toVisitAst = toVisitAst.getParent();</span>
+                }
+
+<span class="fc bfc" id="L349" title="All 2 branches covered.">                if (toVisitAst != null) {</span>
+<span class="fc" id="L350">                    redundantReturnAst = returnAst;</span>
+                }
+
+<span class="fc" id="L353">                toVisitAst = returnAst;</span>
+            }
+
+<span class="fc" id="L356">            toVisitAst = SevntuUtil.getNextSubTreeNode(toVisitAst, currentNodeAst);</span>
+        }
+
+<span class="fc" id="L359">        currentNodeAst = SevntuUtil.getNextSubTreeNode(currentNodeAst,</span>
+<span class="fc" id="L360">                lastStatementInCatchBlockAst);</span>
+<span class="fc" id="L361">        return redundantReturnAst;</span>
+    }
+
+    /**
+     * Checks if the {@code ast} is the final return statement.
+     * @param ast the AST to examine.
+     * @return {@code true} if the {@code ast} is the final return statement.
+     */
+    private static boolean isFinalReturn(DetailAST ast) {
+<span class="fc bfc" id="L370" title="All 2 branches covered.">        return (ast.getParent().getParent().getNextSibling() == null</span>
+<span class="fc bfc" id="L371" title="All 2 branches covered.">                    || ast.getParent().getParent().getNextSibling().getType()</span>
+<span class="fc" id="L372">                    == TokenTypes.RCURLY)</span>
+<span class="fc bfc" id="L373" title="All 2 branches covered.">                &amp;&amp; ast.getType() == TokenTypes.LITERAL_RETURN</span>
+<span class="fc bfc" id="L374" title="All 2 branches covered.">                &amp;&amp; ast.getParent().getNextSibling() == null;</span>
+    }
+
+}
+</pre><div class="footer"><span class="right">Created with <a href="http://www.eclemma.org/jacoco">JaCoCo</a> 0.7.1.201405082137</span></div></body></html>

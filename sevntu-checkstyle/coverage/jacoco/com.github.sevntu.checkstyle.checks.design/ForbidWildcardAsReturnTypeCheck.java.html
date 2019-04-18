@@ -1,0 +1,464 @@
+<?xml version="1.0" encoding="UTF-8"?><!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Strict//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-strict.dtd"><html xmlns="http://www.w3.org/1999/xhtml" lang="en"><head><meta http-equiv="Content-Type" content="text/html;charset=UTF-8"/><link rel="stylesheet" href="../.resources/report.css" type="text/css"/><link rel="shortcut icon" href="../.resources/report.gif" type="image/gif"/><title>ForbidWildcardAsReturnTypeCheck.java</title><link rel="stylesheet" href="../.resources/prettify.css" type="text/css"/><script type="text/javascript" src="../.resources/prettify.js"></script></head><body onload="window['PR_TAB_WIDTH']=4;prettyPrint()"><div class="breadcrumb" id="breadcrumb"><span class="info"><a href="../.sessions.html" class="el_session">Sessions</a></span><a href="../index.html" class="el_report">sevntu-checks</a> &gt; <a href="index.source.html" class="el_package">com.github.sevntu.checkstyle.checks.design</a> &gt; <span class="el_source">ForbidWildcardAsReturnTypeCheck.java</span></div><h1>ForbidWildcardAsReturnTypeCheck.java</h1><pre class="source lang-java linenums">////////////////////////////////////////////////////////////////////////////////
+// checkstyle: Checks Java source code for adherence to a set of rules.
+// Copyright (C) 2001-2019 the original author or authors.
+//
+// This library is free software; you can redistribute it and/or
+// modify it under the terms of the GNU Lesser General Public
+// License as published by the Free Software Foundation; either
+// version 2.1 of the License, or (at your option) any later version.
+//
+// This library is distributed in the hope that it will be useful,
+// but WITHOUT ANY WARRANTY; without even the implied warranty of
+// MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the GNU
+// Lesser General Public License for more details.
+//
+// You should have received a copy of the GNU Lesser General Public
+// License along with this library; if not, write to the Free Software
+// Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA
+////////////////////////////////////////////////////////////////////////////////
+
+package com.github.sevntu.checkstyle.checks.design;
+
+import java.util.HashSet;
+import java.util.LinkedList;
+import java.util.List;
+import java.util.Set;
+import java.util.regex.Pattern;
+
+import antlr.collections.AST;
+import com.puppycrawl.tools.checkstyle.api.AbstractCheck;
+import com.puppycrawl.tools.checkstyle.api.DetailAST;
+import com.puppycrawl.tools.checkstyle.api.TokenTypes;
+import com.puppycrawl.tools.checkstyle.utils.AnnotationUtil;
+
+/**
+ * Prevents using wildcards as return type of methods.
+ * &lt;p&gt;
+ * &lt;i&gt;Joshua Bloch, &quot;Effective Java (2nd edition)&quot; Item 28: page 137 :&lt;/i&gt;
+ * &lt;/p&gt;
+ * &lt;p&gt;
+ * &quot;Do not use wildcard types as return types. Rather than providing
+ * additional flexibility for your users,
+ * it would force them to use wildcard types in client code. Properly used,
+ * wildcard types are nearly invisible to users of a class. They cause methods
+ * to accept the parameters they should accept and reject those they should
+ * reject. If the user of a class has to think about wildcard types, there is
+ * probably something wrong with the classâs API.&quot;
+ * Attention: some JDK classes have public methods with &quot;?&quot;(wildcard) in return type
+ * so it might not always possible to avoid wildcards in return type, as they do not demand user
+ * to bother about it (invisible for user or method). So suppressions should be used.
+ * &lt;/p&gt;
+ * &lt;p&gt;
+ * Examples:
+ * &lt;a href=&quot;https://docs.oracle.com/javase/8/docs/api/java/util/stream/Collectors.html&quot;&gt;
+ * JDK Collectors&lt;/a&gt;, so usage
+ * of methods that return wildcard could force user customizations over Collectors use wildcard in
+ * public methods
+ * &lt;/p&gt;
+ * &lt;pre&gt;{@code
+ * // custom util method, wildcard come from Collectors.toList()
+ * public &lt;T&gt; Collector&lt;T, ?, T&gt; singleResult(Function&lt;? super Iterable&lt;T&gt;, T&gt; collector) {
+ *   return Collectors.collectingAndThen(Collectors.toList(), collected -&gt; collected.get(0));
+ * }
+ * }&lt;/pre&gt;
+ * &lt;p&gt;If suppressions become too wide spread and annoying it might be reasonable to update Check
+ * with option to ignore wildcard if used with another type (not alone).
+ * &lt;/p&gt;
+ * @author &lt;a href='mailto:barataliba@gmail.com'&gt;Baratali Izmailov&lt;/a&gt;
+ * @since 1.9.0
+ */
+<span class="fc" id="L70">public class ForbidWildcardAsReturnTypeCheck extends AbstractCheck {</span>
+
+    /**
+     * Key for error message.
+     */
+    public static final String MSG_KEY = &quot;forbid.wildcard.as.return.type&quot;;
+    /**
+     * Token of 'extends' keyword in bounded wildcard.
+     */
+    private static final int WILDCARD_EXTENDS_IDENT =
+            TokenTypes.TYPE_UPPER_BOUNDS;
+    /**
+     * Token of 'super' keyword in bounded wildcard.
+     */
+    private static final int WILDCARD_SUPER_IDENT =
+            TokenTypes.TYPE_LOWER_BOUNDS;
+
+    /** {@link Deprecated Deprecated} annotation name. */
+    private static final String DEPRECATED = &quot;Deprecated&quot;;
+
+    /** Fully-qualified {@link Deprecated Deprecated} annotation name. */
+    private static final String FQ_DEPRECATED = &quot;java.lang.&quot; + DEPRECATED;
+
+    /** {@link Override Override} annotation name. */
+    private static final String OVERRIDE = &quot;Override&quot;;
+
+    /** Fully-qualified {@link Override Override} annotation name. */
+    private static final String FQ_OVERRIDE = &quot;java.lang.&quot; + OVERRIDE;
+
+    /**
+     * Empty array of DetailAST.
+     */
+<span class="fc" id="L102">    private static final DetailAST[] EMPTY_DETAILAST_ARRAY = new DetailAST[0];</span>
+    /**
+     * Check methods with 'public' modifier.
+     */
+<span class="fc" id="L106">    private boolean checkPublicMethods = true;</span>
+    /**
+     * Check methods with 'protected' modifier.
+     */
+<span class="fc" id="L110">    private boolean checkProtectedMethods = true;</span>
+    /**
+     * Check methods with 'package' modifier.
+     */
+<span class="fc" id="L114">    private boolean checkPackageMethods = true;</span>
+    /**
+     * Check methods with 'private' modifier.
+     */
+    private boolean checkPrivateMethods;
+    /**
+     * Check methods with @Override annotation.
+     */
+    private boolean checkOverrideMethods;
+    /**
+     * Check methods with @Deprecated annotation.
+     */
+    private boolean checkDeprecatedMethods;
+    /**
+     * Allow wildcard with 'super'. Example: &quot;? super T&quot;
+     */
+    private boolean allowReturnWildcardWithSuper;
+    /**
+     * Allow wildcard with 'extends'. Example: &quot;? extends T&quot;
+     */
+    private boolean allowReturnWildcardWithExtends;
+    /**
+     * Ignore regexp for return type class names.
+     */
+<span class="fc" id="L138">    private Pattern returnTypeClassNamesIgnoreRegex = Pattern.compile(</span>
+<span class="fc" id="L139">            &quot;^(Comparator|Comparable)$&quot;);</span>
+
+    /**
+     * Setter for checkPublicMethods.
+     * @param checkPublicMethods New value for the field.
+     */
+    public void setCheckPublicMethods(boolean checkPublicMethods) {
+<span class="fc" id="L146">        this.checkPublicMethods = checkPublicMethods;</span>
+<span class="fc" id="L147">    }</span>
+
+    /**
+     * Setter for checkProtectedMethods.
+     * @param checkProtectedMethods New value for the field.
+     */
+    public void setCheckProtectedMethods(boolean checkProtectedMethods) {
+<span class="fc" id="L154">        this.checkProtectedMethods = checkProtectedMethods;</span>
+<span class="fc" id="L155">    }</span>
+
+    /**
+     * Setter for checkPackageMethods.
+     * @param checkPackageMethods New value for the field.
+     */
+    public void setCheckPackageMethods(boolean checkPackageMethods) {
+<span class="fc" id="L162">        this.checkPackageMethods = checkPackageMethods;</span>
+<span class="fc" id="L163">    }</span>
+
+    /**
+     * Setter for checkPrivateMethods.
+     * @param checkPrivateMethods New value for the field.
+     */
+    public void setCheckPrivateMethods(boolean checkPrivateMethods) {
+<span class="fc" id="L170">        this.checkPrivateMethods = checkPrivateMethods;</span>
+<span class="fc" id="L171">    }</span>
+
+    /**
+     * Setter for checkOverrideMethods.
+     * @param checkOverrideMethods New value for the field.
+     */
+    public void setCheckOverrideMethods(boolean checkOverrideMethods) {
+<span class="fc" id="L178">        this.checkOverrideMethods = checkOverrideMethods;</span>
+<span class="fc" id="L179">    }</span>
+
+    /**
+     * Setter for checkDeprecatedMethods.
+     * @param checkDeprecatedMethods New value for the field.
+     */
+    public void setCheckDeprecatedMethods(boolean checkDeprecatedMethods) {
+<span class="fc" id="L186">        this.checkDeprecatedMethods = checkDeprecatedMethods;</span>
+<span class="fc" id="L187">    }</span>
+
+    /**
+     * Setter for allowReturnWildcardWithSuper.
+     * @param allowReturnWildcardWithSuper New value for the field.
+     */
+    public void setAllowReturnWildcardWithSuper(boolean allowReturnWildcardWithSuper) {
+<span class="fc" id="L194">        this.allowReturnWildcardWithSuper = allowReturnWildcardWithSuper;</span>
+<span class="fc" id="L195">    }</span>
+
+    /**
+     * Setter for allowReturnWildcardWithExtends.
+     * @param allowReturnWildcardWithExtends New value for the field.
+     */
+    public void setAllowReturnWildcardWithExtends(boolean allowReturnWildcardWithExtends) {
+<span class="fc" id="L202">        this.allowReturnWildcardWithExtends = allowReturnWildcardWithExtends;</span>
+<span class="fc" id="L203">    }</span>
+
+    /**
+     * Setter for returnTypeClassNamesIgnoreRegex.
+     * @param returnTypeClassNamesIgnoreRegex New value for the field.
+     */
+    public void setReturnTypeClassNamesIgnoreRegex(String returnTypeClassNamesIgnoreRegex) {
+<span class="fc" id="L210">        this.returnTypeClassNamesIgnoreRegex = Pattern.compile(</span>
+<span class="fc" id="L211">                returnTypeClassNamesIgnoreRegex);</span>
+<span class="fc" id="L212">    }</span>
+
+    @Override
+    public int[] getDefaultTokens() {
+<span class="fc" id="L216">        return new int[] {</span>
+<span class="fc" id="L217">            TokenTypes.METHOD_DEF,</span>
+        };
+    }
+
+    @Override
+    public int[] getAcceptableTokens() {
+<span class="fc" id="L223">        return getDefaultTokens();</span>
+    }
+
+    @Override
+    public int[] getRequiredTokens() {
+<span class="fc" id="L228">        return getDefaultTokens();</span>
+    }
+
+    @Override
+    public void visitToken(DetailAST methodDefAst) {
+<span class="fc" id="L233">        final String methodScope = getVisibilityScope(methodDefAst);</span>
+<span class="fc bfc" id="L234" title="All 2 branches covered.">        if (isCheckableMethodScope(methodScope)</span>
+<span class="fc bfc" id="L235" title="All 2 branches covered.">                &amp;&amp; (checkOverrideMethods</span>
+<span class="fc bfc" id="L236" title="All 2 branches covered.">                        || !AnnotationUtil.containsAnnotation(methodDefAst, OVERRIDE)</span>
+<span class="fc bfc" id="L237" title="All 2 branches covered.">                            &amp;&amp; !AnnotationUtil.containsAnnotation(methodDefAst, FQ_OVERRIDE))</span>
+<span class="fc bfc" id="L238" title="All 2 branches covered.">                &amp;&amp; (checkDeprecatedMethods</span>
+<span class="fc bfc" id="L239" title="All 2 branches covered.">                        || !AnnotationUtil.containsAnnotation(methodDefAst, DEPRECATED)</span>
+<span class="fc" id="L240">                            &amp;&amp; !AnnotationUtil.containsAnnotation(methodDefAst,</span>
+<span class="fc bfc" id="L241" title="All 2 branches covered.">                                FQ_DEPRECATED))) {</span>
+<span class="fc" id="L242">            final List&lt;DetailAST&gt; wildcardTypeArguments =</span>
+<span class="fc" id="L243">                    getWildcardArgumentsAsMethodReturnType(methodDefAst);</span>
+<span class="fc bfc" id="L244" title="All 2 branches covered.">            if (!wildcardTypeArguments.isEmpty()</span>
+<span class="fc bfc" id="L245" title="All 2 branches covered.">                    &amp;&amp; !isIgnoreCase(methodDefAst, wildcardTypeArguments)) {</span>
+<span class="fc" id="L246">                log(methodDefAst, MSG_KEY);</span>
+            }
+        }
+<span class="fc" id="L249">    }</span>
+
+    /**
+     * Checks if the method scope is defined as one of the types to check.
+     * @param methodScope The string version of the scope.
+     * @return {@code true} if the method should be checked.
+     */
+    private boolean isCheckableMethodScope(String methodScope) {
+<span class="fc bfc" id="L257" title="All 4 branches covered.">        return checkPublicMethods &amp;&amp; &quot;public&quot;.equals(methodScope)</span>
+<span class="fc bfc" id="L258" title="All 4 branches covered.">                || checkPrivateMethods &amp;&amp; &quot;private&quot;.equals(methodScope)</span>
+<span class="fc bfc" id="L259" title="All 4 branches covered.">                || checkProtectedMethods &amp;&amp; &quot;protected&quot;.equals(methodScope)</span>
+<span class="fc bfc" id="L260" title="All 4 branches covered.">                || checkPackageMethods &amp;&amp; &quot;package&quot;.equals(methodScope);</span>
+    }
+
+    /**
+     * Returns the visibility scope of method.
+     * @param methodDefAst DetailAST of method definition.
+     * @return one of &quot;public&quot;, &quot;private&quot;, &quot;protected&quot;, &quot;package&quot;
+     */
+    private static String getVisibilityScope(DetailAST methodDefAst) {
+<span class="fc" id="L269">        String result = &quot;package&quot;;</span>
+<span class="fc bfc" id="L270" title="All 2 branches covered.">        if (isInsideInterfaceDefinition(methodDefAst)) {</span>
+<span class="fc" id="L271">            result = &quot;public&quot;;</span>
+<span class="fc" id="L272">        }</span>
+        else {
+<span class="fc" id="L274">            final String[] visibilityScopeModifiers = {&quot;public&quot;, &quot;private&quot;,</span>
+<span class="fc" id="L275">                &quot;protected&quot;, };</span>
+<span class="fc" id="L276">            final Set&lt;String&gt; methodModifiers = getModifiers(methodDefAst);</span>
+<span class="fc bfc" id="L277" title="All 2 branches covered.">            for (final String modifier : visibilityScopeModifiers) {</span>
+<span class="fc bfc" id="L278" title="All 2 branches covered.">                if (methodModifiers.contains(modifier)) {</span>
+<span class="fc" id="L279">                    result = modifier;</span>
+<span class="fc" id="L280">                    break;</span>
+                }
+            }
+        }
+<span class="fc" id="L284">        return result;</span>
+    }
+
+    /**
+     * Verify that method definition is inside interface definition.
+     * @param methodDefAst DetailAST of method definition.
+     * @return true if method definition is inside interface definition.
+     */
+    private static boolean isInsideInterfaceDefinition(DetailAST methodDefAst) {
+<span class="fc" id="L293">        boolean result = false;</span>
+<span class="fc" id="L294">        final DetailAST objBlock = methodDefAst.getParent();</span>
+<span class="fc" id="L295">        final DetailAST interfaceDef = objBlock.getParent();</span>
+<span class="fc bfc" id="L296" title="All 2 branches covered.">        if (interfaceDef.getType() == TokenTypes.INTERFACE_DEF) {</span>
+<span class="fc" id="L297">            result = true;</span>
+        }
+<span class="fc" id="L299">        return result;</span>
+    }
+
+    /**
+     * Returns the set of modifier Strings for a METHOD_DEF AST.
+     * @param methodDefAst AST for a method definition
+     * @return the set of modifier Strings for aMethodDefAST
+     */
+    private static Set&lt;String&gt; getModifiers(DetailAST methodDefAst) {
+<span class="fc" id="L308">        final AST modifiersAst = methodDefAst.getFirstChild();</span>
+<span class="fc" id="L309">        final Set&lt;String&gt; modifiersSet = new HashSet&lt;&gt;();</span>
+<span class="fc" id="L310">        AST modifierAst = modifiersAst.getFirstChild();</span>
+<span class="fc bfc" id="L311" title="All 2 branches covered.">        while (modifierAst != null) {</span>
+<span class="fc" id="L312">            modifiersSet.add(modifierAst.getText());</span>
+<span class="fc" id="L313">            modifierAst = modifierAst.getNextSibling();</span>
+        }
+<span class="fc" id="L315">        return modifiersSet;</span>
+    }
+
+    /**
+     * Get identifier of aAST.
+     * @param ast
+     *        DetailAST instance
+     * @return identifier of aAST, null if AST does not have identifier.
+     */
+    private static String getIdentifier(final DetailAST ast) {
+<span class="fc" id="L325">        final DetailAST identifier = ast.findFirstToken(TokenTypes.IDENT);</span>
+<span class="fc" id="L326">        return identifier.getText();</span>
+    }
+
+    /**
+     * Receive list of arguments(AST nodes) which have wildcard.
+     * @param methodDefAst
+     *        DetailAST of method definition.
+     * @return list of arguments which have wildcard.
+     */
+    private static List&lt;DetailAST&gt; getWildcardArgumentsAsMethodReturnType(DetailAST methodDefAst) {
+<span class="fc" id="L336">        final List&lt;DetailAST&gt; result = new LinkedList&lt;&gt;();</span>
+<span class="fc" id="L337">        final DetailAST methodTypeAst =</span>
+<span class="fc" id="L338">                methodDefAst.findFirstToken(TokenTypes.TYPE);</span>
+<span class="fc" id="L339">        final DetailAST[] methodTypeArgumentTokens =</span>
+<span class="fc" id="L340">                getGenericTypeArguments(methodTypeAst);</span>
+<span class="fc bfc" id="L341" title="All 2 branches covered.">        for (DetailAST typeArgumentAst: methodTypeArgumentTokens) {</span>
+<span class="fc bfc" id="L342" title="All 2 branches covered.">            if (hasChildToken(typeArgumentAst, TokenTypes.WILDCARD_TYPE)) {</span>
+<span class="fc" id="L343">                result.add(typeArgumentAst);</span>
+            }
+        }
+<span class="fc" id="L346">        return result;</span>
+    }
+
+    /**
+     * Get all type arguments of TypeAST.
+     * @param typeAst
+     *        DetailAST of type definition.
+     * @return array of type arguments.
+     */
+    private static DetailAST[] getGenericTypeArguments(DetailAST typeAst) {
+<span class="fc" id="L356">        DetailAST[] result = EMPTY_DETAILAST_ARRAY;</span>
+<span class="fc bfc" id="L357" title="All 2 branches covered.">        if (hasChildToken(typeAst, TokenTypes.TYPE_ARGUMENTS)) {</span>
+<span class="fc" id="L358">            final DetailAST typeArguments = typeAst</span>
+<span class="fc" id="L359">                    .findFirstToken(TokenTypes.TYPE_ARGUMENTS);</span>
+<span class="fc" id="L360">            final int argumentsCount = typeArguments</span>
+<span class="fc" id="L361">                    .getChildCount(TokenTypes.TYPE_ARGUMENT);</span>
+<span class="fc" id="L362">            result = new DetailAST[argumentsCount];</span>
+<span class="fc" id="L363">            DetailAST firstTypeArgument = typeArguments</span>
+<span class="fc" id="L364">                    .findFirstToken(TokenTypes.TYPE_ARGUMENT);</span>
+<span class="fc" id="L365">            int counter = 0;</span>
+<span class="fc bfc" id="L366" title="All 2 branches covered.">            while (firstTypeArgument != null) {</span>
+<span class="fc bfc" id="L367" title="All 2 branches covered.">                if (firstTypeArgument.getType() == TokenTypes.TYPE_ARGUMENT) {</span>
+<span class="fc" id="L368">                    result[counter] = firstTypeArgument;</span>
+<span class="fc" id="L369">                    counter++;</span>
+                }
+<span class="fc" id="L371">                firstTypeArgument = firstTypeArgument.getNextSibling();</span>
+            }
+        }
+<span class="fc" id="L374">        return result;</span>
+    }
+
+    /**
+     * Verify that aAST has token of aTokenType type.
+     * @param ast
+     *        DetailAST instance.
+     * @param tokenType
+     *        one of TokenTypes
+     * @return true if aAST has token of given type, or false otherwise.
+     */
+    private static boolean hasChildToken(DetailAST ast, int tokenType) {
+<span class="fc bfc" id="L386" title="All 2 branches covered.">        return ast.findFirstToken(tokenType) != null;</span>
+    }
+
+    /**
+     * Verify that method with wildcards as return type is allowed by current
+     * check configuration.
+     * @param methodDefAst DetailAST of method definition.
+     * @param wildcardTypeArguments list of wildcard type arguments.
+     * @return true if method is allowed by current check configuration.
+     */
+    private boolean isIgnoreCase(DetailAST methodDefAst,
+            List&lt;DetailAST&gt; wildcardTypeArguments) {
+<span class="fc" id="L398">        boolean result = false;</span>
+<span class="fc bfc" id="L399" title="All 2 branches covered.">        if (matchesIgnoreClassNames(methodDefAst)) {</span>
+<span class="fc" id="L400">            result = true;</span>
+<span class="fc" id="L401">        }</span>
+        else {
+<span class="fc" id="L403">            final boolean hasExtendsWildcardAsReturnType =</span>
+<span class="fc" id="L404">                    hasBoundedWildcardAsReturnType(wildcardTypeArguments,</span>
+<span class="fc" id="L405">                            WILDCARD_EXTENDS_IDENT);</span>
+<span class="fc" id="L406">            final boolean hasSuperWildcardAsReturnType =</span>
+<span class="fc" id="L407">                    hasBoundedWildcardAsReturnType(wildcardTypeArguments,</span>
+<span class="fc" id="L408">                            WILDCARD_SUPER_IDENT);</span>
+<span class="fc" id="L409">            final boolean hasOnlyExtendsWildcardAsReturnType =</span>
+<span class="fc bfc" id="L410" title="All 2 branches covered.">                    hasExtendsWildcardAsReturnType</span>
+<span class="fc bfc" id="L411" title="All 2 branches covered.">                    &amp;&amp; !hasSuperWildcardAsReturnType;</span>
+<span class="fc" id="L412">            final boolean hasOnlySuperWildcardAsReturnType =</span>
+<span class="fc bfc" id="L413" title="All 2 branches covered.">                    hasSuperWildcardAsReturnType</span>
+<span class="fc bfc" id="L414" title="All 2 branches covered.">                    &amp;&amp; !hasExtendsWildcardAsReturnType;</span>
+<span class="fc" id="L415">            final boolean hasBoundedWildcardAsReturnType =</span>
+<span class="fc bfc" id="L416" title="All 2 branches covered.">                    hasExtendsWildcardAsReturnType</span>
+<span class="fc bfc" id="L417" title="All 2 branches covered.">                    || hasSuperWildcardAsReturnType;</span>
+<span class="fc" id="L418">            final boolean isAllowedBoundedWildcards =</span>
+<span class="fc bfc" id="L419" title="All 2 branches covered.">                    allowReturnWildcardWithExtends</span>
+<span class="fc bfc" id="L420" title="All 2 branches covered.">                    &amp;&amp; allowReturnWildcardWithSuper;</span>
+<span class="fc bfc" id="L421" title="All 2 branches covered.">            result = isAllowedBoundedWildcards</span>
+<span class="fc bfc" id="L422" title="All 2 branches covered.">                            &amp;&amp; hasBoundedWildcardAsReturnType</span>
+<span class="fc bfc" id="L423" title="All 2 branches covered.">                    || allowReturnWildcardWithExtends</span>
+<span class="fc bfc" id="L424" title="All 2 branches covered.">                            &amp;&amp; hasOnlyExtendsWildcardAsReturnType</span>
+<span class="fc bfc" id="L425" title="All 2 branches covered.">                    || allowReturnWildcardWithSuper</span>
+<span class="fc bfc" id="L426" title="All 2 branches covered.">                            &amp;&amp; hasOnlySuperWildcardAsReturnType;</span>
+        }
+<span class="fc" id="L428">        return result;</span>
+    }
+
+    /**
+     * Verify that method's return type name matches ignore regexp.
+     * @param methodDefAst DetailAST of method.
+     * @return true if aMethodDefAST's name matches ignore regexp.
+     *      false otherwise.
+     */
+    private boolean matchesIgnoreClassNames(DetailAST methodDefAst) {
+<span class="fc" id="L438">        final DetailAST methodTypeAst =</span>
+<span class="fc" id="L439">                methodDefAst.findFirstToken(TokenTypes.TYPE);</span>
+<span class="fc" id="L440">        final String typeIdentifier = getIdentifier(methodTypeAst);</span>
+<span class="fc" id="L441">        return returnTypeClassNamesIgnoreRegex</span>
+<span class="fc" id="L442">                .matcher(typeIdentifier).matches();</span>
+    }
+
+    /**
+     * Verify that method has bounded wildcard in type arguments list.
+     * @param typeArgumentsList list of type arguments.
+     * @param boundedWildcardType type of bounded wildcard.
+     * @return true if aTypeArgumentsList contains bounded wildcard.
+     */
+    private static boolean hasBoundedWildcardAsReturnType(
+            final List&lt;DetailAST&gt; typeArgumentsList, int boundedWildcardType) {
+<span class="fc" id="L453">        boolean result = false;</span>
+<span class="fc bfc" id="L454" title="All 2 branches covered.">        for (DetailAST typeArgumentAst: typeArgumentsList) {</span>
+<span class="fc bfc" id="L455" title="All 2 branches covered.">            if (hasChildToken(typeArgumentAst, boundedWildcardType)) {</span>
+<span class="fc" id="L456">                result = true;</span>
+<span class="fc" id="L457">                break;</span>
+            }
+        }
+<span class="fc" id="L460">        return result;</span>
+    }
+
+}
+</pre><div class="footer"><span class="right">Created with <a href="http://www.eclemma.org/jacoco">JaCoCo</a> 0.7.1.201405082137</span></div></body></html>

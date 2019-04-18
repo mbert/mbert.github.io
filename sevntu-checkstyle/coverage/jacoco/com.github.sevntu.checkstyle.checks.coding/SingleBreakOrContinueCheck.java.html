@@ -1,0 +1,187 @@
+<?xml version="1.0" encoding="UTF-8"?><!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Strict//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-strict.dtd"><html xmlns="http://www.w3.org/1999/xhtml" lang="en"><head><meta http-equiv="Content-Type" content="text/html;charset=UTF-8"/><link rel="stylesheet" href="../.resources/report.css" type="text/css"/><link rel="shortcut icon" href="../.resources/report.gif" type="image/gif"/><title>SingleBreakOrContinueCheck.java</title><link rel="stylesheet" href="../.resources/prettify.css" type="text/css"/><script type="text/javascript" src="../.resources/prettify.js"></script></head><body onload="window['PR_TAB_WIDTH']=4;prettyPrint()"><div class="breadcrumb" id="breadcrumb"><span class="info"><a href="../.sessions.html" class="el_session">Sessions</a></span><a href="../index.html" class="el_report">sevntu-checks</a> &gt; <a href="index.source.html" class="el_package">com.github.sevntu.checkstyle.checks.coding</a> &gt; <span class="el_source">SingleBreakOrContinueCheck.java</span></div><h1>SingleBreakOrContinueCheck.java</h1><pre class="source lang-java linenums">////////////////////////////////////////////////////////////////////////////////
+// checkstyle: Checks Java source code for adherence to a set of rules.
+// Copyright (C) 2001-2019 the original author or authors.
+//
+// This library is free software; you can redistribute it and/or
+// modify it under the terms of the GNU Lesser General Public
+// License as published by the Free Software Foundation; either
+// version 2.1 of the License, or (at your option) any later version.
+//
+// This library is distributed in the hope that it will be useful,
+// but WITHOUT ANY WARRANTY; without even the implied warranty of
+// MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the GNU
+// Lesser General Public License for more details.
+//
+// You should have received a copy of the GNU Lesser General Public
+// License along with this library; if not, write to the Free Software
+// Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA
+////////////////////////////////////////////////////////////////////////////////
+
+package com.github.sevntu.checkstyle.checks.coding;
+
+import com.puppycrawl.tools.checkstyle.api.AbstractCheck;
+import com.puppycrawl.tools.checkstyle.api.DetailAST;
+import com.puppycrawl.tools.checkstyle.api.TokenTypes;
+
+/**
+ * &lt;p&gt;
+ * This check restricts the number of break and continue statements inside cycle body (only one is
+ * allowed).
+ * &lt;/p&gt;
+ * &lt;p&gt;
+ * Restricting the number of break and continue statements in a loop is done in the interest of good
+ * structured programming.
+ * &lt;/p&gt;
+ * &lt;p&gt;
+ * One break and continue statement is acceptable in a loop, since it facilitates optimal coding. If
+ * there is more than one, the code should be refactored to increase readability.
+ * &lt;/p&gt;
+ * &lt;p&gt;
+ * For example: (http://nemo.sonarqube.org/coding_rules#languages=java|q=one%20break)
+ * &lt;/p&gt;
+ *
+ * &lt;pre&gt;
+ * for (int i = 1; i &amp;lt;= 10; i++)
+ * { // violation - 2 continue - one might be tempted to add some logic in between
+ *     if (i % 2 == 0)
+ *     {
+ *         continue;
+ *     }
+ *
+ *     if (i % 3 == 0)
+ *     {
+ *         continue;
+ *     }
+ *
+ *     System.out.println(&quot;i = &quot; + i);
+ * }
+ * &lt;/pre&gt;
+ * &lt;p&gt;
+ * Please note that Switch statements and inner loops are &lt;em&gt;ignored&lt;/em&gt; in this check. This Rule
+ * only validate loop structure with depth 0.
+ * &lt;/p&gt;
+ * &lt;p&gt;
+ * For example:
+ * &lt;/p&gt;
+ *
+ * &lt;pre&gt;
+ * for (int i = 1; i &amp;lt;= 10; i++)// OK - Outer loop
+ * {
+ *     while (true) // violation - Inner loop: 1 continue and 1 break
+ *     {
+ *         if (true)
+ *         {
+ *             continue;
+ *         }
+ *
+ *         if (true)
+ *         {
+ *             break;
+ *         }
+ *
+ *         System.out.println(&quot;violation - 1 continue and 1 break&quot;);
+ *     }
+ * }
+ * &lt;/pre&gt;
+ *
+ * &lt;pre&gt;
+ *  while (true) // OK - Switch block
+ *  {
+ *      final char chr = value.charAt(i);
+ *      switch (chr) {
+ *      case '&amp;lt;':
+ *          sb.append(&quot;&amp;lt;&quot;);
+ *          break;
+ *      case '&amp;gt;':
+ *          sb.append(&quot;&amp;gt;&quot;);
+ *          break;
+ *      case '\&quot;':
+ *          sb.append(&quot;&amp;quot;&quot;);
+ *          break;
+ *      case '&amp;amp;':
+ *          sb.append(chr);
+ *          break;
+ *      default:
+ *          sb.append(chr);
+ *          break;
+ *      }
+ *  }
+ * &lt;/pre&gt;
+ *
+ * @author &lt;a href=&quot;mailto:yasser.aziza@gmail.com&quot;&gt;Yasser Aziza&lt;/a&gt;
+ * @since 1.18.0
+ */
+<span class="fc" id="L114">public class SingleBreakOrContinueCheck extends AbstractCheck {</span>
+
+    /**
+     * Warning message key.
+     */
+    public static final String MSG_KEY = &quot;single.break.or.continue.in.loops&quot;;
+
+    @Override
+    public int[] getDefaultTokens() {
+<span class="fc" id="L123">        return new int[] {</span>
+<span class="fc" id="L124">            TokenTypes.LITERAL_FOR,</span>
+<span class="fc" id="L125">            TokenTypes.LITERAL_WHILE,</span>
+<span class="fc" id="L126">            TokenTypes.LITERAL_DO, };</span>
+    }
+
+    @Override
+    public int[] getAcceptableTokens() {
+<span class="fc" id="L131">        return getDefaultTokens();</span>
+    }
+
+    @Override
+    public int[] getRequiredTokens() {
+<span class="fc" id="L136">        return getDefaultTokens();</span>
+    }
+
+    @Override
+    public void visitToken(DetailAST ast) {
+<span class="fc bfc" id="L141" title="All 2 branches covered.">        if (getNumberOfContinueAndBreaks(ast.getFirstChild()) &gt; 1) {</span>
+<span class="fc" id="L142">            log(ast, MSG_KEY);</span>
+        }
+<span class="fc" id="L144">    }</span>
+
+    /**
+     * Gets the number of &quot;continue&quot; and &quot;break&quot; statements inside a loop.
+     *
+     * @param node current parent node.
+     * @return number of break and continue statements inside a loop
+     */
+    private int getNumberOfContinueAndBreaks(DetailAST node) {
+<span class="fc" id="L153">        int numberOfBreakOrContinue = 0;</span>
+
+<span class="fc bfc" id="L155" title="All 2 branches covered.">        if (node != null) {</span>
+<span class="fc bfc" id="L156" title="All 2 branches covered.">            if (TokenTypes.LITERAL_CONTINUE == node.getType()</span>
+<span class="fc bfc" id="L157" title="All 2 branches covered.">                    || TokenTypes.LITERAL_BREAK == node.getType()) {</span>
+<span class="fc" id="L158">                numberOfBreakOrContinue++;</span>
+<span class="fc" id="L159">            }</span>
+<span class="fc bfc" id="L160" title="All 2 branches covered.">            else if (shouldIgnore(node)) {</span>
+<span class="fc" id="L161">                numberOfBreakOrContinue += getNumberOfContinueAndBreaks(node.getNextSibling());</span>
+<span class="fc" id="L162">            }</span>
+            else {
+<span class="fc" id="L164">                numberOfBreakOrContinue += getNumberOfContinueAndBreaks(node.getFirstChild());</span>
+<span class="fc" id="L165">                numberOfBreakOrContinue += getNumberOfContinueAndBreaks(node.getNextSibling());</span>
+            }
+        }
+
+<span class="fc" id="L169">        return numberOfBreakOrContinue;</span>
+    }
+
+    /**
+     * Either a node should be ignored while counting the number of &quot;break&quot; and &quot;continue&quot;
+     * statements. This check is needed in order to e.g. ignore Switch statements and inner loops.
+     *
+     * @param node current node.
+     * @return &lt;code&gt;true&lt;/code&gt; if the node should be ignored, otherwise &lt;code&gt;false&lt;/code&gt;
+     */
+    private static boolean shouldIgnore(DetailAST node) {
+<span class="fc bfc" id="L180" title="All 2 branches covered.">        return TokenTypes.LITERAL_SWITCH == node.getType()</span>
+<span class="fc bfc" id="L181" title="All 2 branches covered.">                || TokenTypes.LITERAL_FOR == node.getType()</span>
+<span class="fc bfc" id="L182" title="All 2 branches covered.">                || TokenTypes.LITERAL_WHILE == node.getType()</span>
+<span class="fc bfc" id="L183" title="All 2 branches covered.">                || TokenTypes.LITERAL_DO == node.getType();</span>
+    }
+
+}
+</pre><div class="footer"><span class="right">Created with <a href="http://www.eclemma.org/jacoco">JaCoCo</a> 0.7.1.201405082137</span></div></body></html>

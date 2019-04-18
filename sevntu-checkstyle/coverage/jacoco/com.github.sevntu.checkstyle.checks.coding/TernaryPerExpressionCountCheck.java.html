@@ -1,0 +1,287 @@
+<?xml version="1.0" encoding="UTF-8"?><!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Strict//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-strict.dtd"><html xmlns="http://www.w3.org/1999/xhtml" lang="en"><head><meta http-equiv="Content-Type" content="text/html;charset=UTF-8"/><link rel="stylesheet" href="../.resources/report.css" type="text/css"/><link rel="shortcut icon" href="../.resources/report.gif" type="image/gif"/><title>TernaryPerExpressionCountCheck.java</title><link rel="stylesheet" href="../.resources/prettify.css" type="text/css"/><script type="text/javascript" src="../.resources/prettify.js"></script></head><body onload="window['PR_TAB_WIDTH']=4;prettyPrint()"><div class="breadcrumb" id="breadcrumb"><span class="info"><a href="../.sessions.html" class="el_session">Sessions</a></span><a href="../index.html" class="el_report">sevntu-checks</a> &gt; <a href="index.source.html" class="el_package">com.github.sevntu.checkstyle.checks.coding</a> &gt; <span class="el_source">TernaryPerExpressionCountCheck.java</span></div><h1>TernaryPerExpressionCountCheck.java</h1><pre class="source lang-java linenums">////////////////////////////////////////////////////////////////////////////////
+// checkstyle: Checks Java source code for adherence to a set of rules.
+// Copyright (C) 2001-2019 the original author or authors.
+//
+// This library is free software; you can redistribute it and/or
+// modify it under the terms of the GNU Lesser General Public
+// License as published by the Free Software Foundation; either
+// version 2.1 of the License, or (at your option) any later version.
+//
+// This library is distributed in the hope that it will be useful,
+// but WITHOUT ANY WARRANTY; without even the implied warranty of
+// MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the GNU
+// Lesser General Public License for more details.
+//
+// You should have received a copy of the GNU Lesser General Public
+// License along with this library; if not, write to the Free Software
+// Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA
+////////////////////////////////////////////////////////////////////////////////
+
+package com.github.sevntu.checkstyle.checks.coding;
+
+import java.util.LinkedList;
+import java.util.List;
+
+import com.puppycrawl.tools.checkstyle.api.AbstractCheck;
+import com.puppycrawl.tools.checkstyle.api.DetailAST;
+import com.puppycrawl.tools.checkstyle.api.TokenTypes;
+
+/**
+ * Restricts the number of ternary operators in expression to a specific limit.&lt;br&gt;&lt;br&gt;
+ * &lt;b&gt;Rationale:&lt;/b&gt; This Check helps to improve code readability by pointing developer on&lt;br&gt;
+ * expressions which contain more than user-defined count of ternary operators.&lt;br&gt;&lt;br&gt;
+ * It points to complicated ternary
+ * &lt;a href=&quot;http://docs.oracle.com/javase/tutorial/java/nutsandbolts/expressions.html&quot;&gt;
+ * expressions&lt;/a&gt;.
+ * Reason:&lt;br&gt;
+ * - Complicated ternary expressions are not easy to read.&lt;br&gt;
+ * - Complicated ternary expressions could lead to ambiguous result if user&lt;br&gt;
+ * does not know Java's operators priority well, e.g.:&lt;br&gt;
+ *
+ * &lt;pre&gt;
+ * String str = null;
+ * String x = str != null ? &quot;A&quot; : &quot;B&quot; + str == null ? &quot;C&quot; : &quot;D&quot;;
+ * System.out.println(x);
+ * &lt;/pre&gt;
+ *
+ * &lt;p&gt;
+ * Output for code above is &quot;D&quot;, but more obvious would be &quot;BC&quot;.
+ * &lt;/p&gt;
+ * &lt;p&gt;
+ * Check has following properties:
+ * &lt;/p&gt;
+ * &lt;ul&gt;
+ * &lt;li&gt;&lt;b&gt;maxTernaryPerExpressionCount&lt;/b&gt; - limit of ternary operators per
+ * expression&lt;br&gt;
+ * &lt;/li&gt;
+ * &lt;li&gt;&lt;b&gt;ignoreTernaryOperatorsInBraces&lt;/b&gt; - if true Check will ignore ternary operators&lt;br&gt;
+ * in braces (braces explicitly set priority level)&lt;br&gt;
+ * &lt;/li&gt;
+ * &lt;li&gt;&lt;b&gt;ignoreIsolatedTernaryOnLine&lt;/b&gt; - if true Check will ignore one line ternary operators,
+ * &lt;br&gt;
+ * if only it is places in line alone.&lt;br&gt;
+ * &lt;/li&gt;
+ * &lt;/ul&gt;
+ * Options &lt;b&gt;ignoreTernaryOperatorsInBraces&lt;/b&gt; and &lt;b&gt;ignoreIsolatedTernaryOnLine&lt;/b&gt; can&lt;br&gt;
+ * make Check less strict, e.g.:&lt;br&gt;
+ * Using &lt;b&gt;ignoreTernaryOperatorsInBraces&lt;/b&gt; option (value = &lt;b&gt;true&lt;/b&gt;)&lt;br&gt;
+ * does not put violation on code below:&lt;br&gt;
+ *
+ * &lt;pre&gt;
+ * callString = &quot;{? = call &quot; +
+ *   (StringUtils.hasLength(catalogNameToUse)
+ *   ? catalogNameToUse + &quot;.&quot; : &quot;&quot;) +
+ *   (StringUtils.hasLength(schemaNameToUse)
+ *   ? schemaNameToUse + &quot;.&quot; : &quot;&quot;) +
+ *   procedureNameToUse + &quot;(&quot;;
+ * &lt;/pre&gt;
+ *
+ * &lt;p&gt;
+ * When using &lt;b&gt;ignoreIsolatedTernaryOnLine&lt;/b&gt; (value = &lt;b&gt;true&lt;/b&gt;), even without&lt;br&gt;
+ * &lt;b&gt;ignoreTernaryOperatorsInBraces&lt;/b&gt; option Check won't warn on code below:
+ * &lt;/p&gt;
+ *
+ * &lt;pre&gt;
+ * int a = (d == 5) ? d : f
+ *   +
+ *   ((d == 6) ? g : k);
+ * &lt;/pre&gt;
+ *
+ * @author &lt;a href=&quot;mailto:nesterenko-aleksey@list.ru&quot;&gt;Aleksey Nesterenko&lt;/a&gt;
+ * @since 1.12.0
+ */
+
+<span class="fc" id="L94">public class TernaryPerExpressionCountCheck extends AbstractCheck {</span>
+
+    /**
+     * A key is pointing to the warning message text in &quot;messages.properties&quot;
+     * file.
+     */
+    public static final String MSG_KEY = &quot;ternary.per.expression.count&quot;;
+
+    /** Default limit of ternary operators per expression. */
+    private static final int DEFAULT_MAX_TERNARY_PER_EXPRESSION_COUNT = 1;
+
+    /** Limit of ternary operators per expression. */
+<span class="fc" id="L106">    private int maxTernaryPerExpressionCount = DEFAULT_MAX_TERNARY_PER_EXPRESSION_COUNT;</span>
+
+    /**
+     * If true Check will ignore ternary operators in braces (braces explicitly
+     * set priority level).
+     */
+<span class="fc" id="L112">    private boolean ignoreTernaryOperatorsInBraces = true;</span>
+
+    /**
+     * If true Check will ignore one line ternary operators, if only it is
+     * places in line alone.
+     */
+<span class="fc" id="L118">    private boolean ignoreIsolatedTernaryOnLine = true;</span>
+
+    @Override
+    public int[] getDefaultTokens() {
+<span class="fc" id="L122">        return new int[] {</span>
+<span class="fc" id="L123">            TokenTypes.EXPR,</span>
+        };
+    }
+
+    @Override
+    public int[] getAcceptableTokens() {
+<span class="fc" id="L129">        return getDefaultTokens();</span>
+    }
+
+    @Override
+    public int[] getRequiredTokens() {
+<span class="fc" id="L134">        return getDefaultTokens();</span>
+    }
+
+    /**
+     * Sets the maximum number of ternary operators, default value = 1.
+     *
+     * @param maxTernaryPerExpressionCount
+     *            Number of ternary operators per expression
+     */
+    public void setMaxTernaryPerExpressionCount(int maxTernaryPerExpressionCount) {
+<span class="fc bfc" id="L144" title="All 2 branches covered.">        if (maxTernaryPerExpressionCount &lt; 0) {</span>
+<span class="fc" id="L145">            throw new IllegalArgumentException(&quot;Value should be 0 or more then 0&quot;);</span>
+        }
+<span class="fc" id="L147">        this.maxTernaryPerExpressionCount = maxTernaryPerExpressionCount;</span>
+<span class="fc" id="L148">    }</span>
+
+    /**
+     * Sets parameter to ignore ternary operators in braces, default value =
+     * true.
+     *
+     * @param ignoreTernaryOperatorsInBraces ignore ternary operators in braces
+     */
+    public void setIgnoreTernaryOperatorsInBraces(boolean ignoreTernaryOperatorsInBraces) {
+<span class="fc" id="L157">        this.ignoreTernaryOperatorsInBraces = ignoreTernaryOperatorsInBraces;</span>
+<span class="fc" id="L158">    }</span>
+
+    /**
+     * Sets parameter to ignore expressions in case if ternary operator is isolated in line.
+     *
+     * @param ignoreIsolatedTernaryOnLine ignore expressions in case if ternary
+     *     operator is isolated in line
+     */
+    public void setIgnoreIsolatedTernaryOnLine(boolean ignoreIsolatedTernaryOnLine) {
+<span class="fc" id="L167">        this.ignoreIsolatedTernaryOnLine = ignoreIsolatedTernaryOnLine;</span>
+<span class="fc" id="L168">    }</span>
+
+    @Override
+    public void visitToken(DetailAST expressionNode) {
+<span class="fc" id="L172">        final List&lt;DetailAST&gt; questionNodes = getQuestionNodes(expressionNode);</span>
+
+<span class="fc bfc" id="L174" title="All 2 branches covered.">        if (questionNodes.size() &gt; maxTernaryPerExpressionCount) {</span>
+<span class="fc" id="L175">            final DetailAST firstQuestionNode = questionNodes.get(0);</span>
+<span class="fc" id="L176">            log(firstQuestionNode, MSG_KEY, maxTernaryPerExpressionCount);</span>
+        }
+<span class="fc" id="L178">    }</span>
+
+    /**
+     * Puts question nodes from current expression node into the list.
+     * @param expressionNode
+     *          Globally considering expression node
+     * @return
+     *          List of question nodes
+     */
+    private List&lt;DetailAST&gt; getQuestionNodes(DetailAST expressionNode) {
+<span class="fc" id="L188">        final List&lt;DetailAST&gt; questionNodes = new LinkedList&lt;&gt;();</span>
+
+<span class="fc" id="L190">        DetailAST currentNode = expressionNode;</span>
+
+        do {
+<span class="fc" id="L193">            currentNode = getNextNode(expressionNode, currentNode);</span>
+<span class="fc bfc" id="L194" title="All 2 branches covered.">            if (currentNode != null</span>
+<span class="fc bfc" id="L195" title="All 2 branches covered.">                    &amp;&amp; currentNode.getType() == TokenTypes.QUESTION</span>
+<span class="fc bfc" id="L196" title="All 2 branches covered.">                    &amp;&amp; !isSkipTernaryOperator(currentNode)) {</span>
+<span class="fc" id="L197">                questionNodes.add(currentNode);</span>
+            }
+<span class="fc bfc" id="L199" title="All 2 branches covered.">        } while (currentNode != null);</span>
+
+<span class="fc" id="L201">        return questionNodes;</span>
+    }
+
+    /**
+     * Checks if options &lt;b&gt;ignoreTernaryInBraces&lt;/b&gt; or
+     * &lt;b&gt;ignoreOneTernaryPerLine&lt;/b&gt; were set, hence, count ternary
+     * operators in current expression or not.
+     * @param questionAST The token to examine.
+     * @return true if can skip ternary operator.
+     */
+    private boolean isSkipTernaryOperator(DetailAST questionAST) {
+<span class="fc bfc" id="L212" title="All 4 branches covered.">        return ignoreTernaryOperatorsInBraces &amp;&amp; isTernaryOperatorInBraces(questionAST)</span>
+<span class="fc bfc" id="L213" title="All 4 branches covered.">                || ignoreIsolatedTernaryOnLine &amp;&amp; isIsolatedTernaryOnLine(questionAST);</span>
+    }
+
+    /**
+     * Checks ternary operator if it is in braces, which are explicitly setting
+     * the priority level.
+     * @param questionAST The token to examine.
+     * @return true if ternary operator is in braces.
+     */
+    private static boolean isTernaryOperatorInBraces(DetailAST questionAST) {
+<span class="fc bfc" id="L223" title="All 2 branches covered.">        return questionAST.getPreviousSibling() != null</span>
+<span class="fc bfc" id="L224" title="All 2 branches covered.">                &amp;&amp; questionAST.getPreviousSibling().getType() == TokenTypes.LPAREN;</span>
+    }
+
+    /**
+     * Checks if there's one ternary operator per line.
+     * @param questionAST The token to examine.
+     * @return true if ternary is isolated on line.
+     */
+    private boolean isIsolatedTernaryOnLine(DetailAST questionAST) {
+<span class="fc" id="L233">        final int lineNo = questionAST.getLineNo() - 1;</span>
+<span class="fc" id="L234">        final String line = getFileContents().getText().get(lineNo);</span>
+
+<span class="fc" id="L236">        return isSingleTernaryLine(line, lineNo);</span>
+    }
+
+    /**
+     * Checks line parameter on containing more than 1 ternary operator.
+     * @param line The line to examine.
+     * @param lineNo The line number of the line.
+     * @return true if line is single ternary.
+     */
+    private boolean isSingleTernaryLine(String line, int lineNo) {
+<span class="fc" id="L246">        int questionsPerLine = 0;</span>
+<span class="fc" id="L247">        final char[] charArrayFromLine = line.toCharArray();</span>
+<span class="fc bfc" id="L248" title="All 2 branches covered.">        for (int i = 0; i &lt; line.length(); i++) {</span>
+<span class="fc" id="L249">            final char currentSymbol = charArrayFromLine[i];</span>
+<span class="fc bfc" id="L250" title="All 2 branches covered.">            if (currentSymbol == '?' &amp;&amp; !getFileContents().hasIntersectionWithComment(lineNo + 1,</span>
+<span class="fc bfc" id="L251" title="All 2 branches covered.">                    i, lineNo + 1, i)) {</span>
+<span class="fc" id="L252">                questionsPerLine++;</span>
+            }
+<span class="fc bfc" id="L254" title="All 2 branches covered.">            if (questionsPerLine &gt; 1) {</span>
+<span class="fc" id="L255">                break;</span>
+            }
+        }
+
+<span class="fc bfc" id="L259" title="All 2 branches covered.">        return questionsPerLine == 1;</span>
+    }
+
+    /**
+     * Gets the next node of a syntactical tree (child of a current node or
+     * sibling of a current node, or sibling of a parent of a current node).
+     *
+     * @param expressionNode
+     *            Globally considering expression node
+     * @param node
+     *            Current node of syntactical tree
+     * @return Next node after bypassing
+     */
+    private static DetailAST getNextNode(DetailAST expressionNode,
+            DetailAST node) {
+<span class="fc" id="L274">        DetailAST currentNode = node;</span>
+<span class="fc" id="L275">        DetailAST toVisit = currentNode.getFirstChild();</span>
+<span class="fc bfc" id="L276" title="All 4 branches covered.">        while (toVisit == null &amp;&amp; currentNode != expressionNode) {</span>
+<span class="fc" id="L277">            toVisit = currentNode.getNextSibling();</span>
+<span class="fc bfc" id="L278" title="All 2 branches covered.">            if (toVisit == null) {</span>
+<span class="fc" id="L279">                currentNode = currentNode.getParent();</span>
+            }
+        }
+
+<span class="fc" id="L283">        return toVisit;</span>
+    }
+
+}
+</pre><div class="footer"><span class="right">Created with <a href="http://www.eclemma.org/jacoco">JaCoCo</a> 0.7.1.201405082137</span></div></body></html>

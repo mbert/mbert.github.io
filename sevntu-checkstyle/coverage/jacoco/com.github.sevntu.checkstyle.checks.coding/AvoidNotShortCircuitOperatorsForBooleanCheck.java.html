@@ -1,0 +1,257 @@
+<?xml version="1.0" encoding="UTF-8"?><!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Strict//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-strict.dtd"><html xmlns="http://www.w3.org/1999/xhtml" lang="en"><head><meta http-equiv="Content-Type" content="text/html;charset=UTF-8"/><link rel="stylesheet" href="../.resources/report.css" type="text/css"/><link rel="shortcut icon" href="../.resources/report.gif" type="image/gif"/><title>AvoidNotShortCircuitOperatorsForBooleanCheck.java</title><link rel="stylesheet" href="../.resources/prettify.css" type="text/css"/><script type="text/javascript" src="../.resources/prettify.js"></script></head><body onload="window['PR_TAB_WIDTH']=4;prettyPrint()"><div class="breadcrumb" id="breadcrumb"><span class="info"><a href="../.sessions.html" class="el_session">Sessions</a></span><a href="../index.html" class="el_report">sevntu-checks</a> &gt; <a href="index.source.html" class="el_package">com.github.sevntu.checkstyle.checks.coding</a> &gt; <span class="el_source">AvoidNotShortCircuitOperatorsForBooleanCheck.java</span></div><h1>AvoidNotShortCircuitOperatorsForBooleanCheck.java</h1><pre class="source lang-java linenums">////////////////////////////////////////////////////////////////////////////////
+// checkstyle: Checks Java source code for adherence to a set of rules.
+// Copyright (C) 2001-2019 the original author or authors.
+//
+// This library is free software; you can redistribute it and/or
+// modify it under the terms of the GNU Lesser General Public
+// License as published by the Free Software Foundation; either
+// version 2.1 of the License, or (at your option) any later version.
+//
+// This library is distributed in the hope that it will be useful,
+// but WITHOUT ANY WARRANTY; without even the implied warranty of
+// MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the GNU
+// Lesser General Public License for more details.
+//
+// You should have received a copy of the GNU Lesser General Public
+// License along with this library; if not, write to the Free Software
+// Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA
+////////////////////////////////////////////////////////////////////////////////
+
+package com.github.sevntu.checkstyle.checks.coding;
+
+import java.util.LinkedList;
+import java.util.List;
+
+import com.puppycrawl.tools.checkstyle.api.AbstractCheck;
+import com.puppycrawl.tools.checkstyle.api.DetailAST;
+import com.puppycrawl.tools.checkstyle.api.TokenTypes;
+import com.puppycrawl.tools.checkstyle.utils.CheckUtil;
+
+/**
+ * This check limits using of not short-circuit operators
+ * (&quot;|&quot;, &quot;&amp;amp;&quot;, &quot;|=&quot;, &quot;&amp;amp;=&quot;) in boolean expressions.
+ * &lt;br&gt;
+ * Reason: &lt;br&gt;
+ * &amp;nbsp;&amp;nbsp;&amp;nbsp;&amp;nbsp;&amp;nbsp; Short-circuit operators (&quot;||&quot;, &quot;&amp;amp;&amp;amp;&quot;) are more
+ * safer and can accelerate the evaluation of complex boolean expressions.
+ * Check identifies an expression as a boolean if it contains at least one
+ * boolean operand or if result of expression evaluation sets the value of a
+ * boolean variable.
+ * &lt;br&gt;&lt;br&gt;&amp;nbsp;&amp;nbsp;&amp;nbsp;&amp;nbsp;&amp;nbsp;Using boolean variables that do not belong
+ * to the current class and all calls to boolean methods are not handled by
+ * this check. &lt;br&gt;&lt;br&gt; Examples: &lt;br&gt;
+ * &lt;br&gt;
+ * 1. Using of not short-circuit operators while determining a Boolean variable
+ * &lt;pre&gt;
+ * boolean x = true;
+ * boolean result = true | x || false; // a warning here
+ * &lt;/pre&gt;
+ * 2. Using of not short-circuit operators while overriding a Boolean variable.
+ * &lt;pre&gt;
+ * boolean x = true;
+ * boolean result = false;
+ * // any code
+ * result &amp;amp;= true | x || false; // a warning here
+ * &lt;/pre&gt;
+ * 3. Expression calculated with not short-circuit operators contains at least
+ * one boolean operand.
+ * &lt;pre&gt;
+ * public boolean isTrue() {
+ *     return this.z | MyObject.is() // no warnings here
+ *             || isModifier() &amp;amp;&amp;amp; isNotTrue();
+ * }
+ * ...
+ * boolean r=true;
+ * public boolean isTrue() {
+ *     return this.z | true &amp;amp;&amp;amp; r // a warning here
+ *             || isModifier() &amp;amp;&amp;amp; isNotTrue();
+ * }
+ * &lt;/pre&gt;
+ * @author &lt;a href=&quot;mailto:Daniil.Yaroslavtsev@gmail.com&quot;&gt; Daniil
+ *         Yaroslavtsev&lt;/a&gt;
+ * @since 1.8.0
+ */
+<span class="fc" id="L74">public class AvoidNotShortCircuitOperatorsForBooleanCheck extends AbstractCheck {</span>
+
+    /**
+     * A key to search the warning message text in &quot;messages.properties&quot; file.
+     * */
+    public static final String MSG_KEY = &quot;avoid.not.short.circuit.operators.for.boolean&quot;;
+
+    /**
+     * A &quot;boolean&quot; String.
+     * */
+    private static final String BOOLEAN = &quot;boolean&quot;;
+
+    /**
+     * A list contains all names of operands, which are used in the current
+     * expression, which calculates with using &quot;|&quot;, &quot;&amp;&quot;, &quot;|=&quot;, &quot;&amp;=&quot; operators.
+     * */
+<span class="fc" id="L90">    private final List&lt;String&gt; supportedOperands = new LinkedList&lt;&gt;();</span>
+
+    /**
+     * Variable, that indicates keywords &quot;true&quot; or &quot;false&quot; in current
+     * expression.
+     * */
+    private boolean hasTrueOrFalseLiteralInExpression;
+
+    @Override
+    public final int[] getDefaultTokens() {
+<span class="fc" id="L100">        return new int[] {TokenTypes.BOR, TokenTypes.BAND,</span>
+<span class="fc" id="L101">            TokenTypes.BOR_ASSIGN, TokenTypes.BAND_ASSIGN, };</span>
+    }
+
+    @Override
+    public int[] getAcceptableTokens() {
+<span class="fc" id="L106">        return getDefaultTokens();</span>
+    }
+
+    @Override
+    public int[] getRequiredTokens() {
+<span class="fc" id="L111">        return getDefaultTokens();</span>
+    }
+
+    @Override
+    public final void visitToken(final DetailAST detailAST) {
+<span class="fc" id="L116">        DetailAST currentNode = detailAST;</span>
+        // look for EXPR which is always around BOR/BAND... operators
+<span class="fc bfc" id="L118" title="All 4 branches covered.">        while (currentNode != null &amp;&amp; currentNode.getType() != TokenTypes.EXPR) {</span>
+<span class="fc" id="L119">            currentNode = currentNode.getParent();</span>
+
+<span class="fc bfc" id="L121" title="All 2 branches covered.">            if (currentNode.getType() == TokenTypes.PARAMETER_DEF) {</span>
+<span class="fc" id="L122">                currentNode = null;</span>
+            }
+        }
+
+<span class="fc bfc" id="L126" title="All 4 branches covered.">        if (currentNode != null &amp;&amp; isBooleanExpression(currentNode)) {</span>
+<span class="fc" id="L127">            log(detailAST, MSG_KEY, detailAST.getText());</span>
+        }
+
+<span class="fc" id="L130">        supportedOperands.clear();</span>
+<span class="fc" id="L131">        hasTrueOrFalseLiteralInExpression = false;</span>
+<span class="fc" id="L132">    }</span>
+
+    /**
+     * Checks whether the current method/variable definition type
+     * is &quot;Boolean&quot;.
+     * @param node - current method or variable definition node.
+     * @return &quot;true&quot; if current method or variable has a Boolean type.
+     */
+    private static boolean isBooleanType(final DetailAST node) {
+<span class="fc" id="L141">        return BOOLEAN.equals(CheckUtil.createFullType(</span>
+<span class="fc" id="L142">                node.findFirstToken(TokenTypes.TYPE)).getText());</span>
+    }
+
+    /**
+     * Checks that current expression is calculated using &quot;|&quot;, &quot;&amp;amp;&quot;, &quot;|=&quot;, &quot;&amp;amp;=&quot;
+     * operators contains at least one Boolean operand.
+     * @param node - current TokenTypes.EXPR node to check.
+     * @return &quot;true&quot; if current expression is calculated using &quot;|&quot;, &quot;&amp;amp;&quot;,
+     *     &quot;|=&quot;. &quot;&amp;amp;=&quot; operators contains at least one Boolean operand or false
+     *     otherwise.
+     */
+    public final boolean isBooleanExpression(final DetailAST node) {
+<span class="fc" id="L154">        DetailAST curNode = node;</span>
+
+<span class="fc" id="L156">        final List&lt;String&gt; childNames = getSupportedOperandsNames(curNode);</span>
+<span class="fc" id="L157">        final List&lt;String&gt; booleanVariablesNames = new LinkedList&lt;&gt;();</span>
+
+<span class="fc bfc" id="L159" title="All 2 branches covered.">        while (curNode.getType() != TokenTypes.CTOR_DEF</span>
+<span class="fc bfc" id="L160" title="All 2 branches covered.">                &amp;&amp; curNode.getType() != TokenTypes.METHOD_DEF</span>
+<span class="fc bfc" id="L161" title="All 2 branches covered.">                &amp;&amp; curNode.getType() != TokenTypes.CLASS_DEF</span>
+<span class="fc bfc" id="L162" title="All 2 branches covered.">                &amp;&amp; curNode.getType() != TokenTypes.INTERFACE_DEF</span>
+<span class="fc bfc" id="L163" title="All 2 branches covered.">                &amp;&amp; curNode.getType() != TokenTypes.ANNOTATION_DEF</span>
+<span class="fc bfc" id="L164" title="All 2 branches covered.">                &amp;&amp; curNode.getType() != TokenTypes.ENUM_DEF) {</span>
+<span class="fc" id="L165">            curNode = curNode.getParent();</span>
+        }
+
+<span class="fc" id="L168">        final int line = node.getLineNo();</span>
+<span class="fc bfc" id="L169" title="All 2 branches covered.">        for (DetailAST currentNode : getChildren(curNode.getLastChild())) {</span>
+<span class="fc bfc" id="L170" title="All 2 branches covered.">            if (currentNode.getLineNo() &lt; line</span>
+<span class="fc bfc" id="L171" title="All 2 branches covered.">                    &amp;&amp; currentNode.getType() == TokenTypes.VARIABLE_DEF</span>
+<span class="fc bfc" id="L172" title="All 2 branches covered.">                    &amp;&amp; isBooleanType(currentNode)) {</span>
+<span class="fc" id="L173">                booleanVariablesNames.add(currentNode.findFirstToken(</span>
+<span class="fc" id="L174">                        TokenTypes.IDENT).getText());</span>
+            }
+        }
+
+<span class="fc" id="L178">        boolean result = false;</span>
+<span class="fc bfc" id="L179" title="All 2 branches covered.">        for (String name : childNames) {</span>
+<span class="fc bfc" id="L180" title="All 2 branches covered.">            if (booleanVariablesNames.contains(name)) {</span>
+<span class="fc" id="L181">                result = true;</span>
+<span class="fc" id="L182">                break;</span>
+            }
+        }
+<span class="fc bfc" id="L185" title="All 4 branches covered.">        result = result || hasTrueOrFalseLiteral(node);</span>
+<span class="fc" id="L186">        return result;</span>
+    }
+
+    /** Searches for all supported operands names in current expression.
+     * When checking, treatments to external class variables, method calls,
+     * etc are not considered as expression operands.
+     * @param exprParentAST - the current TokenTypes.EXPR parent node.
+     * @return List of supported operands contained in current expression.
+     */
+    public final List&lt;String&gt; getSupportedOperandsNames(
+            final DetailAST exprParentAST) {
+<span class="fc bfc" id="L197" title="All 2 branches covered.">        for (DetailAST currentNode : getChildren(exprParentAST)) {</span>
+<span class="fc bfc" id="L198" title="All 2 branches covered.">            if (currentNode.getNumberOfChildren() &gt; 0</span>
+<span class="fc bfc" id="L199" title="All 2 branches covered.">                    &amp;&amp; currentNode.getType() != TokenTypes.METHOD_CALL) {</span>
+<span class="fc" id="L200">                getSupportedOperandsNames(currentNode);</span>
+            }
+
+<span class="fc bfc" id="L203" title="All 2 branches covered.">            if (currentNode.getType() == TokenTypes.IDENT</span>
+<span class="fc bfc" id="L204" title="All 2 branches covered.">                    &amp;&amp; currentNode.getParent().getType() != TokenTypes.DOT) {</span>
+<span class="fc" id="L205">                supportedOperands.add(currentNode.getText());</span>
+            }
+        }
+<span class="fc" id="L208">        return supportedOperands;</span>
+    }
+
+    /**
+     * Checks is the current expression has
+     * keywords &quot;true&quot; or &quot;false&quot;.
+     * @param parentAST - the current TokenTypes.EXPR parent node.
+     * @return true if the current processed expression contains
+     *     &quot;true&quot; or &quot;false&quot; keywords and false otherwise.
+     */
+    public final boolean hasTrueOrFalseLiteral(final DetailAST parentAST) {
+<span class="fc bfc" id="L219" title="All 2 branches covered.">        for (DetailAST currentNode : getChildren(parentAST)) {</span>
+<span class="fc bfc" id="L220" title="All 2 branches covered.">            if (currentNode.getNumberOfChildren() &gt; 0) {</span>
+<span class="fc" id="L221">                hasTrueOrFalseLiteral(currentNode);</span>
+            }
+
+<span class="fc" id="L224">            final int type = currentNode.getType();</span>
+<span class="fc bfc" id="L225" title="All 2 branches covered.">            if (type == TokenTypes.LITERAL_TRUE</span>
+<span class="fc bfc" id="L226" title="All 2 branches covered.">                    || type == TokenTypes.LITERAL_FALSE) {</span>
+<span class="fc" id="L227">                hasTrueOrFalseLiteralInExpression = true;</span>
+            }
+
+<span class="fc bfc" id="L230" title="All 2 branches covered.">            if (hasTrueOrFalseLiteralInExpression) {</span>
+<span class="fc" id="L231">                break;</span>
+            }
+        }
+<span class="fc" id="L234">        return hasTrueOrFalseLiteralInExpression;</span>
+    }
+
+    /**
+     * Gets all the children one level below on the current top node.
+     * @param node - current parent node.
+     * @return an array of children one level below on the current parent node
+     *         aNode.
+     */
+    private static List&lt;DetailAST&gt; getChildren(final DetailAST node) {
+<span class="fc" id="L244">        final List&lt;DetailAST&gt; result = new LinkedList&lt;&gt;();</span>
+
+<span class="fc" id="L246">        DetailAST currNode = node.getFirstChild();</span>
+
+<span class="fc bfc" id="L248" title="All 2 branches covered.">        while (currNode != null) {</span>
+<span class="fc" id="L249">            result.add(currNode);</span>
+<span class="fc" id="L250">            currNode = currNode.getNextSibling();</span>
+        }
+
+<span class="fc" id="L253">        return result;</span>
+    }
+
+}
+</pre><div class="footer"><span class="right">Created with <a href="http://www.eclemma.org/jacoco">JaCoCo</a> 0.7.1.201405082137</span></div></body></html>

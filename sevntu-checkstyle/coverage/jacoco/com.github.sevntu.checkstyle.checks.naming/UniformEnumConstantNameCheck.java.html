@@ -1,0 +1,233 @@
+<?xml version="1.0" encoding="UTF-8"?><!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Strict//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-strict.dtd"><html xmlns="http://www.w3.org/1999/xhtml" lang="en"><head><meta http-equiv="Content-Type" content="text/html;charset=UTF-8"/><link rel="stylesheet" href="../.resources/report.css" type="text/css"/><link rel="shortcut icon" href="../.resources/report.gif" type="image/gif"/><title>UniformEnumConstantNameCheck.java</title><link rel="stylesheet" href="../.resources/prettify.css" type="text/css"/><script type="text/javascript" src="../.resources/prettify.js"></script></head><body onload="window['PR_TAB_WIDTH']=4;prettyPrint()"><div class="breadcrumb" id="breadcrumb"><span class="info"><a href="../.sessions.html" class="el_session">Sessions</a></span><a href="../index.html" class="el_report">sevntu-checks</a> &gt; <a href="index.source.html" class="el_package">com.github.sevntu.checkstyle.checks.naming</a> &gt; <span class="el_source">UniformEnumConstantNameCheck.java</span></div><h1>UniformEnumConstantNameCheck.java</h1><pre class="source lang-java linenums">////////////////////////////////////////////////////////////////////////////////
+// checkstyle: Checks Java source code for adherence to a set of rules.
+// Copyright (C) 2001-2019 the original author or authors.
+//
+// This library is free software; you can redistribute it and/or
+// modify it under the terms of the GNU Lesser General Public
+// License as published by the Free Software Foundation; either
+// version 2.1 of the License, or (at your option) any later version.
+//
+// This library is distributed in the hope that it will be useful,
+// but WITHOUT ANY WARRANTY; without even the implied warranty of
+// MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the GNU
+// Lesser General Public License for more details.
+//
+// You should have received a copy of the GNU Lesser General Public
+// License along with this library; if not, write to the Free Software
+// Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA
+////////////////////////////////////////////////////////////////////////////////
+
+package com.github.sevntu.checkstyle.checks.naming;
+
+import java.util.ArrayList;
+import java.util.BitSet;
+import java.util.Collection;
+import java.util.List;
+import java.util.regex.Pattern;
+
+import com.puppycrawl.tools.checkstyle.api.AbstractCheck;
+import com.puppycrawl.tools.checkstyle.api.DetailAST;
+import com.puppycrawl.tools.checkstyle.api.TokenTypes;
+
+/**
+ * Check forces enum constants to match one of the specified patterns and forces
+ * all the values to follow only one of the specified patterns.
+ *
+ * &lt;p&gt;By default both CamelCase and UPPER_CASE are allowed, so check validates,
+ * whether all the values conform the either of them.
+ *
+ * &lt;p&gt;For example, both enums are allowed by the check:&lt;pre&gt;
+ * public enum EnumOne {
+ *    FirstElement, SecondElement, ThirdElement;
+ * }
+ * public enum EnumTwo {
+ *    FIRST_ELEMENT, SECOND_ELEMENT, THIRD_ELEMENT;
+ * }&lt;/pre&gt; But the following enum, is violated, because values conform
+ * different notations: &lt;pre&gt;
+ * public enum EnumThree {
+ *    FirstElement, SECOND_ELEMENT, ThirdElement;
+ * }
+ * &lt;/pre&gt;
+ *
+ * &lt;p&gt;To use only CamelCase, use the following configuration:
+ *
+ * &lt;pre&gt;
+ * &amp;lt;module name=&quot;UniformEnumConstantNameCheck&quot;&amp;gt;
+ *    &amp;lt;property name=&quot;format&quot; value=&quot;^[A-Z][a-zA-Z0-9]*$&quot;/&amp;gt;
+ * &amp;lt;/module&amp;gt;
+ * &lt;/pre&gt;
+ *
+ * &lt;p&gt;If both CamelCase and UPPER_CASE are allowed, use the following configuration
+ * (this is the default):
+ *
+ * &lt;pre&gt;
+ * &amp;lt;module name=&quot;UniformEnumConstantNameCheck&quot;&amp;gt;
+ *    &amp;lt;property name=&quot;format&quot; value=&quot;^[A-Z][a-zA-Z0-9]*$,^[A-Z][A-Z0-9]*(_[A-Z0-9]+)*$&quot;/&amp;gt;
+ * &amp;lt;/module&amp;gt;
+ * &lt;/pre&gt;
+ *
+ * &lt;p&gt;Only first violation is reported for each enumeration because of the nature
+ * of the check: it's impossible to determine which specific pattern user should
+ * follow for this certain enumeration, as multiple patterns have been
+ * specified. The only thing that this check reports is whether there is at
+ * least one pattern (among specified in the configuration), which all the enum
+ * constant conform or there is no.
+ *
+ * @author Pavel Baranchikov
+ * @since 1.21.0
+ */
+public class UniformEnumConstantNameCheck extends AbstractCheck {
+
+    /**
+     * Message code for format violations. Used, when more than one format
+     * violated.
+     */
+    public static final String MSG_NOT_VALID_MULTI = &quot;enum.name.formats.violated&quot;;
+    /**
+     * Message code for format violations. Used, when exactly one format
+     * violated.
+     */
+    public static final String MSG_NOT_VALID_SINGLE = &quot;enum.name.format.violated&quot;;
+    /**
+     * Camel notation regular expression.
+     */
+    public static final String CAMEL_PATTERN = &quot;^[A-Z][a-zA-Z0-9]*$&quot;;
+    /**
+     * Upper case notation regular expression.
+     */
+    public static final String UPPERCASE_PATTERN = &quot;^[A-Z][A-Z0-9]*(_[A-Z0-9]+)*$&quot;;
+    /**
+     * Default pattern for enumeration values.
+     */
+<span class="fc" id="L102">    public static final String[] DEFAULT_PATTERN = {</span>
+<span class="fc" id="L103">        CAMEL_PATTERN,</span>
+<span class="fc" id="L104">        UPPERCASE_PATTERN,</span>
+<span class="fc" id="L105">    };</span>
+
+    /**
+     * Regular expression list to test Enumeration names against.
+     */
+    private List&lt;Pattern&gt; patterns;
+    /**
+     * Number of patterns specified for {@code patterns} field. This field is
+     * always the size of {@link #patterns}.
+     */
+    private int patternCount;
+
+    /**
+     * Constructs check with the default pattern.
+     */
+<span class="fc" id="L120">    public UniformEnumConstantNameCheck() {</span>
+<span class="fc" id="L121">        setFormats(DEFAULT_PATTERN);</span>
+<span class="fc" id="L122">    }</span>
+
+    /**
+     * Method sets format to match Class Enumeration names.
+     * @param regexps format to check against
+     */
+    public final void setFormats(String... regexps) {
+<span class="fc" id="L129">        this.patterns = new ArrayList&lt;&gt;(regexps.length);</span>
+<span class="fc bfc" id="L130" title="All 2 branches covered.">        for (final String regexp: regexps) {</span>
+<span class="fc" id="L131">            final Pattern pattern = Pattern.compile(regexp, 0);</span>
+<span class="fc" id="L132">            patterns.add(pattern);</span>
+        }
+<span class="fc" id="L134">        patternCount = regexps.length;</span>
+<span class="fc" id="L135">    }</span>
+
+    @Override
+    public int[] getDefaultTokens() {
+<span class="fc" id="L139">        return getAcceptableTokens();</span>
+    }
+
+    @Override
+    public int[] getAcceptableTokens() {
+<span class="fc" id="L144">        return new int[] {</span>
+<span class="fc" id="L145">            TokenTypes.ENUM_DEF,</span>
+            };
+    }
+
+    @Override
+    public int[] getRequiredTokens() {
+<span class="fc" id="L151">        return getAcceptableTokens();</span>
+    }
+
+    @Override
+    public void visitToken(DetailAST ast) {
+<span class="fc" id="L156">        final DetailAST objBlock = ast.findFirstToken(TokenTypes.OBJBLOCK);</span>
+<span class="fc" id="L157">        final BitSet conformedPatterns = new BitSet(patternCount);</span>
+<span class="fc" id="L158">        conformedPatterns.set(0, patternCount);</span>
+<span class="fc bfc" id="L159" title="All 2 branches covered.">        for (DetailAST member = objBlock.getFirstChild(); member != null</span>
+<span class="fc bfc" id="L160" title="All 2 branches covered.">                &amp;&amp; !conformedPatterns.isEmpty();</span>
+<span class="fc" id="L161">                member = member.getNextSibling()) {</span>
+<span class="fc bfc" id="L162" title="All 2 branches covered.">            if (member.getType() != TokenTypes.ENUM_CONSTANT_DEF) {</span>
+<span class="fc" id="L163">                continue;</span>
+            }
+<span class="fc" id="L165">            final String enumName = member.findFirstToken(TokenTypes.IDENT).getText();</span>
+<span class="fc" id="L166">            final BitSet matched = match(enumName, conformedPatterns);</span>
+<span class="fc bfc" id="L167" title="All 2 branches covered.">            if (matched.isEmpty()) {</span>
+<span class="fc" id="L168">                logViolation(member, enumName, conformedPatterns);</span>
+            }
+<span class="fc" id="L170">            conformedPatterns.and(matched);</span>
+        }
+<span class="fc" id="L172">    }</span>
+
+    /**
+     * Logs violation for the specified token, representing the specified enum
+     * value wich violates the specified patterns.
+     *
+     * @param member
+     *        token, which violates the check
+     * @param enumName
+     *        enum value name for this token
+     * @param violated
+     *        bit set of violated patterns
+     */
+    private void logViolation(DetailAST member, String enumName, BitSet violated) {
+        final String patternsString;
+        final String msgKey;
+<span class="fc bfc" id="L188" title="All 2 branches covered.">        if (violated.cardinality() == 1) {</span>
+<span class="fc" id="L189">            msgKey = MSG_NOT_VALID_SINGLE;</span>
+<span class="fc" id="L190">            patternsString = patterns.get(violated.nextSetBit(0))</span>
+<span class="fc" id="L191">                    .toString();</span>
+<span class="fc" id="L192">        }</span>
+        else {
+<span class="fc" id="L194">            msgKey = MSG_NOT_VALID_MULTI;</span>
+<span class="fc" id="L195">            final Collection&lt;Pattern&gt; violatedPatterns = new ArrayList&lt;&gt;(</span>
+<span class="fc" id="L196">                    violated.cardinality());</span>
+<span class="fc" id="L197">            int index = violated.nextSetBit(0);</span>
+<span class="fc bfc" id="L198" title="All 2 branches covered.">            while (index &gt;= 0) {</span>
+<span class="fc" id="L199">                violatedPatterns.add(patterns.get(index));</span>
+<span class="fc" id="L200">                index = violated.nextSetBit(index + 1);</span>
+            }
+<span class="fc" id="L202">            patternsString = violatedPatterns.toString();</span>
+        }
+<span class="fc" id="L204">        log(member, msgKey, enumName,</span>
+<span class="fc" id="L205">                patternsString);</span>
+<span class="fc" id="L206">    }</span>
+
+    /**
+     * Matches the specified enum name against the patterns, specified by
+     * {@code conformedPatterns}.
+     *
+     * @param name
+     *        name to validate
+     * @param conformedPatterns
+     *        bit set of patterns, which the method should match against.
+     * @return bit set of matched patterns. Returned value is always a subset of
+     *         {@code conformedPatterns}
+     */
+    private BitSet match(String name, BitSet conformedPatterns) {
+<span class="fc" id="L220">        final BitSet result = new BitSet(patternCount);</span>
+<span class="fc bfc" id="L221" title="All 2 branches covered.">        for (int i = 0; i &lt; patterns.size(); i++) {</span>
+<span class="fc bfc" id="L222" title="All 2 branches covered.">            if (conformedPatterns.get(i)) {</span>
+<span class="fc" id="L223">                final Pattern pattern = patterns.get(i);</span>
+<span class="fc bfc" id="L224" title="All 2 branches covered.">                if (pattern.matcher(name).find()) {</span>
+<span class="fc" id="L225">                    result.set(i);</span>
+                }
+            }
+        }
+<span class="fc" id="L229">        return result;</span>
+    }
+
+}
+</pre><div class="footer"><span class="right">Created with <a href="http://www.eclemma.org/jacoco">JaCoCo</a> 0.7.1.201405082137</span></div></body></html>

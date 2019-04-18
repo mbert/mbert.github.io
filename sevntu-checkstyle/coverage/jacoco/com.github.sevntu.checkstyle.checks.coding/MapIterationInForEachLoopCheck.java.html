@@ -1,0 +1,766 @@
+<?xml version="1.0" encoding="UTF-8"?><!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Strict//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-strict.dtd"><html xmlns="http://www.w3.org/1999/xhtml" lang="en"><head><meta http-equiv="Content-Type" content="text/html;charset=UTF-8"/><link rel="stylesheet" href="../.resources/report.css" type="text/css"/><link rel="shortcut icon" href="../.resources/report.gif" type="image/gif"/><title>MapIterationInForEachLoopCheck.java</title><link rel="stylesheet" href="../.resources/prettify.css" type="text/css"/><script type="text/javascript" src="../.resources/prettify.js"></script></head><body onload="window['PR_TAB_WIDTH']=4;prettyPrint()"><div class="breadcrumb" id="breadcrumb"><span class="info"><a href="../.sessions.html" class="el_session">Sessions</a></span><a href="../index.html" class="el_report">sevntu-checks</a> &gt; <a href="index.source.html" class="el_package">com.github.sevntu.checkstyle.checks.coding</a> &gt; <span class="el_source">MapIterationInForEachLoopCheck.java</span></div><h1>MapIterationInForEachLoopCheck.java</h1><pre class="source lang-java linenums">////////////////////////////////////////////////////////////////////////////////
+// checkstyle: Checks Java source code for adherence to a set of rules.
+// Copyright (C) 2001-2019 the original author or authors.
+//
+// This library is free software; you can redistribute it and/or
+// modify it under the terms of the GNU Lesser General Public
+// License as published by the Free Software Foundation; either
+// version 2.1 of the License, or (at your option) any later version.
+//
+// This library is distributed in the hope that it will be useful,
+// but WITHOUT ANY WARRANTY; without even the implied warranty of
+// MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the GNU
+// Lesser General Public License for more details.
+//
+// You should have received a copy of the GNU Lesser General Public
+// License along with this library; if not, write to the Free Software
+// Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA
+////////////////////////////////////////////////////////////////////////////////
+
+package com.github.sevntu.checkstyle.checks.coding;
+
+import java.util.ArrayList;
+import java.util.HashSet;
+import java.util.List;
+import java.util.Set;
+
+import com.github.sevntu.checkstyle.SevntuUtil;
+import com.puppycrawl.tools.checkstyle.api.AbstractCheck;
+import com.puppycrawl.tools.checkstyle.api.DetailAST;
+import com.puppycrawl.tools.checkstyle.api.FullIdent;
+import com.puppycrawl.tools.checkstyle.api.TokenTypes;
+
+/**
+ * &lt;p&gt;
+ * This check can help you to write the whole for-each map iteration more
+ * correctly.
+ * &lt;/p&gt;
+ * &lt;p&gt;
+ * 1. If you iterate over a map using map.keySet() or map.entrySet(), but your
+ * code uses only map values, Check will propose you to use map.values() instead
+ * of map.keySet() or map.entrySet(). Replacing map.keySet() or map.entrySet()
+ * with map.values() for such cases can a bit improve an iteration performance.
+ * &lt;/p&gt;
+ * &lt;p&gt;
+ * Bad:
+ * &lt;/p&gt;
+ *
+ * &lt;pre&gt;
+ * for (Map.Entry&amp;lt;String, String&amp;gt; entry : map.entrySet())
+ * {
+ *     System.out.println(entry.getValue());
+ * }
+ * &lt;/pre&gt;
+ *
+ * &lt;pre&gt;
+ * for (String key : map.keySet())
+ * {
+ *     System.out.println(map.get(key));
+ * }
+ * &lt;/pre&gt;
+ * &lt;p&gt;
+ * Good:
+ * &lt;/p&gt;
+ *
+ * &lt;pre&gt;
+ * for (String value : map.values())
+ * {
+ *     System.out.println(value);
+ * }
+ * &lt;/pre&gt;
+ *
+ * &lt;p&gt;
+ * 2. If you iterate over a map using map.entrySet(), but never call
+ * entry.getValue(), Check will propose you to use map.keySet() instead of
+ * map.entrySet(). to iterate over map keys only.
+ * &lt;/p&gt;
+ * &lt;p&gt;
+ * Bad:
+ * &lt;/p&gt;
+ *
+ * &lt;pre&gt;
+ * for (Map.Entry&amp;lt;String, String&amp;gt; entry : map.entrySet())
+ * {
+ *     System.out.println(entry.getKey());
+ * }
+ * &lt;/pre&gt;
+ * &lt;p&gt;
+ * Good:
+ * &lt;/p&gt;
+ *
+ * &lt;pre&gt;
+ * for (String key : map.keySet())
+ * {
+ *     System.out.println(key);
+ * }
+ * &lt;/pre&gt;
+ *
+ * &lt;p&gt;
+ * 3. If you iterate over a map with map.keySet() and use both keys and values,
+ * check will propose you to use map.entrySet() to improve an iteration
+ * performance by avoiding search operations inside a map. For this case,
+ * iteration can significantly grow up a performance.
+ * &lt;/p&gt;
+ * &lt;p&gt;
+ * Bad:
+ * &lt;/p&gt;
+ *
+ * &lt;pre&gt;
+ * for (String key : map.keySet())
+ * {
+ *     System.out.println(key + &quot;  &quot; + map.get(key));
+ * }
+ * &lt;/pre&gt;
+ * &lt;p&gt;
+ * Good:
+ * &lt;/p&gt;
+ *
+ * &lt;pre&gt;
+ * for (Map.Entry&amp;lt;String, String&amp;gt;S entry : map.entrySet())
+ * {
+ *     System.out.println(entry.getValue() + &quot;   &quot; + entry.getKey());
+ * }
+ * &lt;/pre&gt;
+ * @author &lt;a href=&quot;mailto:maxvetrenko2241@gmail.com&quot;&gt;Max Vetrenko&lt;/a&gt;
+ * @since 1.11.0
+ */
+
+public class MapIterationInForEachLoopCheck extends AbstractCheck {
+
+    /**
+     * The key is pointing to the warning message text in &quot;messages.properties&quot;
+     * file.
+     */
+    public static final String MSG_KEY_KEYSET = &quot;map.iteration.keySet&quot;;
+
+    /**
+     * The key is pointing to the warning message text in &quot;messages.properties&quot;
+     * file.
+     */
+    public static final String MSG_KEY_ENTRYSET = &quot;map.iteration.entrySet&quot;;
+
+    /**
+     * The key is pointing to the warning message text in &quot;messages.properties&quot;
+     * file.
+     */
+    public static final String MSG_KEY_VALUES = &quot;map.iteration.values&quot;;
+
+    /**
+     * The name of keySet() method.
+     */
+    private static final String KEY_SET_METHOD_NAME = &quot;keySet&quot;;
+
+    /**
+     * The name of entrySet() method.
+     */
+    private static final String ENTRY_SET_METHOD_NAME = &quot;entrySet&quot;;
+
+    /**
+     * The name of get() method.
+     */
+    private static final String GET_NODE_NAME = &quot;get&quot;;
+
+    /**
+     * The name of getValue() method.
+     */
+    private static final String GET_VALUE_NODE_NAME = &quot;getValue&quot;;
+
+    /**
+     * The name of getKey() method.
+     */
+    private static final String GET_KEY_NODE_NAME = &quot;getKey&quot;;
+
+    /** Path string to separate layers of packages. */
+    private static final String PATH_SEPARATOR = &quot;.&quot;;
+
+    /** Path string to signify all classes of package. */
+    private static final String PATH_WILDCARD = &quot;*&quot;;
+
+    /**
+     * If this value is true, Checkstyle will process value() iterations.
+     */
+<span class="fc" id="L182">    private boolean proposeValuesUsage = true;</span>
+
+    /**
+     * If this value is true, Checkstyle will process keySet() iterations.
+     */
+    private boolean proposeKeySetUsage;
+
+    /**
+     * If this value is true, Checkstyle will process entrySet() iterations.
+     */
+    private boolean proposeEntrySetUsage;
+
+    /**
+     * This list contains Map object's names.
+     */
+<span class="fc" id="L197">    private final List&lt;String&gt; mapNamesList = new ArrayList&lt;&gt;();</span>
+
+    /**
+     * This list contains all qualified imports.
+     */
+<span class="fc" id="L202">    private final List&lt;String&gt; qualifiedImportList = new ArrayList&lt;&gt;();</span>
+
+    /**
+     * Set of allowable map implementations. You can set your own map
+     * implementations in Checkstyle configuration
+     */
+<span class="fc" id="L208">    private final Set&lt;String&gt; supportedMapImplQualifiedNames = new HashSet&lt;&gt;();</span>
+
+    /**
+     * Creates default importList and mapImportClassesNamesList.
+     */
+<span class="fc" id="L213">    public MapIterationInForEachLoopCheck() {</span>
+<span class="fc" id="L214">        setSupportedMapImplQualifiedNames(new String[] {</span>
+<span class="fc" id="L215">            &quot;java.util.Map&quot;,</span>
+<span class="fc" id="L216">            &quot;java.util.TreeMap&quot;,</span>
+<span class="fc" id="L217">            &quot;java.util.HashMap&quot;,</span>
+        });
+<span class="fc" id="L219">    }</span>
+
+    /**
+     * Set user's map implementations. It must state the full paths of imported
+     * classes. Import paths must be separated by commas. For example:
+     * java.util.Map, java.util.HashMap.
+     * @param setSupportedMapImplQualifiedNames
+     *        User's set of map implementations.
+     */
+    public final void setSupportedMapImplQualifiedNames(
+            final String... setSupportedMapImplQualifiedNames) {
+<span class="fc" id="L230">        supportedMapImplQualifiedNames.clear();</span>
+<span class="pc bpc" id="L231" title="1 of 2 branches missed.">        if (setSupportedMapImplQualifiedNames != null) {</span>
+<span class="fc bfc" id="L232" title="All 2 branches covered.">            for (String name : setSupportedMapImplQualifiedNames) {</span>
+<span class="fc" id="L233">                supportedMapImplQualifiedNames.add(name);</span>
+<span class="fc" id="L234">                final String importPathWithoutClassName = name.substring(0,</span>
+<span class="fc" id="L235">                        name.lastIndexOf(PATH_SEPARATOR) + 1) + PATH_WILDCARD;</span>
+<span class="fc" id="L236">                supportedMapImplQualifiedNames.add(importPathWithoutClassName);</span>
+            }
+        }
+<span class="fc" id="L239">    }</span>
+
+    /**
+     * Set aProcessingValue. If value is true, Check will process cases, where
+     * values() method will be suitable.
+     * @param proposeValuesUsage
+     *        User's value of mProcessingValue.
+     */
+    public void setProposeValuesUsage(
+            final boolean proposeValuesUsage) {
+<span class="fc" id="L249">        this.proposeValuesUsage = proposeValuesUsage;</span>
+<span class="fc" id="L250">    }</span>
+
+    /**
+     * Set aProcessingKeySet. If value is true, Check will process cases, where
+     * keySet() method will be suitable.
+     * @param proposeKeySetUsage
+     *        User's value of mIsCheckKeySetProcessingEnabled.
+     */
+    public void setProposeKeySetUsage(
+            final boolean proposeKeySetUsage) {
+<span class="fc" id="L260">        this.proposeKeySetUsage = proposeKeySetUsage;</span>
+<span class="fc" id="L261">    }</span>
+
+    /**
+     * Set aProcessingEntrySet. If value is true, Check will process cases,
+     * where entrySet() method will be suitable.
+     * @param proposeEntrySetUsage
+     *        User's value of mIsCheckEntrySetProcessingEnabled.
+     */
+    public void setProposeEntrySetUsage(
+            final boolean proposeEntrySetUsage) {
+<span class="fc" id="L271">        this.proposeEntrySetUsage = proposeEntrySetUsage;</span>
+<span class="fc" id="L272">    }</span>
+
+    @Override
+    public int[] getDefaultTokens() {
+<span class="fc" id="L276">        return new int[] {TokenTypes.LITERAL_FOR, TokenTypes.IMPORT, TokenTypes.VARIABLE_DEF, };</span>
+    }
+
+    @Override
+    public int[] getAcceptableTokens() {
+<span class="fc" id="L281">        return getDefaultTokens();</span>
+    }
+
+    @Override
+    public int[] getRequiredTokens() {
+<span class="fc" id="L286">        return getDefaultTokens();</span>
+    }
+
+    @Override
+    public void beginTree(DetailAST ast) {
+<span class="fc" id="L291">        qualifiedImportList.clear();</span>
+<span class="fc" id="L292">        mapNamesList.clear();</span>
+<span class="fc" id="L293">    }</span>
+
+    @Override
+    public void visitToken(DetailAST ast) {
+<span class="pc bpc" id="L297" title="1 of 4 branches missed.">        switch (ast.getType()) {</span>
+            case TokenTypes.IMPORT:
+<span class="pc bpc" id="L299" title="1 of 2 branches missed.">                final String qualifiedMapImportText = getMapImportQualifiedName(ast);</span>
+<span class="fc bfc" id="L300" title="All 2 branches covered.">                if (qualifiedMapImportText != null) {</span>
+<span class="fc" id="L301">                    qualifiedImportList.add(qualifiedMapImportText);</span>
+                }
+<span class="fc" id="L303">                break;</span>
+
+            case TokenTypes.VARIABLE_DEF:
+<span class="pc bpc" id="L306" title="2 of 6 branches missed.">                if (!qualifiedImportList.isEmpty() &amp;&amp; isMapVariable(ast)) {</span>
+<span class="fc" id="L307">                    final DetailAST mapIdentNode = ast.findFirstToken(TokenTypes.TYPE)</span>
+<span class="fc" id="L308">                            .getNextSibling();</span>
+<span class="fc" id="L309">                    final String mapName = mapIdentNode.getText();</span>
+                    //If Map name is contains into mMapNamesList, it doesn't need second inclusion
+<span class="fc bfc" id="L311" title="All 2 branches covered.">                    if (!mapNamesList.contains(mapName)) {</span>
+<span class="fc" id="L312">                        mapNamesList.add(mapIdentNode.getText());</span>
+                    }
+                }
+<span class="fc" id="L315">                break;</span>
+
+            case TokenTypes.LITERAL_FOR:
+<span class="pc bpc" id="L318" title="2 of 6 branches missed.">                if (!qualifiedImportList.isEmpty() &amp;&amp; isForEach(ast)) {</span>
+<span class="fc" id="L319">                    final String warningMessageKey = validate(ast);</span>
+<span class="fc bfc" id="L320" title="All 2 branches covered.">                    if (warningMessageKey != null) {</span>
+<span class="fc" id="L321">                        log(ast, warningMessageKey);</span>
+                    }
+                }
+<span class="fc" id="L324">                break;</span>
+
+            default:
+<span class="nc bnc" id="L327" title="All 2 branches missed.">                SevntuUtil.reportInvalidToken(ast.getType());</span>
+                break;
+        }
+<span class="fc" id="L330">    }</span>
+
+    /**
+     * Processes &quot;for-each&quot; loop.
+     * It searches for keySet() or entrySet() nodes,
+     * iterated maps, keys or entries.
+     * @param forLiteralNode
+     *        DetailAST of literal for.
+     * @return warning message key.
+     */
+    private String validate(DetailAST forLiteralNode) {
+<span class="fc" id="L341">        String warningMessageKey = null;</span>
+<span class="fc" id="L342">        final DetailAST forEachNode = forLiteralNode.findFirstToken(TokenTypes.FOR_EACH_CLAUSE);</span>
+<span class="fc" id="L343">        final DetailAST keySetOrEntrySetNode =</span>
+<span class="fc" id="L344">                getKeySetOrEntrySetNode(forEachNode);</span>
+        // Search for keySet or entrySet
+<span class="fc bfc" id="L346" title="All 2 branches covered.">        if (keySetOrEntrySetNode != null) {</span>
+<span class="fc bfc" id="L347" title="All 2 branches covered.">            final boolean isMapClassField = keySetOrEntrySetNode.getPreviousSibling()</span>
+<span class="fc" id="L348">                    .getChildCount() != 0;</span>
+
+            final String currentMapVariableName;
+
+<span class="fc bfc" id="L352" title="All 2 branches covered.">            if (isMapClassField) {</span>
+<span class="fc" id="L353">                currentMapVariableName = keySetOrEntrySetNode.getPreviousSibling().getLastChild()</span>
+<span class="fc" id="L354">                        .getText();</span>
+<span class="fc" id="L355">            }</span>
+            else {
+<span class="fc" id="L357">                currentMapVariableName = keySetOrEntrySetNode.getPreviousSibling().getText();</span>
+            }
+<span class="fc" id="L359">            final DetailAST forEachOpeningBrace = forLiteralNode.getLastChild();</span>
+
+<span class="fc bfc" id="L361" title="All 2 branches covered.">            if (!isMapPassedIntoAnyMethod(forEachOpeningBrace)) {</span>
+<span class="fc" id="L362">                final DetailAST variableDefNode = forEachNode.getFirstChild();</span>
+<span class="fc" id="L363">                final String keyOrEntryVariableName = variableDefNode.getLastChild().getText();</span>
+
+<span class="pc bpc" id="L365" title="1 of 2 branches missed.">                if (proposeKeySetUsage</span>
+<span class="fc" id="L366">                        &amp;&amp; KEY_SET_METHOD_NAME.equals(</span>
+<span class="fc bfc" id="L367" title="All 2 branches covered.">                                keySetOrEntrySetNode.getText())) {</span>
+<span class="fc" id="L368">                    warningMessageKey =</span>
+<span class="fc" id="L369">                            checkForWrongKeySetUsage(forEachOpeningBrace,</span>
+<span class="fc" id="L370">                            keyOrEntryVariableName, currentMapVariableName, isMapClassField);</span>
+<span class="fc" id="L371">                }</span>
+<span class="pc bpc" id="L372" title="1 of 2 branches missed.">                else if (proposeEntrySetUsage) {</span>
+<span class="fc" id="L373">                    warningMessageKey = checkForWrongEntrySetUsage(forEachOpeningBrace,</span>
+<span class="fc" id="L374">                            keyOrEntryVariableName);</span>
+                }
+            }
+        }
+<span class="fc" id="L378">        return warningMessageKey;</span>
+    }
+
+    /**
+     * Checks if the not is a for each.
+     * @param forNode The token to examine.
+     * @return true if is for each.
+     */
+    private static boolean isForEach(DetailAST forNode) {
+<span class="fc bfc" id="L387" title="All 2 branches covered.">        return forNode.findFirstToken(TokenTypes.FOR_EACH_CLAUSE) != null;</span>
+    }
+
+    /**
+     * Searches for keySet() or entrySet() node.
+     * @param forEachNode
+     *        Contains current for node.
+     * @return keySet() or entrySet() node. If such node didn't found, method
+     *         return null.
+     */
+    private DetailAST getKeySetOrEntrySetNode(DetailAST forEachNode) {
+<span class="fc" id="L398">        final List&lt;DetailAST&gt; identAndThisNodesList = getSubTreeNodesOfType(forEachNode,</span>
+<span class="fc" id="L399">                TokenTypes.IDENT, TokenTypes.LITERAL_THIS);</span>
+<span class="fc" id="L400">        boolean isMapClassField = false;</span>
+<span class="fc bfc" id="L401" title="All 2 branches covered.">        for (DetailAST thisNode : identAndThisNodesList) {</span>
+<span class="fc bfc" id="L402" title="All 2 branches covered.">            if (thisNode.getType() == TokenTypes.LITERAL_THIS) {</span>
+<span class="fc" id="L403">                isMapClassField = true;</span>
+<span class="fc" id="L404">                break;</span>
+            }
+        }
+<span class="fc" id="L407">        DetailAST keySetOrEntrySetNode = null;</span>
+<span class="fc bfc" id="L408" title="All 2 branches covered.">        for (DetailAST identNode : identAndThisNodesList) {</span>
+<span class="fc bfc" id="L409" title="All 2 branches covered.">            if (KEY_SET_METHOD_NAME.equals(identNode.getText())</span>
+<span class="fc bfc" id="L410" title="All 2 branches covered.">                    || ENTRY_SET_METHOD_NAME.equals(identNode.getText())) {</span>
+                final String mapClassName;
+<span class="fc bfc" id="L412" title="All 2 branches covered.">                if (isMapClassField) {</span>
+<span class="fc" id="L413">                    final DetailAST lastChild = identNode.getPreviousSibling().getLastChild();</span>
+<span class="fc bfc" id="L414" title="All 2 branches covered.">                    if (lastChild == null) {</span>
+<span class="fc" id="L415">                        mapClassName = null;</span>
+<span class="fc" id="L416">                    }</span>
+                    else {
+<span class="fc" id="L418">                        mapClassName = lastChild.getText();</span>
+                    }
+<span class="fc" id="L420">                }</span>
+                else {
+<span class="fc" id="L422">                    final DetailAST previousSibling = identNode.getPreviousSibling();</span>
+<span class="fc bfc" id="L423" title="All 2 branches covered.">                    if (previousSibling == null) {</span>
+<span class="fc" id="L424">                        mapClassName = null;</span>
+<span class="fc" id="L425">                    }</span>
+                    else {
+<span class="fc" id="L427">                        mapClassName = previousSibling.getText();</span>
+                    }
+                }
+<span class="fc bfc" id="L430" title="All 2 branches covered.">                if (mapNamesList.contains(mapClassName)) {</span>
+<span class="fc" id="L431">                    keySetOrEntrySetNode = identNode;</span>
+<span class="fc" id="L432">                    break;</span>
+                }
+            }
+        }
+<span class="fc" id="L436">        return keySetOrEntrySetNode;</span>
+    }
+
+    /**
+     * Returns true, if any method call inside for loop contains map
+     * object as parameter.
+     * @param forEachOpeningBraceNode
+     *        List with subtree IDENT nodes.
+     * @return true, if any Method Call contains Map Parameter.
+     */
+    private boolean isMapPassedIntoAnyMethod(DetailAST forEachOpeningBraceNode) {
+<span class="fc" id="L447">        boolean result = false;</span>
+<span class="fc" id="L448">        final List&lt;DetailAST&gt; methodCallNodeList = getSubTreeNodesOfType(</span>
+<span class="fc" id="L449">                forEachOpeningBraceNode, TokenTypes.METHOD_CALL);</span>
+<span class="fc bfc" id="L450" title="All 2 branches covered.">        for (DetailAST methodCallNode : methodCallNodeList) {</span>
+<span class="fc bfc" id="L451" title="All 2 branches covered.">            if (hasMapAsParameter(methodCallNode)) {</span>
+<span class="fc" id="L452">                result = true;</span>
+<span class="fc" id="L453">                break;</span>
+            }
+        }
+<span class="fc" id="L456">        return result;</span>
+    }
+
+    /**
+     * Checks is map instance passed into method call, or not.
+     * @param methodCallNode
+     *        DetailAST node of Method Call.
+     * @return return true, if method call contain map as parameter.
+     */
+    private boolean hasMapAsParameter(DetailAST methodCallNode) {
+<span class="fc" id="L466">        boolean result = false;</span>
+<span class="fc" id="L467">        final List&lt;DetailAST&gt; identNodesList = getSubTreeNodesOfType(methodCallNode,</span>
+<span class="fc" id="L468">                TokenTypes.IDENT);</span>
+<span class="fc bfc" id="L469" title="All 2 branches covered.">        for (String mapName : mapNamesList) {</span>
+<span class="fc bfc" id="L470" title="All 2 branches covered.">            for (DetailAST identNode : identNodesList) {</span>
+<span class="fc bfc" id="L471" title="All 2 branches covered.">                if (mapName.equals(identNode.getText())</span>
+<span class="fc bfc" id="L472" title="All 2 branches covered.">                        &amp;&amp; identNode.getParent().getType() == TokenTypes.EXPR) {</span>
+<span class="fc" id="L473">                    result = true;</span>
+                }
+            }
+        }
+<span class="fc" id="L477">        return result;</span>
+    }
+
+    /**
+     * Searches for wrong ketSet() usage into for cycles.
+     * @param forEachOpeningBraceNode
+     *        For-each opening brace.
+     * @param keyName
+     *        Map's key name.
+     * @param mapName
+     *        Current map name.
+     * @param isMapClassField if the map is a class field.
+     * @return keySet warning message key.
+     */
+    private String checkForWrongKeySetUsage(DetailAST forEachOpeningBraceNode, String keyName,
+            String mapName, boolean isMapClassField) {
+<span class="fc" id="L493">        String result = null;</span>
+
+<span class="fc" id="L495">        final List&lt;DetailAST&gt; identAndLiteralIfNodesList =</span>
+<span class="fc" id="L496">                getSubTreeNodesOfType(forEachOpeningBraceNode,</span>
+<span class="fc" id="L497">                        TokenTypes.IDENT, TokenTypes.LITERAL_IF);</span>
+<span class="fc" id="L498">        int methodGetCallCount = 0;</span>
+<span class="fc" id="L499">        int keyIdentCount = 0;</span>
+<span class="fc bfc" id="L500" title="All 2 branches covered.">        for (DetailAST identOrLiteralIfNode : identAndLiteralIfNodesList) {</span>
+<span class="fc" id="L501">            DetailAST mapIdentNode = identOrLiteralIfNode.getPreviousSibling();</span>
+<span class="fc bfc" id="L502" title="All 4 branches covered.">            if (isMapClassField &amp;&amp; mapIdentNode != null) {</span>
+<span class="fc" id="L503">                mapIdentNode = mapIdentNode.getLastChild();</span>
+            }
+<span class="fc bfc" id="L505" title="All 4 branches covered.">            if (mapIdentNode != null &amp;&amp; GET_NODE_NAME.equals(identOrLiteralIfNode.getText())</span>
+<span class="fc bfc" id="L506" title="All 2 branches covered.">                    &amp;&amp; mapName.equals(mapIdentNode.getText())) {</span>
+<span class="fc" id="L507">                methodGetCallCount++;</span>
+            }
+
+<span class="fc bfc" id="L510" title="All 2 branches covered.">            if (keyName.equals(identOrLiteralIfNode.getText())) {</span>
+<span class="fc" id="L511">                keyIdentCount++;</span>
+            }
+        }
+
+<span class="pc bpc" id="L515" title="1 of 4 branches missed.">        if (methodGetCallCount != 0 &amp;&amp; keyIdentCount != 0) {</span>
+<span class="fc bfc" id="L516" title="All 4 branches covered.">            if (proposeValuesUsage &amp;&amp; methodGetCallCount == keyIdentCount) {</span>
+<span class="fc" id="L517">                result = MSG_KEY_VALUES;</span>
+<span class="fc" id="L518">            }</span>
+<span class="fc bfc" id="L519" title="All 2 branches covered.">            else if (methodGetCallCount &lt; keyIdentCount</span>
+<span class="pc bpc" id="L520" title="1 of 2 branches missed.">                    &amp;&amp; methodGetCallCount &gt; 0</span>
+<span class="fc bfc" id="L521" title="All 2 branches covered.">                    &amp;&amp; getMethodGetCallInsideIfCount(identAndLiteralIfNodesList, mapName,</span>
+<span class="fc" id="L522">                            isMapClassField) != methodGetCallCount) {</span>
+<span class="fc" id="L523">                result = MSG_KEY_ENTRYSET;</span>
+            }
+        }
+<span class="fc" id="L526">        return result;</span>
+    }
+
+    /**
+     * Counts the getter methods called inside the if statement.
+     * @param identAndLiteralIfNodesList the nodes to examine.
+     * @param mapName Current map name.
+     * @param isMapClassField if the map is a class field.
+     * @return The number of methods.
+     */
+    private static int getMethodGetCallInsideIfCount(List&lt;DetailAST&gt; identAndLiteralIfNodesList,
+            String mapName, boolean isMapClassField) {
+<span class="fc" id="L538">        final DetailAST literalIfNode =</span>
+<span class="fc" id="L539">                getFirstNodeOfType(identAndLiteralIfNodesList,</span>
+<span class="fc" id="L540">                        TokenTypes.LITERAL_IF);</span>
+<span class="fc" id="L541">        int result = 0;</span>
+<span class="fc bfc" id="L542" title="All 2 branches covered.">        if (literalIfNode != null) {</span>
+<span class="fc bfc" id="L543" title="All 2 branches covered.">            for (DetailAST node : getSubTreeNodesOfType(literalIfNode, TokenTypes.IDENT)) {</span>
+<span class="fc" id="L544">                DetailAST mapIdentNode = node.getPreviousSibling();</span>
+<span class="pc bpc" id="L545" title="3 of 4 branches missed.">                if (isMapClassField &amp;&amp; mapIdentNode != null) {</span>
+<span class="nc" id="L546">                    mapIdentNode = mapIdentNode.getLastChild();</span>
+                }
+
+<span class="fc bfc" id="L549" title="All 4 branches covered.">                if (mapIdentNode != null &amp;&amp; GET_NODE_NAME.equals(node.getText())</span>
+<span class="pc bpc" id="L550" title="1 of 2 branches missed.">                        &amp;&amp; mapName.equals(mapIdentNode.getText())) {</span>
+<span class="fc" id="L551">                    result++;</span>
+                }
+            }
+        }
+<span class="fc" id="L555">        return result;</span>
+    }
+
+    /**
+     * Searches for wrong entrySet() usage inside for cycles.
+     *
+     * @param forEachOpeningBraceNode For-each opening brace.
+     * @param entryName This variable contains Map.Entry name.
+     * @return entrySet warning message key.
+     */
+    private String checkForWrongEntrySetUsage(DetailAST forEachOpeningBraceNode,
+            String entryName) {
+<span class="fc" id="L567">        String result = null;</span>
+
+<span class="fc" id="L569">        final List&lt;DetailAST&gt; identNodesList = getSubTreeNodesOfType(</span>
+<span class="fc" id="L570">                forEachOpeningBraceNode, TokenTypes.IDENT);</span>
+<span class="fc" id="L571">        int methodGetKeyCallCount = 0;</span>
+<span class="fc" id="L572">        int methodGetValueCallCount = 0;</span>
+<span class="fc bfc" id="L573" title="All 2 branches covered.">        for (DetailAST identNode : identNodesList) {</span>
+<span class="fc" id="L574">            final DetailAST entryNode = identNode.getPreviousSibling();</span>
+
+<span class="fc bfc" id="L576" title="All 4 branches covered.">            if (entryNode != null &amp;&amp; GET_KEY_NODE_NAME.equals(identNode.getText())</span>
+<span class="fc bfc" id="L577" title="All 2 branches covered.">                    &amp;&amp; entryName.equals(entryNode.getText())) {</span>
+<span class="fc" id="L578">                methodGetKeyCallCount++;</span>
+            }
+
+<span class="fc bfc" id="L581" title="All 4 branches covered.">            if (entryNode != null &amp;&amp; GET_VALUE_NODE_NAME.equals(identNode.getText())</span>
+<span class="fc bfc" id="L582" title="All 2 branches covered.">                    &amp;&amp; entryName.equals(entryNode.getText())) {</span>
+<span class="fc" id="L583">                methodGetValueCallCount++;</span>
+            }
+        }
+
+<span class="fc bfc" id="L587" title="All 2 branches covered.">        if (proposeValuesUsage</span>
+<span class="pc bpc" id="L588" title="1 of 4 branches missed.">                &amp;&amp; methodGetKeyCallCount == 0 &amp;&amp; methodGetValueCallCount &gt; 0) {</span>
+<span class="fc" id="L589">            result = MSG_KEY_VALUES;</span>
+<span class="fc" id="L590">        }</span>
+<span class="pc bpc" id="L591" title="1 of 4 branches missed.">        else if (methodGetKeyCallCount &gt; 0 &amp;&amp; methodGetValueCallCount == 0) {</span>
+<span class="fc" id="L592">            result = MSG_KEY_KEYSET;</span>
+        }
+<span class="fc" id="L594">        return result;</span>
+    }
+
+    /**
+     * Checks if the new variable is Map object, or not.
+     * @param variableDefNode
+     *        DetailAST node of Variable Definition.
+     * @return true, if the new variable is Map object.
+     */
+    private boolean isMapVariable(DetailAST variableDefNode) {
+<span class="fc" id="L604">        boolean result = false;</span>
+<span class="fc" id="L605">        final List&lt;DetailAST&gt; literalNewNodeslList =</span>
+<span class="fc" id="L606">                getSubTreeNodesOfType(variableDefNode,</span>
+<span class="fc" id="L607">                        TokenTypes.LITERAL_NEW, TokenTypes.ASSIGN);</span>
+<span class="fc" id="L608">        final String className = getClassName(literalNewNodeslList);</span>
+<span class="fc bfc" id="L609" title="All 2 branches covered.">        if (className != null</span>
+<span class="pc bpc" id="L610" title="1 of 2 branches missed.">                &amp;&amp; getFirstNodeOfType(literalNewNodeslList, TokenTypes.ASSIGN) != null) {</span>
+<span class="fc" id="L611">            result = isMapImplementation(className);</span>
+        }
+<span class="fc" id="L613">        return result;</span>
+    }
+
+    /**
+     * Checks, is current class a Map implementation or not.
+     * @param className
+     *        Current class's name.
+     * @return true, if current class is contained inside mQualifiedImportList.
+     */
+    private boolean isMapImplementation(String className) {
+<span class="fc bfc" id="L623" title="All 2 branches covered.">        return isClassContainsInsideQualifiedImportList(className)</span>
+<span class="fc bfc" id="L624" title="All 2 branches covered.">                || containsInSupportedMapImplQualifiedNames(className);</span>
+    }
+
+    /**
+     * Checks, is mSupportedMapImplQualifiedNames List contains
+     * current class.
+     * @param className
+     *        current class name.
+     * @return true, if List contains current class.
+     */
+    private boolean containsInSupportedMapImplQualifiedNames(String className) {
+<span class="fc" id="L635">        boolean result = false;</span>
+<span class="fc bfc" id="L636" title="All 2 branches covered.">        for (String supportedMapName : supportedMapImplQualifiedNames) {</span>
+<span class="fc bfc" id="L637" title="All 2 branches covered.">            if (supportedMapName.endsWith(className)) {</span>
+<span class="fc" id="L638">                final int lastDotIndex = supportedMapName.lastIndexOf(PATH_SEPARATOR) + 1;</span>
+<span class="fc" id="L639">                final String packageName = supportedMapName.substring(0, lastDotIndex)</span>
+<span class="fc" id="L640">                        + PATH_WILDCARD;</span>
+<span class="fc bfc" id="L641" title="All 2 branches covered.">                if (qualifiedImportList.contains(packageName)) {</span>
+<span class="fc" id="L642">                    result = true;</span>
+<span class="fc" id="L643">                    break;</span>
+                }
+            }
+        }
+<span class="fc" id="L647">        return result;</span>
+    }
+
+    /**
+     * Checks, is mQualifiedImportList contains
+     * current class.
+     * @param className
+     *        current class name.
+     * @return true, if List contains current class.
+     */
+    private boolean isClassContainsInsideQualifiedImportList(String className) {
+<span class="fc" id="L658">        boolean result = false;</span>
+<span class="fc bfc" id="L659" title="All 2 branches covered.">        for (String mapImplementationQualifiedName : qualifiedImportList) {</span>
+<span class="fc bfc" id="L660" title="All 2 branches covered.">            if (mapImplementationQualifiedName.endsWith(className)) {</span>
+<span class="fc" id="L661">                result = true;</span>
+<span class="fc" id="L662">                break;</span>
+            }
+        }
+<span class="fc" id="L665">        return result;</span>
+    }
+
+    /**
+     * Returns the instance's class name.
+     * @param literalNewNodesList
+     *        This list contains &quot;new&quot; literals.
+     * @return object's class name,
+     *        if class name is missed, returns null.
+     */
+    private static String getClassName(final List&lt;DetailAST&gt; literalNewNodesList) {
+<span class="fc" id="L676">        String result = null;</span>
+<span class="fc bfc" id="L677" title="All 2 branches covered.">        for (DetailAST literalNewNode : literalNewNodesList) {</span>
+<span class="fc" id="L678">            final DetailAST exprNode = literalNewNode.getParent();</span>
+<span class="fc bfc" id="L679" title="All 2 branches covered.">            if (exprNode.getParent().getType() == TokenTypes.ASSIGN) {</span>
+<span class="fc" id="L680">                result = literalNewNode.getFirstChild().getText();</span>
+<span class="fc" id="L681">                break;</span>
+            }
+        }
+<span class="fc" id="L684">        return result;</span>
+    }
+
+    /**
+     * Searches the first specific
+     * DetailAST node inside List.
+     * @param nodesList
+     *        DetailAST List witch maybe contains specific token.
+     * @param aSpecificType
+     *        A specific type of token.
+     * @return specific token or null.
+     */
+    private static DetailAST getFirstNodeOfType(List&lt;DetailAST&gt; nodesList,
+            int aSpecificType) {
+<span class="fc" id="L698">        DetailAST result = null;</span>
+<span class="fc bfc" id="L699" title="All 2 branches covered.">        for (DetailAST node : nodesList) {</span>
+<span class="fc bfc" id="L700" title="All 2 branches covered.">            if (node.getType() == aSpecificType) {</span>
+<span class="fc" id="L701">                result = node;</span>
+<span class="fc" id="L702">                break;</span>
+            }
+        }
+<span class="fc" id="L705">        return result;</span>
+    }
+
+    /**
+     * Returns full path of map implementation. If path doesn't
+     * contain full map implementation path, null will be returned.
+     * @param importNode
+     *        Import node.
+     * @return full path of map implementation or null.
+     */
+    private String getMapImportQualifiedName(DetailAST importNode) {
+<span class="fc" id="L716">        String result = null;</span>
+<span class="fc" id="L717">        final String mapClassQualifiedName = FullIdent.createFullIdent(</span>
+<span class="fc" id="L718">                importNode.getFirstChild()).getText();</span>
+<span class="fc bfc" id="L719" title="All 2 branches covered.">        for (String qualifiedName : supportedMapImplQualifiedNames) {</span>
+<span class="fc bfc" id="L720" title="All 2 branches covered.">            if (mapClassQualifiedName.equals(qualifiedName)) {</span>
+<span class="fc" id="L721">                result = mapClassQualifiedName;</span>
+<span class="fc" id="L722">                break;</span>
+            }
+        }
+<span class="fc" id="L725">        return result;</span>
+    }
+
+    /**
+     * Searches over subtree for all tokens of necessary types.
+     * @param rootNode
+     *        The root of subtree.
+     * @param tokenTypes
+     *        Token's necessary types into If condition.
+     * @return DetailAST List with necessary tokens.
+     */
+    private static List&lt;DetailAST&gt; getSubTreeNodesOfType(DetailAST rootNode,
+            int... tokenTypes) {
+<span class="fc" id="L738">        final List&lt;DetailAST&gt; result = new ArrayList&lt;&gt;();</span>
+        final DetailAST finishNode;
+<span class="fc bfc" id="L740" title="All 2 branches covered.">        if (rootNode.getNextSibling() == null) {</span>
+<span class="fc" id="L741">            finishNode = rootNode.getLastChild();</span>
+<span class="fc" id="L742">        }</span>
+        else {
+<span class="fc" id="L744">            finishNode = rootNode.getNextSibling();</span>
+        }
+<span class="fc" id="L746">        DetailAST curNode = rootNode;</span>
+<span class="pc bpc" id="L747" title="1 of 4 branches missed.">        while (curNode != null &amp;&amp; curNode != finishNode) {</span>
+<span class="fc bfc" id="L748" title="All 2 branches covered.">            for (int tokenType : tokenTypes) {</span>
+<span class="fc bfc" id="L749" title="All 2 branches covered.">                if (curNode.getType() == tokenType) {</span>
+<span class="fc" id="L750">                    result.add(curNode);</span>
+                }
+            }
+<span class="fc" id="L753">            DetailAST toVisit = curNode.getFirstChild();</span>
+<span class="pc bpc" id="L754" title="1 of 4 branches missed.">            while (curNode != null &amp;&amp; toVisit == null) {</span>
+<span class="fc" id="L755">                toVisit = curNode.getNextSibling();</span>
+<span class="fc bfc" id="L756" title="All 2 branches covered.">                if (toVisit == null) {</span>
+<span class="fc" id="L757">                    curNode = curNode.getParent();</span>
+                }
+            }
+<span class="fc" id="L760">            curNode = toVisit;</span>
+        }
+<span class="fc" id="L762">        return result;</span>
+    }
+
+}
+</pre><div class="footer"><span class="right">Created with <a href="http://www.eclemma.org/jacoco">JaCoCo</a> 0.7.1.201405082137</span></div></body></html>

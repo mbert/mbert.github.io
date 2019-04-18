@@ -1,0 +1,1414 @@
+<?xml version="1.0" encoding="UTF-8"?><!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Strict//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-strict.dtd"><html xmlns="http://www.w3.org/1999/xhtml" lang="en"><head><meta http-equiv="Content-Type" content="text/html;charset=UTF-8"/><link rel="stylesheet" href="../.resources/report.css" type="text/css"/><link rel="shortcut icon" href="../.resources/report.gif" type="image/gif"/><title>CustomDeclarationOrderCheck.java</title><link rel="stylesheet" href="../.resources/prettify.css" type="text/css"/><script type="text/javascript" src="../.resources/prettify.js"></script></head><body onload="window['PR_TAB_WIDTH']=4;prettyPrint()"><div class="breadcrumb" id="breadcrumb"><span class="info"><a href="../.sessions.html" class="el_session">Sessions</a></span><a href="../index.html" class="el_report">sevntu-checks</a> &gt; <a href="index.source.html" class="el_package">com.github.sevntu.checkstyle.checks.coding</a> &gt; <span class="el_source">CustomDeclarationOrderCheck.java</span></div><h1>CustomDeclarationOrderCheck.java</h1><pre class="source lang-java linenums">////////////////////////////////////////////////////////////////////////////////
+// checkstyle: Checks Java source code for adherence to a set of rules.
+// Copyright (C) 2001-2019 the original author or authors.
+//
+// This library is free software; you can redistribute it and/or
+// modify it under the terms of the GNU Lesser General Public
+// License as published by the Free Software Foundation; either
+// version 2.1 of the License, or (at your option) any later version.
+//
+// This library is distributed in the hope that it will be useful,
+// but WITHOUT ANY WARRANTY; without even the implied warranty of
+// MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the GNU
+// Lesser General Public License for more details.
+//
+// You should have received a copy of the GNU Lesser General Public
+// License along with this library; if not, write to the Free Software
+// Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA
+////////////////////////////////////////////////////////////////////////////////
+
+package com.github.sevntu.checkstyle.checks.coding;
+
+import java.beans.Introspector;
+import java.util.ArrayList;
+import java.util.Collections;
+import java.util.Comparator;
+import java.util.Deque;
+import java.util.LinkedHashMap;
+import java.util.LinkedList;
+import java.util.List;
+import java.util.Map;
+import java.util.Map.Entry;
+import java.util.regex.Pattern;
+import java.util.regex.PatternSyntaxException;
+
+import com.github.sevntu.checkstyle.SevntuUtil;
+import com.puppycrawl.tools.checkstyle.api.AbstractCheck;
+import com.puppycrawl.tools.checkstyle.api.DetailAST;
+import com.puppycrawl.tools.checkstyle.api.TokenTypes;
+
+/**
+ * &lt;p&gt;
+ * Checks that the parts of a class(main, nested, member inner) declaration
+ * appear in the rules order set by user using regular expressions.
+ * &lt;/p&gt;
+ * &lt;p&gt;
+ * The check forms line which consists of class member annotations, modifiers,
+ * type and name from your code and compares it with your RegExp.
+ * &lt;/p&gt;
+ * The rule consists of:
+ *
+ * &lt;pre&gt;
+ * ClassMember(RegExp)
+ * &lt;/pre&gt;
+ * To set class order use the following notation of the class members (case
+ * insensitive):
+ * &lt;ol&gt;
+ * &lt;li&gt;&quot;Field&quot; to denote the Fields&lt;/li&gt;
+ * &lt;li&gt;&quot;DeclareAnonClassField&quot; to denote the fields keeping objects of anonymous classes&lt;/li&gt;
+ * &lt;li&gt;&quot;Ctor&quot; to denote the Constructors&lt;/li&gt;
+ * &lt;li&gt;&quot;Method&quot; to denote the Methods&lt;/li&gt;
+ * &lt;li&gt;&quot;GetterSetter&quot; to denote the group of getter and setter methods&lt;/li&gt;
+ * &lt;li&gt;&quot;MainMethod&quot; to denote the main method&lt;/li&gt;
+ * &lt;li&gt;&quot;InnerClass&quot; to denote the Inner Classes&lt;/li&gt;
+ * &lt;li&gt;&quot;InnerInterface&quot; to denote the Inner Interfaces&lt;/li&gt;
+ * &lt;li&gt;&quot;InnerEnum&quot; to denote the Inner Enums&lt;/li&gt;
+ * &lt;/ol&gt;
+ * RegExp can include:
+ * &lt;ol&gt;
+ * &lt;li&gt;Annotations&lt;/li&gt;
+ * &lt;li&gt;Modifiers(public, protected, private, abstract, static,
+ * final)&lt;/li&gt;
+ * &lt;li&gt;Type&lt;/li&gt;
+ * &lt;li&gt;Name&lt;/li&gt;
+ * &lt;/ol&gt;
+ * ATTENTION!
+ * &lt;p&gt;
+ * Use separator &lt;code&gt;' ', '.', '\s'&lt;/code&gt; between declaration in the RegExp.
+ * Whitespace should be added after each modifier.
+ * &lt;/p&gt;
+ * &lt;pre&gt;
+ * Example:
+ *      Field(public .*final .*)
+ *      Field(public final .*)
+ *      Field(public&lt;code&gt;\s*&lt;/code&gt;final .*)
+ * &lt;/pre&gt;
+ * NOTICE!
+ * &lt;p&gt;
+ * It is important to write exact order of modifiers in rules. So rule
+ * &lt;code&gt;&lt;i&gt;Field(public final)&lt;/i&gt;&lt;/code&gt; does not match to
+ * &lt;code&gt;&lt;i&gt;final public value;&lt;/i&gt;&lt;/code&gt;.
+ * &lt;a href='http://checkstyle.sourceforge.net/config_modifier.html#ModifierOrder'&gt;
+ * ModifierOrderCheck&lt;/a&gt;
+ * is recommended to use.
+ * &lt;/p&gt;
+ * &lt;p&gt;
+ * If you set empty RegExp e.g. &lt;code&gt;Field()&lt;/code&gt;, it means that class member
+ * doesn't have modifiers(default modifier) and checking the type and name of
+ * member doesn't occur.
+ * &lt;/p&gt;
+ * &lt;p&gt;
+ * Between the declaration of a array and generic can't be whitespaces.
+ * E.g.: &lt;code&gt;ArrayList&amp;lt;String[]&amp;gt; someName&lt;/code&gt;
+ * &lt;/p&gt;
+ * &lt;p&gt;
+ * Use the separator '###' between the class declarations.
+ * &lt;/p&gt;
+ * &lt;p&gt;
+ * For Example:
+ * &lt;/p&gt;
+ * &lt;p&gt;
+ * &lt;code&gt;Field(private static final long serialVersionUID) ###
+ * Field(public static final .*) ### Field(.*private .*) ### Ctor(.*) ###
+ * GetterSetter(.*) ### Method(.*public .*final .*|@Ignore.*public .*) ###
+ * Method(public static .*(final|(new|edit|create).*).*) ###
+ * InnerClass(public abstract .*) ### InnerInterface(.*) ### InnerEnum(.*)&lt;/code&gt;
+ * &lt;/p&gt;
+ *
+ * &lt;p&gt;&lt;b&gt;What is group of getters and setters(&lt;code&gt;GetterSetter&lt;/code&gt;)?&lt;/b&gt;&lt;/p&gt;
+ *
+ * &lt;p&gt;
+ * It is ordered sequence of getters and setters like:
+ * &lt;/p&gt;
+ *
+ * &lt;pre&gt;
+ * public int getValue() {
+ *     log.info(&quot;Getting value&quot;);
+ *     return value;
+ * }
+ *
+ * public void setValue(int newValue) {
+ *     value = newValue;
+ * }
+ *
+ * public Object getObj() {
+ *    return obj;
+ * }
+ *
+ * public void setObj(Object obj) {
+ *    if (obj != null) {
+ *      this.obj = obj;
+ *    } else {
+ *      throw new IllegalArgumentException(&quot;Null value&quot;);
+ *    }
+ * }
+ *
+ * ...
+ * &lt;/pre&gt;
+ * &lt;p&gt;Getter is public method that returns class field. Name of getter should be
+ * 'get&lt;i&gt;FieldName&lt;/i&gt;' in camel case.&lt;/p&gt;
+ * &lt;p&gt;Setter is public method with one parameter that assigns this parameter to class field.
+ * Name of setter should be 'set&lt;i&gt;FieldName&lt;/i&gt;' in camel case.&lt;/p&gt;
+ * &lt;p&gt;Setter of field X should be right after getter of field X.&lt;/p&gt;
+ *
+ * @author &lt;a href=&quot;mailto:solid.danil@gmail.com&quot;&gt;Danil Lopatin&lt;/a&gt;
+ * @author &lt;a href=&quot;mailto:barataliba@gmail.com&quot;&gt;Baratali Izmailov&lt;/a&gt;
+ * @since 1.8.0
+ */
+public class CustomDeclarationOrderCheck extends AbstractCheck {
+
+    /**
+     * A key is pointing to the warning message text in &quot;messages.properties&quot;
+     * file.
+     */
+    public static final String MSG_KEY_FIELD = &quot;custom.declaration.order.field&quot;;
+
+    /**
+     * A key is pointing to the warning message text in &quot;messages.properties&quot;
+     * file.
+     */
+    public static final String MSG_KEY_METHOD = &quot;custom.declaration.order.method&quot;;
+
+    /**
+     * A key is pointing to the warning message text in &quot;messages.properties&quot;
+     * file.
+     */
+    public static final String MSG_KEY_CONSTRUCTOR = &quot;custom.declaration.order.constructor&quot;;
+
+    /**
+     * A key is pointing to the warning message text in &quot;messages.properties&quot;
+     * file.
+     */
+    public static final String MSG_KEY_CLASS = &quot;custom.declaration.order.class&quot;;
+
+    /**
+     * A key is pointing to the warning message text in &quot;messages.properties&quot;
+     * file.
+     */
+    public static final String MSG_KEY_INTERFACE = &quot;custom.declaration.order.interface&quot;;
+
+    /**
+     * A key is pointing to the warning message text in &quot;messages.properties&quot;
+     * file.
+     */
+    public static final String MSG_KEY_ENUM = &quot;custom.declaration.order.enum&quot;;
+
+    /**
+     * A key is pointing to the warning message text in &quot;messages.properties&quot;
+     * file.
+     */
+    public static final String MSG_KEY_INVALID_SETTER = &quot;custom.declaration.order.invalid.setter&quot;;
+
+    /** Macro string for inner enumeration. */
+    private static final String INNER_ENUM_MACRO = &quot;InnerEnum&quot;;
+
+    /** Macro string for inner interface. */
+    private static final String INNER_INTERFACE_MACRO = &quot;InnerInterface&quot;;
+
+    /** Macro string for inner class. */
+    private static final String INNER_CLASS_MACRO = &quot;InnerClass&quot;;
+
+    /** Macro string for constructor. */
+    private static final String CTOR_MACRO = &quot;Ctor&quot;;
+
+    /** Macro string for method. */
+    private static final String METHOD_MACRO = &quot;Method&quot;;
+
+    /** Macro string for anonymous class field. */
+    private static final String ANON_CLASS_FIELD_MACRO = &quot;DeclareAnonClassField&quot;;
+
+    /** Macro string for field. */
+    private static final String FIELD_MACRO = &quot;Field&quot;;
+
+    /** Macro string for getter and setter. */
+    private static final String GETTER_SETTER_MACRO = &quot;GetterSetter&quot;;
+
+    /** Macro string for main method. */
+    private static final String MAIN_METHOD_MACRO = &quot;MainMethod&quot;;
+
+    /** Prefix for boolean getter method name. */
+    private static final String BOOLEAN_GETTER_PREFIX = &quot;is&quot;;
+
+    /** Prefix for getter method name. */
+    private static final String GETTER_PREFIX = &quot;get&quot;;
+
+    /** Prefix for setter method name. */
+    private static final String SETTER_PREFIX = &quot;set&quot;;
+
+    /** Default format for custom declaration check. */
+    private static final String DEFAULT_DECLARATION = &quot;Field(.*public .*) &quot;
+            + &quot;### Field(.*protected .*) ### Field(.*private .*) ### CTOR(.*) ### &quot;
+            + &quot;MainMethod(.*) ### GetterSetter(.*) ### Method(.*) ### InnerClass(.*) &quot;
+            + &quot;### InnerInterface(.*) ### InnerEnum(.*)&quot;;
+
+    /**
+     * Compares line numbers.
+     */
+<span class="fc" id="L247">    private static final Comparator&lt;DetailAST&gt; AST_LINE_COMPARATOR = new Comparator&lt;DetailAST&gt;() {</span>
+        @Override
+        public int compare(DetailAST aObj1, DetailAST aObj2) {
+<span class="fc" id="L250">            return aObj1.getLineNo() - aObj2.getLineNo();</span>
+        }
+<span class="fc" id="L252">    };</span>
+
+    /** List of order declaration customizing by user. */
+<span class="fc" id="L255">    private final List&lt;FormatMatcher&gt; customOrderDeclaration =</span>
+<span class="fc" id="L256">        new ArrayList&lt;&gt;();</span>
+
+    /** Save compile flags for further usage. */
+    private int compileFlags;
+
+    /** Allow check inner classes. */
+    private boolean checkInnerClasses;
+
+    /**
+     * Allows to check getters and setters.
+     */
+    private boolean checkGettersSetters;
+
+    /**
+     * Prefix of class fields.
+     */
+<span class="fc" id="L272">    private String fieldPrefix = &quot;&quot;;</span>
+
+    /**
+     * Stack of GetterSetterContainer objects to keep all getters and all setters
+     * of certain class.
+     */
+<span class="fc" id="L278">    private final Deque&lt;ClassDetail&gt; classDetails = new LinkedList&lt;&gt;();</span>
+
+    /** Constructor to set default format. */
+<span class="fc" id="L281">    public CustomDeclarationOrderCheck() {</span>
+<span class="fc" id="L282">        setCustomDeclarationOrder(DEFAULT_DECLARATION);</span>
+<span class="fc" id="L283">    }</span>
+
+    /**
+     * Set custom order declaration from string with user rules.
+     *
+     * @param inputOrderDeclaration The string line with the user custom
+     *            declaration.
+     */
+    public final void setCustomDeclarationOrder(final String inputOrderDeclaration) {
+<span class="fc" id="L292">        customOrderDeclaration.clear();</span>
+<span class="fc bfc" id="L293" title="All 2 branches covered.">        for (String currentState : inputOrderDeclaration.split(&quot;\\s*###\\s*&quot;)) {</span>
+            try {
+<span class="fc" id="L295">                customOrderDeclaration</span>
+<span class="fc" id="L296">                        .add(parseInputDeclarationRule(currentState));</span>
+<span class="fc" id="L297">            }</span>
+<span class="nc" id="L298">            catch (StringIndexOutOfBoundsException exp) {</span>
+                //if the structure of the input rule isn't correct
+<span class="nc" id="L300">                throw new IllegalArgumentException(&quot;Unable to parse input rule: &quot;</span>
+<span class="nc" id="L301">                        + currentState, exp);</span>
+            }
+        }
+<span class="fc" id="L304">    }</span>
+
+    /**
+     * Set prefix of class fields.
+     * @param fieldPrefix string
+     */
+    public void setFieldPrefix(String fieldPrefix) {
+<span class="nc" id="L311">        this.fieldPrefix = fieldPrefix;</span>
+<span class="nc" id="L312">    }</span>
+
+    /**
+     * Set whether or not the match is case sensitive.
+     *
+     * @param caseSensitive true if the match is case sensitive.
+     */
+    public void setCaseSensitive(final boolean caseSensitive) {
+        // 0 - case sensitive flag
+<span class="fc bfc" id="L321" title="All 2 branches covered.">        if (caseSensitive) {</span>
+<span class="fc" id="L322">            compileFlags = 0;</span>
+<span class="fc" id="L323">        }</span>
+        else {
+<span class="fc" id="L325">            compileFlags = Pattern.CASE_INSENSITIVE;</span>
+        }
+
+<span class="fc bfc" id="L328" title="All 2 branches covered.">        for (FormatMatcher currentRule : customOrderDeclaration) {</span>
+<span class="fc" id="L329">            currentRule.setCompileFlags(compileFlags);</span>
+        }
+<span class="fc" id="L331">    }</span>
+
+    @Override
+    public int[] getDefaultTokens() {
+<span class="fc" id="L335">        final int size = customOrderDeclaration.size();</span>
+<span class="fc" id="L336">        final int[] tokenTypes = new int[size + 1];</span>
+
+<span class="fc bfc" id="L338" title="All 2 branches covered.">        for (int i = 0; i &lt; size; i++) {</span>
+<span class="fc" id="L339">            final FormatMatcher currentRule = customOrderDeclaration.get(i);</span>
+<span class="fc" id="L340">            tokenTypes[i] = currentRule.getClassMember();</span>
+
+<span class="fc bfc" id="L342" title="All 2 branches covered.">            if (currentRule.hasRule(INNER_CLASS_MACRO)) {</span>
+<span class="fc" id="L343">                checkInnerClasses = true;</span>
+<span class="fc" id="L344">            }</span>
+<span class="fc bfc" id="L345" title="All 2 branches covered.">            else if (currentRule.hasRule(GETTER_SETTER_MACRO)) {</span>
+<span class="fc" id="L346">                checkGettersSetters = true;</span>
+            }
+        }
+
+<span class="fc" id="L350">        tokenTypes[size] = TokenTypes.CLASS_DEF;</span>
+
+<span class="fc" id="L352">        return tokenTypes;</span>
+    }
+
+    @Override
+    public int[] getAcceptableTokens() {
+<span class="fc" id="L357">        return getDefaultTokens();</span>
+    }
+
+    @Override
+    public int[] getRequiredTokens() {
+<span class="fc" id="L362">        return getDefaultTokens();</span>
+    }
+
+    @Override
+    public void visitToken(DetailAST ast) {
+<span class="fc bfc" id="L367" title="All 2 branches covered.">        if (ast.getType() == TokenTypes.CLASS_DEF) {</span>
+<span class="fc bfc" id="L368" title="All 2 branches covered.">            if (!isClassDefInMethodDef(ast)) {</span>
+<span class="fc bfc" id="L369" title="All 4 branches covered.">                if (checkInnerClasses &amp;&amp; !classDetails.isEmpty()) {</span>
+<span class="fc" id="L370">                    final int position = getPositionInOrderDeclaration(ast);</span>
+
+<span class="pc bpc" id="L372" title="1 of 2 branches missed.">                    if (position != -1) {</span>
+<span class="fc bfc" id="L373" title="All 2 branches covered.">                        if (isWrongPosition(position)) {</span>
+<span class="fc" id="L374">                            logWrongOrderedElement(ast, position);</span>
+<span class="fc" id="L375">                        }</span>
+                        else {
+<span class="fc" id="L377">                            classDetails.peek().setCurrentPosition(position);</span>
+                        }
+                    }
+                }
+
+<span class="fc" id="L382">                classDetails.push(new ClassDetail());</span>
+            }
+<span class="fc" id="L384">        }</span>
+        else {
+<span class="fc" id="L386">            final DetailAST objBlockAst = ast.getParent();</span>
+<span class="pc bpc" id="L387" title="1 of 2 branches missed.">            if (objBlockAst != null</span>
+<span class="fc bfc" id="L388" title="All 2 branches covered.">                &amp;&amp; objBlockAst.getType() == TokenTypes.OBJBLOCK) {</span>
+<span class="fc" id="L389">                final DetailAST classDefAst = objBlockAst.getParent();</span>
+
+<span class="fc bfc" id="L391" title="All 2 branches covered.">                if (classDefAst.getType() == TokenTypes.CLASS_DEF</span>
+<span class="fc bfc" id="L392" title="All 2 branches covered.">                    &amp;&amp; !isClassDefInMethodDef(classDefAst)) {</span>
+<span class="fc bfc" id="L393" title="All 2 branches covered.">                    if (checkGettersSetters) {</span>
+<span class="fc" id="L394">                        collectGetterSetter(ast);</span>
+                    }
+
+<span class="fc" id="L397">                    final int position = getPositionInOrderDeclaration(ast);</span>
+
+<span class="fc bfc" id="L399" title="All 2 branches covered.">                    if (position != -1) {</span>
+<span class="fc bfc" id="L400" title="All 2 branches covered.">                        if (isWrongPosition(position)) {</span>
+<span class="fc" id="L401">                            logWrongOrderedElement(ast, position);</span>
+<span class="fc" id="L402">                        }</span>
+                        else {
+<span class="fc" id="L404">                            classDetails.peek().setCurrentPosition(position);</span>
+                        }
+                    }
+                }
+            }
+        }
+<span class="fc" id="L410">    }</span>
+
+    @Override
+    public void leaveToken(DetailAST ast) {
+<span class="fc bfc" id="L414" title="All 2 branches covered.">        if (ast.getType() == TokenTypes.CLASS_DEF</span>
+<span class="fc bfc" id="L415" title="All 2 branches covered.">                &amp;&amp; !isClassDefInMethodDef(ast)) {</span>
+            // -@cs[MoveVariableInsideIf] assignment value is a modification
+            // call so it can't be moved
+<span class="fc" id="L418">            final ClassDetail classDetail = classDetails.pop();</span>
+
+<span class="fc bfc" id="L420" title="All 2 branches covered.">            if (checkGettersSetters) {</span>
+<span class="fc" id="L421">                final Map&lt;DetailAST, DetailAST&gt; gettersSetters =</span>
+<span class="fc" id="L422">                        classDetail.getWrongOrderedGettersSetters();</span>
+
+<span class="fc" id="L424">                logWrongOrderedSetters(gettersSetters);</span>
+            }
+        }
+<span class="fc" id="L427">    }</span>
+
+    /**
+     * Parse input current declaration rule and create new instance of
+     * FormatMather with matcher.
+     *
+     * @param currentState input string with MemberDefinition and RegExp.
+     * @return new FormatMatcher with parsed and compile rule
+     */
+    private FormatMatcher parseInputDeclarationRule(final String currentState) {
+        // parse mClassMember
+<span class="fc" id="L438">        final String macro = currentState.substring(0,</span>
+<span class="fc" id="L439">                currentState.indexOf('(')).trim();</span>
+<span class="fc" id="L440">        final int classMember = convertMacroToTokenType(macro);</span>
+<span class="pc bpc" id="L441" title="1 of 2 branches missed.">        if (classMember == -1) {</span>
+            // if Class Member has been specified wrong
+<span class="nc" id="L443">            throw new IllegalArgumentException(&quot;Unable to parse &quot; + macro);</span>
+        }
+
+        // parse regExp
+<span class="fc" id="L447">        String regExp = currentState.substring(</span>
+<span class="fc" id="L448">                currentState.indexOf('(') + 1,</span>
+<span class="fc" id="L449">                currentState.lastIndexOf(')'));</span>
+<span class="fc bfc" id="L450" title="All 2 branches covered.">        if (regExp.isEmpty()) {</span>
+            // package level
+<span class="fc" id="L452">            regExp = &quot;package&quot;;</span>
+        }
+
+<span class="fc" id="L455">        final FormatMatcher matcher = new FormatMatcher(currentState, classMember);</span>
+<span class="fc" id="L456">        matcher.updateRegexp(regExp, compileFlags);</span>
+
+<span class="fc" id="L458">        return matcher;</span>
+    }
+
+    /**
+     * Finds correspondence between the reduced name of class member of and
+     * its complete naming in system.
+     *
+     * @param inputMemberName a string name which must be normalize.
+     * @return correct name of member or initial string if no matches was
+     *         found.
+     */
+    private static int convertMacroToTokenType(
+            String inputMemberName) {
+<span class="fc" id="L471">        int result = -1;</span>
+<span class="fc bfc" id="L472" title="All 2 branches covered.">        if (FIELD_MACRO.equalsIgnoreCase(inputMemberName)</span>
+<span class="fc bfc" id="L473" title="All 2 branches covered.">                || ANON_CLASS_FIELD_MACRO.equalsIgnoreCase(inputMemberName)) {</span>
+<span class="fc" id="L474">            result = TokenTypes.VARIABLE_DEF;</span>
+<span class="fc" id="L475">        }</span>
+<span class="fc bfc" id="L476" title="All 2 branches covered.">        else if (GETTER_SETTER_MACRO.equalsIgnoreCase(inputMemberName)</span>
+<span class="fc bfc" id="L477" title="All 2 branches covered.">                || METHOD_MACRO.equalsIgnoreCase(inputMemberName)</span>
+<span class="fc bfc" id="L478" title="All 2 branches covered.">                || MAIN_METHOD_MACRO.equalsIgnoreCase(inputMemberName)) {</span>
+<span class="fc" id="L479">            result = TokenTypes.METHOD_DEF;</span>
+<span class="fc" id="L480">        }</span>
+<span class="fc bfc" id="L481" title="All 2 branches covered.">        else if (CTOR_MACRO.equalsIgnoreCase(inputMemberName)) {</span>
+<span class="fc" id="L482">            result = TokenTypes.CTOR_DEF;</span>
+<span class="fc" id="L483">        }</span>
+<span class="fc bfc" id="L484" title="All 2 branches covered.">        else if (INNER_CLASS_MACRO.equalsIgnoreCase(inputMemberName)) {</span>
+<span class="fc" id="L485">            result = TokenTypes.CLASS_DEF;</span>
+<span class="fc" id="L486">        }</span>
+<span class="fc bfc" id="L487" title="All 2 branches covered.">        else if (INNER_INTERFACE_MACRO.equalsIgnoreCase(inputMemberName)) {</span>
+<span class="fc" id="L488">            result = TokenTypes.INTERFACE_DEF;</span>
+<span class="fc" id="L489">        }</span>
+<span class="pc bpc" id="L490" title="1 of 2 branches missed.">        else if (INNER_ENUM_MACRO.equalsIgnoreCase(inputMemberName)) {</span>
+<span class="fc" id="L491">            result = TokenTypes.ENUM_DEF;</span>
+        }
+<span class="fc" id="L493">        return result;</span>
+    }
+
+    /**
+     * Verify that class definition is in method definition.
+     * @param classDef
+     *        DetailAST of CLASS_DEF.
+     * @return true if class definition is in method definition.
+     */
+    private static boolean isClassDefInMethodDef(DetailAST classDef) {
+<span class="fc" id="L503">        boolean result = false;</span>
+<span class="fc" id="L504">        DetailAST currentParentAst = classDef.getParent();</span>
+<span class="fc bfc" id="L505" title="All 2 branches covered.">        while (currentParentAst != null) {</span>
+<span class="fc bfc" id="L506" title="All 2 branches covered.">            if (currentParentAst.getType() == TokenTypes.METHOD_DEF) {</span>
+<span class="fc" id="L507">                result = true;</span>
+<span class="fc" id="L508">                break;</span>
+            }
+<span class="fc" id="L510">            currentParentAst = currentParentAst.getParent();</span>
+        }
+<span class="fc" id="L512">        return result;</span>
+    }
+
+    /**
+     * Logs wrong ordered element.
+     * @param ast DetailAST of any class element.
+     * @param position Position in the custom order declaration.
+     */
+    private void logWrongOrderedElement(final DetailAST ast, final int position) {
+<span class="fc" id="L521">        String token = null;</span>
+<span class="pc bpc" id="L522" title="2 of 7 branches missed.">        switch (ast.getType()) {</span>
+            case TokenTypes.VARIABLE_DEF:
+<span class="pc bpc" id="L524" title="1 of 2 branches missed.">                token = MSG_KEY_FIELD;</span>
+<span class="fc" id="L525">                break;</span>
+            case TokenTypes.METHOD_DEF:
+<span class="pc bpc" id="L527" title="1 of 2 branches missed.">                token = MSG_KEY_METHOD;</span>
+<span class="fc" id="L528">                break;</span>
+            case TokenTypes.CTOR_DEF:
+<span class="pc bpc" id="L530" title="1 of 2 branches missed.">                token = MSG_KEY_CONSTRUCTOR;</span>
+<span class="fc" id="L531">                break;</span>
+            case TokenTypes.CLASS_DEF:
+<span class="pc bpc" id="L533" title="1 of 2 branches missed.">                token = MSG_KEY_CLASS;</span>
+<span class="fc" id="L534">                break;</span>
+            case TokenTypes.INTERFACE_DEF:
+<span class="pc bpc" id="L536" title="1 of 2 branches missed.">                token = MSG_KEY_INTERFACE;</span>
+<span class="fc" id="L537">                break;</span>
+            case TokenTypes.ENUM_DEF:
+<span class="nc bnc" id="L539" title="All 2 branches missed.">                token = MSG_KEY_ENUM;</span>
+<span class="nc" id="L540">                break;</span>
+            default:
+<span class="nc bnc" id="L542" title="All 2 branches missed.">                SevntuUtil.reportInvalidToken(ast.getType());</span>
+                break;
+        }
+
+<span class="fc" id="L546">        final int expectedPosition = classDetails.peek().getCurrentPosition();</span>
+<span class="fc" id="L547">        log(ast,</span>
+<span class="fc" id="L548">                token,</span>
+<span class="fc" id="L549">                customOrderDeclaration.get(position).getRule(),</span>
+<span class="fc" id="L550">                customOrderDeclaration.get(expectedPosition).getRule());</span>
+<span class="fc" id="L551">    }</span>
+
+    /**
+     * Check that position is wrong in custom declaration order.
+     * @param position position of class member.
+     * @return true if position is wrong.
+     */
+    private boolean isWrongPosition(final int position) {
+<span class="fc" id="L559">        boolean result = false;</span>
+<span class="fc" id="L560">        final ClassDetail classDetail = classDetails.peek();</span>
+<span class="fc" id="L561">        final Integer classCurrentPosition = classDetail.getCurrentPosition();</span>
+<span class="fc bfc" id="L562" title="All 2 branches covered.">        if (classCurrentPosition &gt; position) {</span>
+<span class="fc" id="L563">            result = true;</span>
+        }
+<span class="fc" id="L565">        return result;</span>
+    }
+
+    /**
+     * Log wrong ordered setters.
+     * @param gettersSetters map that has getter as key and setter as value.
+     */
+    private void logWrongOrderedSetters(Map&lt;DetailAST, DetailAST&gt; gettersSetters) {
+<span class="fc bfc" id="L573" title="All 2 branches covered.">        for (Entry&lt;DetailAST, DetailAST&gt; entry: gettersSetters.entrySet()) {</span>
+<span class="fc" id="L574">            final DetailAST setterAst = entry.getKey();</span>
+<span class="fc" id="L575">            final DetailAST getterAst = entry.getValue();</span>
+
+<span class="fc" id="L577">            log(setterAst,</span>
+<span class="fc" id="L578">                    MSG_KEY_INVALID_SETTER,</span>
+<span class="fc" id="L579">                    getIdentifier(setterAst),</span>
+<span class="fc" id="L580">                    getIdentifier(getterAst));</span>
+        }
+<span class="fc" id="L582">    }</span>
+
+    /**
+     * If method definition is getter or setter,
+     * then adds this method to collection.
+     * @param methodDefAst DetailAST of method definition.
+     */
+    private void collectGetterSetter(DetailAST methodDefAst) {
+<span class="pc bpc" id="L590" title="1 of 2 branches missed.">        if (methodDefAst.getType() == TokenTypes.METHOD_DEF) {</span>
+<span class="fc" id="L591">            final String methodName = getIdentifier(methodDefAst);</span>
+<span class="fc bfc" id="L592" title="All 2 branches covered.">            if (isGetterName(methodName)) {</span>
+<span class="fc bfc" id="L593" title="All 2 branches covered.">                if (isGetterCorrect(methodDefAst, GETTER_PREFIX)) {</span>
+<span class="fc" id="L594">                    classDetails.peek().addGetter(methodDefAst);</span>
+                }
+<span class="fc" id="L596">            }</span>
+<span class="fc bfc" id="L597" title="All 2 branches covered.">            else if (isBooleanGetterName(methodName)) {</span>
+<span class="fc bfc" id="L598" title="All 2 branches covered.">                if (isGetterCorrect(methodDefAst, BOOLEAN_GETTER_PREFIX)) {</span>
+<span class="fc" id="L599">                    classDetails.peek().addGetter(methodDefAst);</span>
+                }
+<span class="fc" id="L601">            }</span>
+<span class="fc bfc" id="L602" title="All 2 branches covered.">            else if (isSetterName(methodName)</span>
+<span class="fc bfc" id="L603" title="All 2 branches covered.">                    &amp;&amp; isSetterCorrect(methodDefAst, SETTER_PREFIX)) {</span>
+<span class="fc" id="L604">                classDetails.peek().addSetter(methodDefAst);</span>
+            }
+        }
+<span class="fc" id="L607">    }</span>
+
+    /**
+     * Search in existing custom declaration order current aAST state. It's
+     * necessary for getting order of declarations.
+     *
+     * @param ast current DetailAST state.
+     * @return position in the list of the sequence declaration if
+     *         correspondence has been found. Else -1.
+     */
+    private int getPositionInOrderDeclaration(final DetailAST ast) {
+<span class="fc" id="L618">        int result = -1;</span>
+<span class="fc" id="L619">        final String modifiers = getCombinedModifiersList(ast);</span>
+<span class="fc bfc" id="L620" title="All 4 branches covered.">        for (int index = 0; result != 1 &amp;&amp; index &lt; customOrderDeclaration.size(); index++) {</span>
+<span class="fc" id="L621">            final FormatMatcher currentRule = customOrderDeclaration.get(index);</span>
+<span class="fc bfc" id="L622" title="All 2 branches covered.">            if (currentRule.getClassMember() == ast.getType()</span>
+<span class="fc bfc" id="L623" title="All 2 branches covered.">                    &amp;&amp; currentRule.getRegexp().matcher(modifiers).find()) {</span>
+<span class="fc bfc" id="L624" title="All 2 branches covered.">                if (currentRule.hasRule(ANON_CLASS_FIELD_MACRO)</span>
+<span class="fc bfc" id="L625" title="All 2 branches covered.">                        || currentRule.hasRule(GETTER_SETTER_MACRO)</span>
+<span class="fc bfc" id="L626" title="All 2 branches covered.">                        || currentRule.hasRule(MAIN_METHOD_MACRO)) {</span>
+<span class="fc" id="L627">                    final String methodName = getIdentifier(ast);</span>
+<span class="fc" id="L628">                    final ClassDetail classDetail = classDetails.peek();</span>
+
+<span class="fc bfc" id="L630" title="All 2 branches covered.">                    if (isAnonymousClassField(ast)</span>
+<span class="fc bfc" id="L631" title="All 2 branches covered.">                            || classDetail.containsGetter(methodName)</span>
+<span class="fc bfc" id="L632" title="All 2 branches covered.">                            || classDetail.containsSetter(methodName)</span>
+<span class="fc bfc" id="L633" title="All 2 branches covered.">                            || isMainMethod(ast)) {</span>
+<span class="fc" id="L634">                        result = index;</span>
+                    }
+<span class="fc" id="L636">                }</span>
+                else {
+                    // if more than one rule matches current AST node, then keep first one
+<span class="fc bfc" id="L639" title="All 2 branches covered.">                    if (result == -1) {</span>
+<span class="fc" id="L640">                        result = index;</span>
+                    }
+                }
+            }
+        }
+<span class="fc" id="L645">        return result;</span>
+    }
+
+    /**
+     * Verify that there is anonymous class in variable definition and this
+     * variable is a field.
+     * @param varDefinitionAst
+     *        DetailAST of variable definition.
+     * @return true if there is anonymous class in variable definition and this
+     *         variable is a field.
+     */
+    private static boolean isAnonymousClassField(DetailAST varDefinitionAst) {
+<span class="fc" id="L657">        boolean result = false;</span>
+        // ClassDef -&gt; ObjBlock -&gt; VarDef
+<span class="fc" id="L659">        final int parentType = varDefinitionAst.getParent().getParent().getType();</span>
+<span class="pc bpc" id="L660" title="1 of 2 branches missed.">        if (parentType == TokenTypes.CLASS_DEF) {</span>
+<span class="fc" id="L661">            final DetailAST assignAst = varDefinitionAst</span>
+<span class="fc" id="L662">                    .findFirstToken(TokenTypes.ASSIGN);</span>
+<span class="fc bfc" id="L663" title="All 2 branches covered.">            if (assignAst != null) {</span>
+<span class="fc" id="L664">                final DetailAST expressionToAssignAst = assignAst</span>
+<span class="fc" id="L665">                        .findFirstToken(TokenTypes.EXPR);</span>
+<span class="pc bpc" id="L666" title="1 of 2 branches missed.">                result = expressionToAssignAst != null</span>
+<span class="fc bfc" id="L667" title="All 2 branches covered.">                        &amp;&amp; isAnonymousClass(expressionToAssignAst);</span>
+            }
+        }
+<span class="fc" id="L670">        return result;</span>
+    }
+
+    /**
+     * Verify that method name starts with getter prefix (get).
+     * @param methodName method name
+     * @return true if method name starts with getter prefix.
+     */
+    private static boolean isGetterName(String methodName) {
+<span class="fc" id="L679">        return methodName.startsWith(GETTER_PREFIX);</span>
+    }
+
+    /**
+     * Verify that method name starts with boolean getter prefix (is).
+     * @param methodName method name
+     * @return true if method name starts with boolean getter prefix.
+     */
+    private static boolean isBooleanGetterName(String methodName) {
+<span class="fc" id="L688">        return methodName.startsWith(BOOLEAN_GETTER_PREFIX);</span>
+    }
+
+    /**
+     * Verify that method name starts with setter prefix (set).
+     * @param methodName method name
+     * @return true if method name starts with setter prefix.
+     */
+    private static boolean isSetterName(String methodName) {
+<span class="fc" id="L697">        return methodName.startsWith(SETTER_PREFIX);</span>
+    }
+
+    /**
+     * Returns true when getter is correct. Correct getter is method that has no parameters,
+     * returns class field and has name 'get&lt;i&gt;FieldName&lt;/i&gt;'.
+     * @param methodDef
+     *        - DetailAST contains method definition.
+     * @param methodPrefix
+     *          Prefix for method (get, set, is).
+     * @return true when getter is correct.
+     */
+    private boolean isGetterCorrect(DetailAST methodDef, String methodPrefix) {
+<span class="fc" id="L710">        boolean result = false;</span>
+
+<span class="fc" id="L712">        final DetailAST parameters = methodDef.findFirstToken(TokenTypes.PARAMETERS);</span>
+
+        // no parameters
+<span class="fc bfc" id="L715" title="All 2 branches covered.">        if (parameters.getChildCount() == 0) {</span>
+<span class="fc" id="L716">            final DetailAST statementsAst = methodDef.findFirstToken(TokenTypes.SLIST);</span>
+<span class="fc bfc" id="L717" title="All 2 branches covered.">            if (statementsAst != null) {</span>
+<span class="fc" id="L718">                final DetailAST returnStatementAst = statementsAst</span>
+<span class="fc" id="L719">                        .findFirstToken(TokenTypes.LITERAL_RETURN);</span>
+
+<span class="pc bpc" id="L721" title="1 of 2 branches missed.">                if (returnStatementAst != null) {</span>
+<span class="fc" id="L722">                    final DetailAST exprAst = returnStatementAst.getFirstChild();</span>
+<span class="fc" id="L723">                    final String returnedFieldName = getNameOfGetterField(exprAst);</span>
+<span class="fc" id="L724">                    final String methodName = getIdentifier(methodDef);</span>
+<span class="fc" id="L725">                    final String methodNameWithoutPrefix = getNameWithoutPrefix(methodName,</span>
+<span class="fc" id="L726">                            methodPrefix);</span>
+<span class="pc bpc" id="L727" title="1 of 2 branches missed.">                    if (returnedFieldName != null</span>
+<span class="pc bpc" id="L728" title="1 of 2 branches missed.">                            &amp;&amp; !localVariableHidesField(statementsAst, returnedFieldName)</span>
+<span class="fc" id="L729">                            &amp;&amp; verifyFieldAndMethodName(returnedFieldName,</span>
+<span class="fc bfc" id="L730" title="All 2 branches covered.">                                    methodNameWithoutPrefix)) {</span>
+<span class="fc" id="L731">                        result = true;</span>
+                    }
+                }
+            }
+        }
+<span class="fc" id="L736">        return result;</span>
+    }
+
+    /**
+     * Checks if a local variable hides a field.
+     * @param slist The token to examine.
+     * @param fieldName The name of the field.
+     * @return true if the local variable is hidden from a field.
+     */
+    private static boolean localVariableHidesField(DetailAST slist,
+            String fieldName) {
+<span class="fc" id="L747">        boolean result = false;</span>
+<span class="fc" id="L748">        DetailAST currNode = slist.getFirstChild();</span>
+<span class="fc bfc" id="L749" title="All 2 branches covered.">        while (currNode != null) {</span>
+<span class="pc bpc" id="L750" title="1 of 2 branches missed.">            if (currNode.getType() == TokenTypes.VARIABLE_DEF</span>
+<span class="nc bnc" id="L751" title="All 2 branches missed.">                    &amp;&amp; fieldName.equals(getIdentifier(currNode))) {</span>
+<span class="nc" id="L752">                result = true;</span>
+<span class="nc" id="L753">                break;</span>
+            }
+<span class="fc" id="L755">            currNode = currNode.getNextSibling();</span>
+        }
+<span class="fc" id="L757">        return result;</span>
+    }
+
+    /**
+     * Returns true when setter is correct. Correct setter is method that has one parameter,
+     * assigns this parameter to class field and has name 'set&lt;i&gt;FieldName&lt;/i&gt;'.
+     * @param methodDefAst
+     *        - DetailAST contains method definition.
+     * @param methodPrefix
+     *          Prefix for method (get, set, is).
+     * @return true when setter is correct.
+     */
+    private boolean isSetterCorrect(DetailAST methodDefAst, String methodPrefix) {
+<span class="fc" id="L770">        boolean result = false;</span>
+
+<span class="fc" id="L772">        final DetailAST methodTypeAst = methodDefAst.findFirstToken(TokenTypes.TYPE);</span>
+
+<span class="pc bpc" id="L774" title="1 of 2 branches missed.">        if (methodTypeAst.findFirstToken(TokenTypes.LITERAL_VOID) != null) {</span>
+<span class="fc" id="L775">            final DetailAST statementsAst = methodDefAst.findFirstToken(TokenTypes.SLIST);</span>
+<span class="fc" id="L776">            final String methodName = getIdentifier(methodDefAst);</span>
+<span class="fc" id="L777">            final String setterFieldName = fieldPrefix</span>
+<span class="fc" id="L778">                    + getNameWithoutPrefix(methodName, methodPrefix);</span>
+
+<span class="fc bfc" id="L780" title="All 2 branches covered.">            result = statementsAst != null</span>
+<span class="pc bpc" id="L781" title="1 of 2 branches missed.">                    &amp;&amp; !localVariableHidesField(statementsAst, setterFieldName)</span>
+<span class="fc bfc" id="L782" title="All 2 branches covered.">                    &amp;&amp; isFieldUpdate(statementsAst, setterFieldName);</span>
+        }
+<span class="fc" id="L784">        return result;</span>
+    }
+
+    /**
+     * Verify that expression is anonymous class.
+     * @param expressionAst
+     *        DetailAST of expression.
+     * @return true if expression is anonymous class.
+     */
+    private static boolean isAnonymousClass(DetailAST expressionAst) {
+<span class="fc" id="L794">        boolean result = false;</span>
+<span class="fc" id="L795">        final DetailAST literalNewAst = expressionAst</span>
+<span class="fc" id="L796">                .findFirstToken(TokenTypes.LITERAL_NEW);</span>
+<span class="fc bfc" id="L797" title="All 2 branches covered.">        if (literalNewAst != null) {</span>
+<span class="fc" id="L798">            final DetailAST objBlockAst = literalNewAst.findFirstToken(TokenTypes.OBJBLOCK);</span>
+<span class="pc bpc" id="L799" title="1 of 2 branches missed.">            result = objBlockAst != null;</span>
+        }
+<span class="fc" id="L801">        return result;</span>
+    }
+
+    /**
+     * Use for concatenation modifiers, annotations, type and
+     * name of member in single line. &lt;br&gt;
+     * Contains TokenTypes parameters for entry in child.
+     *
+     * @param ast current DetailAST state.
+     * @return the unit annotations and modifiers and list.
+     */
+    private static String getCombinedModifiersList(final DetailAST ast) {
+<span class="fc" id="L813">        final StringBuilder modifiers = new StringBuilder();</span>
+<span class="fc" id="L814">        DetailAST astNode = ast.findFirstToken(TokenTypes.MODIFIERS);</span>
+<span class="fc bfc" id="L815" title="All 2 branches covered.">        if (astNode.getFirstChild() == null) {</span>
+            //if we met package level modifier
+<span class="fc" id="L817">            modifiers.append(&quot;package &quot;);</span>
+        }
+
+<span class="fc bfc" id="L820" title="All 2 branches covered.">        while (astNode.getType() != TokenTypes.IDENT) {</span>
+<span class="fc bfc" id="L821" title="All 2 branches covered.">            if (astNode.getFirstChild() != null) {</span>
+<span class="fc" id="L822">                modifiers.append(getModifiersAsText(astNode.getFirstChild()));</span>
+<span class="fc" id="L823">                modifiers.append(' ');</span>
+            }
+<span class="fc" id="L825">            astNode = astNode.getNextSibling();</span>
+        }
+        // add IDENT(name)
+<span class="fc" id="L828">        modifiers.append(astNode.getText());</span>
+
+<span class="fc" id="L830">        return modifiers.toString();</span>
+    }
+
+    /**
+     * Get text representation of MODIFIERS node.
+     *
+     * @param ast current DetailAST node.
+     * @return text representation of MODIFIERS node.
+     */
+    private static String getModifiersAsText(final DetailAST ast) {
+<span class="fc" id="L840">        DetailAST astNode = ast;</span>
+<span class="fc" id="L841">        String separator = &quot;&quot;;</span>
+<span class="fc" id="L842">        final StringBuilder modifiers = new StringBuilder();</span>
+
+<span class="fc bfc" id="L844" title="All 2 branches covered.">        if (astNode.getParent().getType() == TokenTypes.MODIFIERS) {</span>
+            // add separator between access modifiers and annotations
+<span class="fc" id="L846">            separator = &quot; &quot;;</span>
+        }
+<span class="fc bfc" id="L848" title="All 2 branches covered.">        while (astNode != null) {</span>
+<span class="fc bfc" id="L849" title="All 2 branches covered.">            if (astNode.getFirstChild() == null) {</span>
+<span class="fc bfc" id="L850" title="All 2 branches covered.">                if (astNode.getType() == TokenTypes.RBRACK) {</span>
+                    //if array
+<span class="fc" id="L852">                    modifiers.append('[');</span>
+                }
+<span class="fc" id="L854">                modifiers.append(astNode.getText());</span>
+<span class="fc" id="L855">            }</span>
+            else {
+<span class="fc" id="L857">                modifiers.append(getModifiersAsText(astNode.getFirstChild()));</span>
+            }
+<span class="fc" id="L859">            modifiers.append(separator);</span>
+<span class="fc" id="L860">            astNode = astNode.getNextSibling();</span>
+        }
+<span class="fc" id="L862">        return modifiers.toString().trim();</span>
+    }
+
+    /**
+     * Get name without prefix.
+     * @param name name
+     * @param prefix prefix
+     * @return name without prefix or null if name does not have such prefix.
+     */
+    private static String getNameWithoutPrefix(String name, String prefix) {
+<span class="fc" id="L872">        String result = null;</span>
+<span class="pc bpc" id="L873" title="1 of 2 branches missed.">        if (name.startsWith(prefix)) {</span>
+<span class="fc" id="L874">            result = name.substring(prefix.length());</span>
+<span class="fc" id="L875">            result = Introspector.decapitalize(result);</span>
+        }
+<span class="fc" id="L877">        return result;</span>
+    }
+
+    /**
+     * Get identifier of AST. These can be names of types, subpackages,
+     * fields, methods, parameters, and local variables.
+     * @param ast
+     *        DetailAST instance
+     * @return identifier of AST, null if AST does not have name.
+     */
+    private static String getIdentifier(final DetailAST ast) {
+<span class="fc" id="L888">        String result = null;</span>
+<span class="fc" id="L889">        final DetailAST ident = ast.findFirstToken(TokenTypes.IDENT);</span>
+<span class="pc bpc" id="L890" title="1 of 2 branches missed.">        if (ident != null) {</span>
+<span class="fc" id="L891">            result = ident.getText();</span>
+        }
+<span class="fc" id="L893">        return result;</span>
+    }
+
+    /**
+     * Verify that exists updating of a field.
+     * @param statementsAst DetailAST of statements (SLIST).
+     * @param fieldName name of target field.
+     * @return true if there is updating of aFieldName in aStatementsAst.
+     */
+    private static boolean isFieldUpdate(DetailAST statementsAst, String fieldName) {
+<span class="fc" id="L903">        boolean result = false;</span>
+<span class="fc" id="L904">        DetailAST currentStatement = statementsAst.getFirstChild();</span>
+
+<span class="pc bpc" id="L906" title="1 of 4 branches missed.">        while (currentStatement != null &amp;&amp; currentStatement != statementsAst) {</span>
+<span class="fc" id="L907">            String nameOfSetterField = null;</span>
+<span class="fc bfc" id="L908" title="All 2 branches covered.">            if (currentStatement.getType() == TokenTypes.ASSIGN) {</span>
+<span class="fc" id="L909">                nameOfSetterField = getNameOfAssignedField(currentStatement);</span>
+<span class="fc" id="L910">            }</span>
+<span class="fc bfc" id="L911" title="All 2 branches covered.">            else if (currentStatement.getType() == TokenTypes.METHOD_CALL) {</span>
+<span class="fc" id="L912">                nameOfSetterField = getNameOfSuperClassUpdatedField(currentStatement);</span>
+            }
+
+<span class="fc bfc" id="L915" title="All 2 branches covered.">            if (fieldName.equalsIgnoreCase(nameOfSetterField)) {</span>
+<span class="fc" id="L916">                result = true;</span>
+<span class="fc" id="L917">                break;</span>
+            }
+
+<span class="fc" id="L920">            DetailAST nextStatement = currentStatement.getFirstChild();</span>
+
+<span class="fc bfc" id="L922" title="All 4 branches covered.">            while (currentStatement != null &amp;&amp; nextStatement == null) {</span>
+<span class="fc" id="L923">                nextStatement = currentStatement.getNextSibling();</span>
+<span class="fc bfc" id="L924" title="All 2 branches covered.">                if (nextStatement == null) {</span>
+<span class="fc" id="L925">                    currentStatement = currentStatement.getParent();</span>
+                }
+            }
+
+<span class="fc" id="L929">            currentStatement = nextStatement;</span>
+        }
+<span class="fc" id="L931">        return result;</span>
+    }
+
+    /**
+     * &lt;p&gt;
+     * Return name of the field, that was assigned in current setter.
+     * &lt;/p&gt;
+     * @param assignAst
+     *        - DetailAST contains ASSIGN from EXPR of the setter.
+     * @return name of field, that use in setter.
+     */
+    private static String getNameOfAssignedField(DetailAST assignAst) {
+<span class="fc" id="L943">        String nameOfSettingField = null;</span>
+
+<span class="pc bpc" id="L945" title="1 of 2 branches missed.">        if (assignAst.getChildCount() &gt; 0</span>
+<span class="fc bfc" id="L946" title="All 2 branches covered.">                        &amp;&amp; (assignAst.getLastChild().getType() == TokenTypes.IDENT</span>
+<span class="fc bfc" id="L947" title="All 2 branches covered.">                        || assignAst.getLastChild().getType() == TokenTypes.METHOD_CALL)) {</span>
+<span class="fc" id="L948">            final DetailAST methodCallDot = assignAst.getFirstChild();</span>
+<span class="fc bfc" id="L949" title="All 2 branches covered.">            if (methodCallDot.getChildCount() == 2</span>
+<span class="pc bpc" id="L950" title="1 of 2 branches missed.">                &amp;&amp; &quot;this&quot;.equals(methodCallDot.getFirstChild().getText())) {</span>
+<span class="fc" id="L951">                nameOfSettingField = methodCallDot.getLastChild().getText();</span>
+            }
+        }
+
+<span class="fc" id="L955">        return nameOfSettingField;</span>
+    }
+
+    /**
+     * &lt;p&gt;
+     * Return name of the field of a super class, that was assigned in setter.
+     * &lt;/p&gt;
+     * @param methodCallAst
+     *        - DetailAST contains METHOD_CALL from EXPR of the setter.
+     * @return name of field, that used in setter.
+     */
+    private static String getNameOfSuperClassUpdatedField(DetailAST methodCallAst) {
+<span class="fc" id="L967">        String nameOfSettingField = null;</span>
+
+<span class="fc" id="L969">        final DetailAST methodCallDot = methodCallAst.getFirstChild();</span>
+<span class="fc bfc" id="L970" title="All 2 branches covered.">        if (methodCallDot.getChildCount() == 2</span>
+<span class="fc bfc" id="L971" title="All 2 branches covered.">                &amp;&amp; &quot;super&quot;.equals(methodCallDot.getFirstChild().getText())) {</span>
+<span class="fc" id="L972">            nameOfSettingField = getFieldName(methodCallDot);</span>
+        }
+
+<span class="fc" id="L975">        return nameOfSettingField;</span>
+    }
+
+    /**
+     * Gets name of the field, that was used in calling setter from a super class.
+     *
+     * @param methodCallDotAst The token to examine.
+     * @return
+     *      name of field in method parameter.
+     */
+    private static String getFieldName(final DetailAST methodCallDotAst) {
+<span class="fc" id="L986">        String nameOfSettingField = null;</span>
+<span class="fc" id="L987">        final DetailAST parameterOfSetterMethod = methodCallDotAst.getNextSibling().getFirstChild();</span>
+<span class="fc bfc" id="L988" title="All 2 branches covered.">        if (parameterOfSetterMethod != null) {</span>
+<span class="fc" id="L989">            nameOfSettingField = parameterOfSetterMethod.getFirstChild().getText();</span>
+        }
+<span class="fc" id="L991">        return nameOfSettingField;</span>
+    }
+
+    /**
+     * &lt;p&gt;
+     * Compare name of the field and part of name of the method. Return true
+     * when they are different.
+     * &lt;/p&gt;
+     * @param fieldName
+     *        - name of the field.
+     * @param methodName
+     *        - part of name of the method (without &quot;set&quot;, &quot;get&quot; or &quot;is&quot;).
+     * @return true when names are different.
+     */
+    private boolean verifyFieldAndMethodName(String fieldName,
+            String methodName) {
+<span class="fc" id="L1007">        return (fieldPrefix + methodName).equalsIgnoreCase(fieldName);</span>
+    }
+
+    /**
+     * &lt;p&gt;
+     * Return name of the field, that use in the getter.
+     * &lt;/p&gt;
+     * @param expr
+     *        - DetailAST contains expression from getter.
+     * @return name of the field, that use in getter.
+     */
+    private static String getNameOfGetterField(DetailAST expr) {
+<span class="fc" id="L1019">        String nameOfGetterField = null;</span>
+
+<span class="pc bpc" id="L1021" title="1 of 2 branches missed.">        if (expr.getChildCount() == 1) {</span>
+<span class="fc" id="L1022">            final DetailAST exprFirstChild = expr.getFirstChild();</span>
+
+<span class="fc bfc" id="L1024" title="All 2 branches covered.">            if (exprFirstChild.getType() == TokenTypes.IDENT) {</span>
+<span class="fc" id="L1025">                nameOfGetterField = exprFirstChild.getText();</span>
+<span class="fc" id="L1026">            }</span>
+<span class="pc bpc" id="L1027" title="1 of 2 branches missed.">            else if (exprFirstChild.getType() == TokenTypes.DOT</span>
+<span class="pc bpc" id="L1028" title="1 of 2 branches missed.">                    &amp;&amp; exprFirstChild.getChildCount() == 2</span>
+<span class="pc bpc" id="L1029" title="1 of 2 branches missed.">                    &amp;&amp; exprFirstChild.getFirstChild().getType() == TokenTypes.LITERAL_THIS</span>
+<span class="pc bpc" id="L1030" title="1 of 2 branches missed.">                    &amp;&amp; exprFirstChild.getLastChild().getType() == TokenTypes.IDENT) {</span>
+<span class="fc" id="L1031">                nameOfGetterField = exprFirstChild.getLastChild().getText();</span>
+            }
+        }
+
+<span class="fc" id="L1035">        return nameOfGetterField;</span>
+    }
+
+    /**
+     * Verifies that the given DetailAST is a main method.
+     * @param methodAST
+     *        DetailAST instance.
+     * @return true if aMethodAST is a main method, false otherwise.
+     */
+    private static boolean isMainMethod(final DetailAST methodAST) {
+<span class="fc" id="L1045">        boolean result = true;</span>
+<span class="fc" id="L1046">        final String methodName = getIdentifier(methodAST);</span>
+<span class="fc bfc" id="L1047" title="All 2 branches covered.">        if (&quot;main&quot;.equals(methodName)) {</span>
+<span class="pc bpc" id="L1048" title="1 of 2 branches missed.">            result = isVoidType(methodAST)</span>
+<span class="pc bpc" id="L1049" title="1 of 2 branches missed.">                    &amp;&amp; isMainMethodModifiers(methodAST)</span>
+<span class="pc bpc" id="L1050" title="1 of 2 branches missed.">                    &amp;&amp; isMainMethodParameters(methodAST);</span>
+<span class="fc" id="L1051">        }</span>
+        else {
+<span class="fc" id="L1053">            result = false;</span>
+        }
+<span class="fc" id="L1055">        return result;</span>
+    }
+
+    /**
+     * Verifies that given AST has appropriate modifiers for main method.
+     * @param methodAST
+     *        DetailAST instance.
+     * @return true if aMethodAST has (public &amp; static &amp; !abstract) modifiers,
+     *         false otherwise.
+     */
+    private static boolean isMainMethodModifiers(final DetailAST methodAST) {
+<span class="fc" id="L1066">        boolean result = false;</span>
+<span class="pc bpc" id="L1067" title="1 of 2 branches missed.">        if (hasChildToken(methodAST, TokenTypes.MODIFIERS)) {</span>
+<span class="fc" id="L1068">            final DetailAST modifiers =</span>
+<span class="fc" id="L1069">                    methodAST.findFirstToken(TokenTypes.MODIFIERS);</span>
+<span class="pc bpc" id="L1070" title="1 of 2 branches missed.">            result = hasChildToken(modifiers, TokenTypes.LITERAL_PUBLIC)</span>
+<span class="pc bpc" id="L1071" title="1 of 2 branches missed.">                    &amp;&amp; hasChildToken(modifiers, TokenTypes.LITERAL_STATIC);</span>
+        }
+<span class="fc" id="L1073">        return result;</span>
+    }
+
+    /**
+     * Verifies that given AST has type and this type is void.
+     * @param methodAST
+     *        DetailAST instance.
+     * @return true if AST's type void, false otherwise.
+     */
+    private static boolean isVoidType(final DetailAST methodAST) {
+<span class="fc" id="L1083">        boolean result = true;</span>
+<span class="pc bpc" id="L1084" title="1 of 2 branches missed.">        if (hasChildToken(methodAST, TokenTypes.TYPE)) {</span>
+<span class="fc" id="L1085">            final DetailAST methodTypeAST = methodAST.findFirstToken(TokenTypes.TYPE);</span>
+<span class="fc" id="L1086">            result = hasChildToken(methodTypeAST, TokenTypes.LITERAL_VOID);</span>
+        }
+<span class="fc" id="L1088">        return result;</span>
+    }
+
+    /**
+     * Verifies that given AST has appropriate for main method parameters.
+     * @param methodAST
+     *        instance of a method
+     * @return true if parameters of aMethodAST are appropriate for main method,
+     *         false otherwise.
+     */
+    private static boolean isMainMethodParameters(final DetailAST methodAST) {
+<span class="fc" id="L1099">        final DetailAST params =</span>
+<span class="fc" id="L1100">                methodAST.findFirstToken(TokenTypes.PARAMETERS);</span>
+<span class="pc bpc" id="L1101" title="1 of 2 branches missed.">        return hasOnlyStringArrayParameter(params)</span>
+<span class="nc bnc" id="L1102" title="All 2 branches missed.">                || hasOnlyStringEllipsisParameter(params);</span>
+    }
+
+    /**
+     * Return true if AST of method parameters has String[] parameter child
+     * token.
+     * @param parametersAST
+     *        DetailAST of method parameters.
+     * @return true if AST has String[] parameter child token, false otherwise.
+     */
+    private static boolean hasOnlyStringArrayParameter(final DetailAST parametersAST) {
+<span class="fc" id="L1113">        boolean result = true;</span>
+<span class="pc bpc" id="L1114" title="1 of 2 branches missed.">        if (parametersAST.getChildCount(TokenTypes.PARAMETER_DEF) == 1) {</span>
+<span class="fc" id="L1115">            final DetailAST parameterDefinitionAST =</span>
+<span class="fc" id="L1116">                    parametersAST.findFirstToken(TokenTypes.PARAMETER_DEF);</span>
+<span class="fc" id="L1117">            final DetailAST parameterTypeAST = parameterDefinitionAST</span>
+<span class="fc" id="L1118">                    .findFirstToken(TokenTypes.TYPE);</span>
+<span class="pc bpc" id="L1119" title="1 of 2 branches missed.">            if (hasChildToken(parameterTypeAST, TokenTypes.ARRAY_DECLARATOR)) {</span>
+<span class="fc" id="L1120">                final DetailAST arrayDeclaratorAST = parameterTypeAST</span>
+<span class="fc" id="L1121">                        .findFirstToken(TokenTypes.ARRAY_DECLARATOR);</span>
+<span class="fc" id="L1122">                final String parameterName =</span>
+<span class="fc" id="L1123">                        getIdentifier(arrayDeclaratorAST);</span>
+<span class="fc" id="L1124">                result = &quot;String&quot;.equals(parameterName);</span>
+<span class="fc" id="L1125">            }</span>
+            else {
+<span class="nc" id="L1127">                result = false;</span>
+            }
+<span class="nc" id="L1129">        }</span>
+        else {
+            // there is none or multiple parameters
+<span class="nc" id="L1132">            result = false;</span>
+        }
+<span class="fc" id="L1134">        return result;</span>
+    }
+
+    /**
+     * Return true if AST of method parameters has String... parameter child
+     * token.
+     * @param parametersAST
+     *        DetailAST of method parameters.
+     * @return true if aParametersAST has String... parameter child token, false
+     *         otherwise.
+     */
+    private static boolean hasOnlyStringEllipsisParameter(final DetailAST parametersAST) {
+<span class="nc" id="L1146">        boolean result = true;</span>
+<span class="nc bnc" id="L1147" title="All 2 branches missed.">        if (parametersAST.getChildCount(TokenTypes.PARAMETER_DEF) == 1) {</span>
+<span class="nc" id="L1148">            final DetailAST parameterDefinitionAST =</span>
+<span class="nc" id="L1149">                    parametersAST.findFirstToken(TokenTypes.PARAMETER_DEF);</span>
+<span class="nc bnc" id="L1150" title="All 2 branches missed.">            if (hasChildToken(parameterDefinitionAST, TokenTypes.ELLIPSIS)) {</span>
+<span class="nc" id="L1151">                final DetailAST parameterTypeAST =</span>
+<span class="nc" id="L1152">                        parameterDefinitionAST.findFirstToken(TokenTypes.TYPE);</span>
+<span class="nc" id="L1153">                final String parameterName =</span>
+<span class="nc" id="L1154">                        getIdentifier(parameterTypeAST);</span>
+<span class="nc" id="L1155">                result = &quot;String&quot;.equals(parameterName);</span>
+<span class="nc" id="L1156">            }</span>
+            else {
+<span class="nc" id="L1158">                result = false;</span>
+            }
+<span class="nc" id="L1160">        }</span>
+        else {
+            // there is none or multiple parameters
+<span class="nc" id="L1163">            result = false;</span>
+        }
+<span class="nc" id="L1165">        return result;</span>
+    }
+
+    /**
+     * Return true if aAST has token of aTokenType type.
+     * @param ast
+     *        DetailAST instance.
+     * @param tokenType
+     *        one of TokenTypes
+     * @return true if aAST has token of given type, or false otherwise.
+     */
+    private static boolean hasChildToken(DetailAST ast, int tokenType) {
+<span class="pc bpc" id="L1177" title="1 of 2 branches missed.">        return ast.findFirstToken(tokenType) != null;</span>
+    }
+
+    /**
+     * Private class for members of class and their patterns.
+     */
+    private static final class FormatMatcher {
+
+        /** The regexp to match against. */
+        private Pattern regExp;
+        /** The Member of Class. */
+        private final int classMember;
+        /** The input full one rule with original names. */
+        private final String rule;
+        /** The string format of the RegExp. */
+        private String format;
+
+        /**
+         * Creates a new &lt;code&gt;FormatMatcher&lt;/code&gt; instance.
+         *
+         * @param inputRule input string with MemberDefinition and RegExp.
+         * @param classMember the member of class
+         */
+<span class="fc" id="L1200">        /* package */ FormatMatcher(final String inputRule,</span>
+                final int classMember) {
+<span class="fc" id="L1202">            this.classMember = classMember;</span>
+<span class="fc" id="L1203">            rule = inputRule;</span>
+<span class="fc" id="L1204">        }</span>
+
+        /**
+         * Getter for the regexp field.
+         * @return the RegExp to match against
+         */
+        public Pattern getRegexp() {
+<span class="fc" id="L1211">            return regExp;</span>
+        }
+
+        /** Getter for the rule field.
+         * @return the original immutable input rule
+         */
+        public String getRule() {
+<span class="fc" id="L1218">            return rule;</span>
+        }
+
+        /**
+         * Getter for the class member field.
+         * @return the Class Member
+         */
+        public int getClassMember() {
+<span class="fc" id="L1226">            return classMember;</span>
+        }
+
+        /**
+         * Set the compile flags for the regular expression.
+         *
+         * @param compileFlags the compile flags to use.
+         */
+        public void setCompileFlags(final int compileFlags) {
+<span class="fc" id="L1235">            updateRegexp(format, compileFlags);</span>
+<span class="fc" id="L1236">        }</span>
+
+        /**
+         * Updates the regular expression using the supplied format and compiler
+         * flags. Will also update the member variables.
+         *
+         * @param newFormat the format of the regular expression.
+         * @param compileFlags the compiler flags to use.
+         */
+        private void updateRegexp(final String newFormat, final int compileFlags) {
+            try {
+<span class="fc" id="L1247">                regExp = Pattern.compile(newFormat, compileFlags);</span>
+<span class="fc" id="L1248">                this.format = newFormat;</span>
+<span class="fc" id="L1249">            }</span>
+<span class="nc" id="L1250">            catch (final PatternSyntaxException ex) {</span>
+<span class="nc" id="L1251">                throw new IllegalArgumentException(&quot;unable to parse &quot; + newFormat, ex);</span>
+            }
+<span class="fc" id="L1253">        }</span>
+
+        /**
+         * Check that format matcher contains rule.
+         * @param ruleCheck string
+         * @return true if format matcher contains rule.
+         */
+        public boolean hasRule(String ruleCheck) {
+<span class="fc bfc" id="L1261" title="All 2 branches covered.">            return this.rule.indexOf(ruleCheck) &gt; -1;</span>
+        }
+
+        @Override
+        public String toString() {
+<span class="nc" id="L1266">            return rule;</span>
+        }
+
+    }
+
+    /**
+     * Class to keep current position and collect getters, setters.
+     */
+<span class="fc" id="L1274">    private static class ClassDetail {</span>
+
+        /**
+         * Current position in custom order declaration.
+         */
+        private int currentPosition;
+        /**
+         * List of getter ASTs.
+         */
+<span class="fc" id="L1283">        private final List&lt;DetailAST&gt; getters = new LinkedList&lt;&gt;();</span>
+        /**
+         * List of setter ASTs.
+         */
+<span class="fc" id="L1287">        private final List&lt;DetailAST&gt; setters = new LinkedList&lt;&gt;();</span>
+
+        public int getCurrentPosition() {
+<span class="fc" id="L1290">            return currentPosition;</span>
+        }
+
+        public void setCurrentPosition(int position) {
+<span class="fc" id="L1294">            currentPosition = position;</span>
+<span class="fc" id="L1295">        }</span>
+
+        /**
+         * Add getter.
+         * @param getterAst DetailAST of getter.
+         */
+        public void addGetter(DetailAST getterAst) {
+<span class="fc" id="L1302">            getters.add(getterAst);</span>
+<span class="fc" id="L1303">        }</span>
+
+        /**
+         * Add setter.
+         * @param setterAst DetailAST of setter.
+         */
+        public void addSetter(DetailAST setterAst) {
+<span class="fc" id="L1310">            setters.add(setterAst);</span>
+<span class="fc" id="L1311">        }</span>
+
+        /**
+         * Compare order of getters and setters. Order should be like &quot;getX; setX; getY; setY; ...&quot;.
+         * If it is wrong order, then wrong ordered setters and getters will be returned as map.
+         * @return Map with setter AST as key and getter AST as value.
+         */
+        public Map&lt;DetailAST, DetailAST&gt; getWrongOrderedGettersSetters() {
+<span class="fc" id="L1319">            final Map&lt;DetailAST, DetailAST&gt; result = new LinkedHashMap&lt;&gt;();</span>
+<span class="pc bpc" id="L1320" title="1 of 4 branches missed.">            if (!getters.isEmpty() &amp;&amp; !setters.isEmpty()) {</span>
+                //  all getters and setters
+<span class="fc" id="L1322">                final List&lt;DetailAST&gt; allGettersSetters = new ArrayList&lt;&gt;(getters);</span>
+<span class="fc" id="L1323">                allGettersSetters.addAll(setters);</span>
+                // sort by line numbers
+<span class="fc" id="L1325">                Collections.sort(allGettersSetters, AST_LINE_COMPARATOR);</span>
+
+<span class="fc bfc" id="L1327" title="All 2 branches covered.">                for (int i = 0; i &lt; allGettersSetters.size(); i++) {</span>
+<span class="fc" id="L1328">                    result.putAll(getWrongOrderedGettersSetters(allGettersSetters, i));</span>
+                }
+            }
+<span class="fc" id="L1331">            return result;</span>
+        }
+
+        /**
+         * Compare order of getters and setters. Order should be like &quot;getX; setX; getY; setY; ...&quot;.
+         * If it is wrong order, then wrong ordered setters and getters will be returned as map.
+         * @param allGettersSetters collection of all getter and setters
+         * @param index index from upper loo
+         * @return Map with setter AST as key and getter AST as value.
+         */
+        private static Map&lt;DetailAST, DetailAST&gt; getWrongOrderedGettersSetters(
+                List&lt;DetailAST&gt; allGettersSetters, int index) {
+<span class="fc" id="L1343">            final DetailAST getterAst = allGettersSetters.get(index);</span>
+<span class="fc" id="L1344">            final String getterName = getIdentifier(getterAst);</span>
+<span class="fc" id="L1345">            String getterField = null;</span>
+<span class="fc bfc" id="L1346" title="All 2 branches covered.">            if (isGetterName(getterName)) {</span>
+<span class="fc" id="L1347">                getterField = getNameWithoutPrefix(getIdentifier(getterAst), GETTER_PREFIX);</span>
+<span class="fc" id="L1348">            }</span>
+<span class="fc bfc" id="L1349" title="All 2 branches covered.">            else if (isBooleanGetterName(getterName)) {</span>
+<span class="fc" id="L1350">                getterField = getNameWithoutPrefix(getIdentifier(getterAst),</span>
+<span class="fc" id="L1351">                        BOOLEAN_GETTER_PREFIX);</span>
+            }
+<span class="fc" id="L1353">            final Map&lt;DetailAST, DetailAST&gt; result = new LinkedHashMap&lt;&gt;();</span>
+
+<span class="fc bfc" id="L1355" title="All 2 branches covered.">            if (getterField != null) {</span>
+                // review rest of the list to find a proper setter
+<span class="fc bfc" id="L1357" title="All 2 branches covered.">                for (int j = 0; j &lt; allGettersSetters.size(); j++) {</span>
+<span class="fc bfc" id="L1358" title="All 2 branches covered.">                    if (index != j) {</span>
+                        // method is NOT getter
+<span class="fc" id="L1360">                        final DetailAST setterAst = allGettersSetters.get(j);</span>
+<span class="fc" id="L1361">                        final String setterName = getIdentifier(setterAst);</span>
+<span class="fc bfc" id="L1362" title="All 2 branches covered.">                        if (isSetterName(setterName)) {</span>
+<span class="fc" id="L1363">                            final String setterField = getNameWithoutPrefix(</span>
+<span class="fc" id="L1364">                                    getIdentifier(setterAst), SETTER_PREFIX);</span>
+
+                            // if fields are same and setter is sibling with getter
+<span class="fc bfc" id="L1367" title="All 2 branches covered.">                            if (j != index + 1</span>
+<span class="fc bfc" id="L1368" title="All 2 branches covered.">                                    &amp;&amp; getterField.equals(setterField)) {</span>
+<span class="fc" id="L1369">                                result.put(setterAst, getterAst);</span>
+<span class="fc" id="L1370">                                break;</span>
+                            }
+                        }
+                    }
+                }
+            }
+<span class="fc" id="L1376">            return result;</span>
+        }
+
+        /**
+         * Verify that specified method was saved as getter.
+         * @param methodName name of method.
+         * @return true if specified method was saved as getter.
+         */
+        private boolean containsGetter(String methodName) {
+<span class="fc" id="L1385">            boolean result = false;</span>
+<span class="fc bfc" id="L1386" title="All 2 branches covered.">            for (DetailAST methodAst: getters) {</span>
+<span class="fc" id="L1387">                final String name = getIdentifier(methodAst);</span>
+<span class="fc bfc" id="L1388" title="All 2 branches covered.">                if (name.equals(methodName)) {</span>
+<span class="fc" id="L1389">                    result = true;</span>
+                }
+            }
+<span class="fc" id="L1392">            return result;</span>
+        }
+
+        /**
+         * Verify that specified method was saved as setter.
+         * @param methodName name of method.
+         * @return true if specified method was saved as setter.
+         */
+        private boolean containsSetter(String methodName) {
+<span class="fc" id="L1401">            boolean result = false;</span>
+<span class="fc bfc" id="L1402" title="All 2 branches covered.">            for (DetailAST methodAst: setters) {</span>
+<span class="fc" id="L1403">                final String name = getIdentifier(methodAst);</span>
+<span class="fc bfc" id="L1404" title="All 2 branches covered.">                if (name.equals(methodName)) {</span>
+<span class="fc" id="L1405">                    result = true;</span>
+                }
+            }
+<span class="fc" id="L1408">            return result;</span>
+        }
+
+    }
+
+}
+</pre><div class="footer"><span class="right">Created with <a href="http://www.eclemma.org/jacoco">JaCoCo</a> 0.7.1.201405082137</span></div></body></html>

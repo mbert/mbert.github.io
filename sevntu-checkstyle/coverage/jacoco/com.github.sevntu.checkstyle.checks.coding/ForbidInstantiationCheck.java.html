@@ -1,0 +1,266 @@
+<?xml version="1.0" encoding="UTF-8"?><!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Strict//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-strict.dtd"><html xmlns="http://www.w3.org/1999/xhtml" lang="en"><head><meta http-equiv="Content-Type" content="text/html;charset=UTF-8"/><link rel="stylesheet" href="../.resources/report.css" type="text/css"/><link rel="shortcut icon" href="../.resources/report.gif" type="image/gif"/><title>ForbidInstantiationCheck.java</title><link rel="stylesheet" href="../.resources/prettify.css" type="text/css"/><script type="text/javascript" src="../.resources/prettify.js"></script></head><body onload="window['PR_TAB_WIDTH']=4;prettyPrint()"><div class="breadcrumb" id="breadcrumb"><span class="info"><a href="../.sessions.html" class="el_session">Sessions</a></span><a href="../index.html" class="el_report">sevntu-checks</a> &gt; <a href="index.source.html" class="el_package">com.github.sevntu.checkstyle.checks.coding</a> &gt; <span class="el_source">ForbidInstantiationCheck.java</span></div><h1>ForbidInstantiationCheck.java</h1><pre class="source lang-java linenums">////////////////////////////////////////////////////////////////////////////////
+// checkstyle: Checks Java source code for adherence to a set of rules.
+// Copyright (C) 2001-2019 the original author or authors.
+//
+// This library is free software; you can redistribute it and/or
+// modify it under the terms of the GNU Lesser General Public
+// License as published by the Free Software Foundation; either
+// version 2.1 of the License, or (at your option) any later version.
+//
+// This library is distributed in the hope that it will be useful,
+// but WITHOUT ANY WARRANTY; without even the implied warranty of
+// MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the GNU
+// Lesser General Public License for more details.
+//
+// You should have received a copy of the GNU Lesser General Public
+// License along with this library; if not, write to the Free Software
+// Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA
+////////////////////////////////////////////////////////////////////////////////
+
+package com.github.sevntu.checkstyle.checks.coding;
+
+import java.util.HashSet;
+import java.util.LinkedList;
+import java.util.List;
+import java.util.Set;
+
+import com.github.sevntu.checkstyle.SevntuUtil;
+import com.puppycrawl.tools.checkstyle.api.AbstractCheck;
+import com.puppycrawl.tools.checkstyle.api.DetailAST;
+import com.puppycrawl.tools.checkstyle.api.FullIdent;
+import com.puppycrawl.tools.checkstyle.api.TokenTypes;
+
+/**
+ * Forbids instantiation of certain object types by their full classname. &lt;br&gt;
+ * &lt;p&gt;
+ * For example:&lt;br&gt;
+ * &quot;java.lang.NullPointerException&quot; will forbid the NPE instantiation.
+ * &lt;/p&gt;
+ * &lt;p&gt;
+ * Note: className should to be full: use &quot;java.lang.NullPointerException&quot;
+ * instead of &quot;NullpointerException&quot;.
+ * &lt;/p&gt;
+ * @author &lt;a href=&quot;mailto:Daniil.Yaroslavtsev@gmail.com&quot;&gt; Daniil
+ *         Yaroslavtsev&lt;/a&gt;
+ * @since 1.8.0
+ */
+public class ForbidInstantiationCheck extends AbstractCheck {
+
+    /**
+     * A key is pointing to the warning message text in &quot;messages.properties&quot;
+     * file.
+     */
+    public static final String MSG_KEY = &quot;forbid.instantiation&quot;;
+
+    /** Path string to separate layers of packages. */
+    private static final String PATH_SEPARATOR = &quot;.&quot;;
+
+    /**
+     * Set which contains classNames for objects that are forbidden to
+     * instantiate.
+     */
+<span class="fc" id="L62">    private final Set&lt;String&gt; forbiddenClasses = new HashSet&lt;&gt;();</span>
+
+    /**
+     * List which contains String representation of imports for class is
+     * currently being processed.
+     */
+<span class="fc" id="L68">    private final List&lt;String&gt; importsList = new LinkedList&lt;&gt;();</span>
+
+    /**
+     * Creates the check instance.
+     */
+<span class="fc" id="L73">    public ForbidInstantiationCheck() {</span>
+<span class="fc" id="L74">        forbiddenClasses.add(&quot;java.lang.NullPointerException&quot;);</span>
+<span class="fc" id="L75">    }</span>
+
+    /**
+     * Sets a classNames&amp;amp;Paths for objects that are forbidden to instantiate.
+     * @param classNames
+     *        - the list of classNames separated by a comma. ClassName should be
+     *        full, such as &quot;java.lang.NullpointerException&quot;, do not use short
+     *        name - NullpointerException;
+     */
+    public void setForbiddenClasses(final String... classNames) {
+<span class="fc" id="L85">        forbiddenClasses.clear();</span>
+<span class="fc bfc" id="L86" title="All 2 branches covered.">        if (classNames != null) {</span>
+<span class="fc bfc" id="L87" title="All 2 branches covered.">            for (String name : classNames) {</span>
+<span class="fc" id="L88">                forbiddenClasses.add(name);</span>
+            }
+        }
+<span class="fc" id="L91">    }</span>
+
+    @Override
+    public void beginTree(final DetailAST rootAST) {
+<span class="fc" id="L95">        importsList.clear();</span>
+<span class="fc" id="L96">    }</span>
+
+    @Override
+    public int[] getDefaultTokens() {
+<span class="fc" id="L100">        return new int[] {TokenTypes.IMPORT, TokenTypes.LITERAL_NEW };</span>
+    }
+
+    @Override
+    public int[] getAcceptableTokens() {
+<span class="fc" id="L105">        return getDefaultTokens();</span>
+    }
+
+    @Override
+    public int[] getRequiredTokens() {
+<span class="fc" id="L110">        return getDefaultTokens();</span>
+    }
+
+    @Override
+    public void visitToken(DetailAST ast) {
+<span class="fc bfc" id="L115" title="All 3 branches covered.">        switch (ast.getType()) {</span>
+            case TokenTypes.IMPORT:
+<span class="pc bpc" id="L117" title="1 of 2 branches missed.">                importsList.add(getText(ast));</span>
+<span class="fc" id="L118">                break;</span>
+
+            case TokenTypes.LITERAL_NEW:
+
+<span class="pc bpc" id="L122" title="1 of 2 branches missed.">                final String instanceClass = getText(ast);</span>
+
+<span class="fc bfc" id="L124" title="All 2 branches covered.">                if (instanceClass != null) {</span>
+                    // non-primitive instance
+
+<span class="fc" id="L127">                    final String instanceClassName = getClassName(instanceClass);</span>
+
+<span class="fc bfc" id="L129" title="All 2 branches covered.">                    for (String forbiddenClass : forbiddenClasses) {</span>
+<span class="fc bfc" id="L130" title="All 2 branches covered.">                        if (forbiddenClass.startsWith(&quot;java.lang.&quot;)</span>
+<span class="fc bfc" id="L131" title="All 2 branches covered.">                            &amp;&amp; forbiddenClass.endsWith(instanceClassName)) {</span>
+<span class="fc" id="L132">                            log(ast, MSG_KEY, instanceClassName);</span>
+<span class="fc" id="L133">                        }</span>
+<span class="fc bfc" id="L134" title="All 2 branches covered.">                        else if (instanceClass.contains(PATH_SEPARATOR)) {</span>
+                            // className is full
+
+<span class="fc bfc" id="L137" title="All 2 branches covered.">                            if (instanceClass.equals(forbiddenClass)) {</span>
+                                // the full path is forbidden
+<span class="fc" id="L139">                                log(ast, MSG_KEY, instanceClassName);</span>
+                            }
+<span class="fc" id="L141">                        }</span>
+<span class="fc" id="L142">                        else if (addedUsingForbiddenImport(instanceClass,</span>
+<span class="fc bfc" id="L143" title="All 2 branches covered.">                            forbiddenClass)) {</span>
+                            // className is short and exists in imports
+<span class="fc" id="L145">                            log(ast, MSG_KEY, instanceClass);</span>
+                        }
+                    }
+                }
+<span class="fc" id="L149">                break;</span>
+
+            default:
+<span class="pc bpc" id="L152" title="1 of 2 branches missed.">                SevntuUtil.reportInvalidToken(ast.getType());</span>
+                break;
+        }
+<span class="fc" id="L155">    }</span>
+
+    /**
+     * Checks that the class with given className is visible because of the
+     * forbidden import.
+     * @param className
+     *        - the name of the class to check.
+     * @param forbiddenClassNameAndPath
+     *        - full name&amp;path of the given forbidden class.
+     * @return true if the class with given className is imported with the
+     *         forbidden import and false otherwise.
+     */
+    private boolean addedUsingForbiddenImport(final String className,
+            String forbiddenClassNameAndPath) {
+<span class="fc" id="L169">        boolean result = false;</span>
+
+<span class="fc bfc" id="L171" title="All 2 branches covered.">        for (String importText : importsList) {</span>
+<span class="fc bfc" id="L172" title="All 2 branches covered.">            if (isWildcardForbiddenImported(importText, forbiddenClassNameAndPath, className)</span>
+<span class="fc bfc" id="L173" title="All 2 branches covered.">                    || isForbiddenImported(importText, forbiddenClassNameAndPath, className)) {</span>
+<span class="fc" id="L174">                result = true;</span>
+<span class="fc" id="L175">                break;</span>
+            }
+        }
+
+<span class="fc" id="L179">        return result;</span>
+    }
+
+    /**
+     * Tests if the class with given className is imported with the forbidden
+     * import and false otherwise.
+     *
+     * @param importText
+     *        - String representation of imports from the processed class.
+     * @param className
+     *        - the name of the class to check.
+     * @param forbiddenClassNameAndPath
+     *        - full name&amp;path of the given forbidden class.
+     * @return true if the class with given className is imported with the
+     *         forbidden import and false otherwise.
+     */
+    private static boolean isWildcardForbiddenImported(String importText,
+            String forbiddenClassNameAndPath, String className) {
+<span class="fc" id="L197">        final String importTextWithoutAsterisk =</span>
+<span class="fc" id="L198">                importText.substring(0, importText.length() - 1);</span>
+
+        // -@cs[EqualsAvoidNull] need parenthesis around '+' otherwise PMD will complain
+<span class="fc bfc" id="L201" title="All 2 branches covered.">        return importText.endsWith(&quot;*&quot;)</span>
+<span class="fc bfc" id="L202" title="All 2 branches covered.">                &amp;&amp; forbiddenClassNameAndPath.equals(importTextWithoutAsterisk + className);</span>
+    }
+
+    /**
+     * Tests if the class with given className is imported with the forbidden
+     * import and false otherwise.
+     *
+     * @param importText
+     *        - String representation of imports from the processed class.
+     * @param className
+     *        - the name of the class to check.
+     * @param forbiddenClassNameAndPath
+     *        - full name&amp;path of the given forbidden class.
+     * @return true if the class with given className is imported with the
+     *         forbidden import and false otherwise.
+     */
+    private static boolean isForbiddenImported(String importText, String forbiddenClassNameAndPath,
+            String className) {
+<span class="fc bfc" id="L220" title="All 2 branches covered.">        return importText.equals(forbiddenClassNameAndPath)</span>
+<span class="fc bfc" id="L221" title="All 2 branches covered.">                &amp;&amp; importText.endsWith(className);</span>
+    }
+
+    /**
+     * Gets the class name from full (dotted) classPath.
+     * @param classNameAndPath
+     *        - the full (dotted) classPath
+     * @return the name of the class is specified by the current full name&amp;path.
+     */
+    private static String getClassName(final String classNameAndPath) {
+<span class="fc" id="L231">        return classNameAndPath.replaceAll(&quot;.+\\.&quot;, &quot;&quot;);</span>
+    }
+
+    /**
+     * Gets the text representation from the given DetailAST node.
+     * @param ast
+     *        - DetailAST node is pointing to import definition or to the &quot;new&quot;
+     *        literal node (&quot;IMPORT&quot; or &quot;LITERAL_NEW&quot; node types).
+     * @return Import text without &quot;import&quot; word and semicolons for given
+     *         &quot;IMPORT&quot; node or instantiated class Name&amp;Path for given
+     *         &quot;LITERAL_NEW&quot; node.
+     */
+    private static String getText(final DetailAST ast) {
+<span class="fc" id="L244">        String result = null;</span>
+
+<span class="fc" id="L246">        final DetailAST textWithoutDots = ast.findFirstToken(TokenTypes.IDENT);</span>
+
+<span class="fc bfc" id="L248" title="All 2 branches covered.">        if (textWithoutDots == null) {</span>
+            // if there are TokenTypes.DOT nodes in subTree.
+<span class="fc" id="L250">            final DetailAST parentDotAST = ast.findFirstToken(TokenTypes.DOT);</span>
+<span class="fc bfc" id="L251" title="All 2 branches covered.">            if (parentDotAST != null) {</span>
+<span class="fc" id="L252">                final FullIdent dottedPathIdent = FullIdent</span>
+<span class="fc" id="L253">                        .createFullIdentBelow(parentDotAST);</span>
+<span class="fc" id="L254">                final DetailAST nameAST = parentDotAST.getLastChild();</span>
+<span class="fc" id="L255">                result = dottedPathIdent.getText() + PATH_SEPARATOR + nameAST.getText();</span>
+            }
+<span class="fc" id="L257">        }</span>
+        // if subtree doesn`t contain dots.
+        else {
+<span class="fc" id="L260">            result = textWithoutDots.getText();</span>
+        }
+<span class="fc" id="L262">        return result;</span>
+    }
+
+}
+</pre><div class="footer"><span class="right">Created with <a href="http://www.eclemma.org/jacoco">JaCoCo</a> 0.7.1.201405082137</span></div></body></html>

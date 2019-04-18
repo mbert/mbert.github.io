@@ -1,0 +1,214 @@
+<?xml version="1.0" encoding="UTF-8"?><!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Strict//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-strict.dtd"><html xmlns="http://www.w3.org/1999/xhtml" lang="en"><head><meta http-equiv="Content-Type" content="text/html;charset=UTF-8"/><link rel="stylesheet" href="../.resources/report.css" type="text/css"/><link rel="shortcut icon" href="../.resources/report.gif" type="image/gif"/><title>ForbidThrowAnonymousExceptionsCheck.java</title><link rel="stylesheet" href="../.resources/prettify.css" type="text/css"/><script type="text/javascript" src="../.resources/prettify.js"></script></head><body onload="window['PR_TAB_WIDTH']=4;prettyPrint()"><div class="breadcrumb" id="breadcrumb"><span class="info"><a href="../.sessions.html" class="el_session">Sessions</a></span><a href="../index.html" class="el_report">sevntu-checks</a> &gt; <a href="index.source.html" class="el_package">com.github.sevntu.checkstyle.checks.coding</a> &gt; <span class="el_source">ForbidThrowAnonymousExceptionsCheck.java</span></div><h1>ForbidThrowAnonymousExceptionsCheck.java</h1><pre class="source lang-java linenums">////////////////////////////////////////////////////////////////////////////////
+// checkstyle: Checks Java source code for adherence to a set of rules.
+// Copyright (C) 2001-2019 the original author or authors.
+//
+// This library is free software; you can redistribute it and/or
+// modify it under the terms of the GNU Lesser General Public
+// License as published by the Free Software Foundation; either
+// version 2.1 of the License, or (at your option) any later version.
+//
+// This library is distributed in the hope that it will be useful,
+// but WITHOUT ANY WARRANTY; without even the implied warranty of
+// MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the GNU
+// Lesser General Public License for more details.
+//
+// You should have received a copy of the GNU Lesser General Public
+// License along with this library; if not, write to the Free Software
+// Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA
+////////////////////////////////////////////////////////////////////////////////
+
+package com.github.sevntu.checkstyle.checks.coding;
+
+import java.util.ArrayList;
+import java.util.List;
+import java.util.regex.Pattern;
+
+import com.github.sevntu.checkstyle.SevntuUtil;
+import com.puppycrawl.tools.checkstyle.api.AbstractCheck;
+import com.puppycrawl.tools.checkstyle.api.DetailAST;
+import com.puppycrawl.tools.checkstyle.api.TokenTypes;
+
+/**
+ * &lt;p&gt;
+ * This Check warns on throwing anonymous exception.
+ * &lt;/p&gt;
+ * Examples:
+ * &lt;pre&gt;
+ * catch (Exception e) {
+ *        throw new RuntimeException()  { //WARNING
+ *          //some code
+ *     };
+ * }
+ * &lt;br&gt;
+ * catch (Exception e) {
+ *     RuntimeException run = new RuntimeException()  {
+ *          //some code
+ *     };
+ *     throw run;  //WARNING
+ * }
+ * &lt;/pre&gt; The distinguishing of &lt;b&gt;exception&lt;/b&gt; types occurs by
+ * analyzing variable's class's name.&lt;br&gt;
+ * Check has an option which contains the regular expression for exception class name matching&lt;br&gt;
+ * Default value is &quot;^.*Exception&quot; because usually exception type ends with suffix &quot;Exception&quot;.&lt;br&gt;
+ * Then, if we have an ObjBlock (distinguished by curly braces), it's anonymous&lt;br&gt;
+ * exception definition. It could be defined in &lt;b&gt;throw&lt;/b&gt; statement
+ * immediately.&lt;br&gt;
+ * In that case, after literal new, there would be an expression type finishing
+ * with and ObjBlock.&lt;br&gt;
+ * &lt;br&gt;
+ * @author &lt;a href=&quot;mailto:nesterenko-aleksey@list.ru&quot;&gt;Aleksey Nesterenko&lt;/a&gt;
+ * @author &lt;a href=&quot;mailto:maxvetrenko2241@gmail.com&quot;&gt;Max Vetrenko&lt;/a&gt;
+ * @since 1.11.0
+ */
+<span class="fc" id="L63">public class ForbidThrowAnonymousExceptionsCheck extends AbstractCheck {</span>
+
+    /**
+     * Warning message key.
+     */
+    public static final String MSG_KEY = &quot;forbid.throw.anonymous.exception&quot;;
+
+    /** Regular expression of exception naming. */
+    private static final String DEFAULT_EXCEPTION_CLASS_NAME_REGEX = &quot;^.*Exception&quot;;
+
+    /** List of anonymous exceptions to ignore. */
+<span class="fc" id="L74">    private final List&lt;String&gt; anonymousExceptions = new ArrayList&lt;&gt;();</span>
+
+    /** User set expression for exception names. */
+<span class="fc" id="L77">    private Pattern pattern = Pattern.compile(DEFAULT_EXCEPTION_CLASS_NAME_REGEX);</span>
+
+    /**
+     * Setter for pattern.
+     * @param exceptionClassNameRegex The regular expression to set.
+     */
+    public void setExceptionClassNameRegex(String exceptionClassNameRegex) {
+<span class="fc" id="L84">        this.pattern = Pattern.compile(exceptionClassNameRegex);</span>
+<span class="fc" id="L85">    }</span>
+
+    @Override
+    public int[] getDefaultTokens() {
+<span class="fc" id="L89">        return new int[] {</span>
+<span class="fc" id="L90">            TokenTypes.LITERAL_THROW,</span>
+<span class="fc" id="L91">            TokenTypes.VARIABLE_DEF,</span>
+        };
+    }
+
+    @Override
+    public int[] getAcceptableTokens() {
+<span class="fc" id="L97">        return getDefaultTokens();</span>
+    }
+
+    @Override
+    public int[] getRequiredTokens() {
+<span class="fc" id="L102">        return getDefaultTokens();</span>
+    }
+
+    @Override
+    public void visitToken(DetailAST literalThrowOrVariableDefAst) {
+<span class="pc bpc" id="L107" title="1 of 3 branches missed.">        switch (literalThrowOrVariableDefAst.getType()) {</span>
+            case TokenTypes.LITERAL_THROW:
+<span class="pc bpc" id="L109" title="1 of 2 branches missed.">                identifyThrowingAnonymousException(literalThrowOrVariableDefAst);</span>
+<span class="fc" id="L110">                break;</span>
+            case TokenTypes.VARIABLE_DEF:
+<span class="pc bpc" id="L112" title="1 of 2 branches missed.">                lookForAnonymousExceptionDefinition(literalThrowOrVariableDefAst);</span>
+<span class="fc" id="L113">                break;</span>
+            default:
+<span class="nc bnc" id="L115" title="All 2 branches missed.">                SevntuUtil.reportInvalidToken(literalThrowOrVariableDefAst.getType());</span>
+                break;
+        }
+<span class="fc" id="L118">    }</span>
+
+    /**
+     * Warns on throwing anonymous exception.
+     * @param throwDefAst The token to examine.
+     */
+    private void identifyThrowingAnonymousException(DetailAST throwDefAst) {
+<span class="fc" id="L125">        final DetailAST throwingLiteralNewAst = getLiteralNew(throwDefAst);</span>
+
+<span class="fc bfc" id="L127" title="All 2 branches covered.">        if (throwingLiteralNewAst != null</span>
+<span class="fc bfc" id="L128" title="All 2 branches covered.">                &amp;&amp; hasObjectBlock(throwingLiteralNewAst)) {</span>
+<span class="fc" id="L129">            log(throwDefAst, MSG_KEY);</span>
+<span class="fc" id="L130">        }</span>
+<span class="fc bfc" id="L131" title="All 2 branches covered.">        else if (throwingLiteralNewAst == null) {</span>
+<span class="fc" id="L132">            final DetailAST throwingExceptionNameAst = getThrowingExceptionNameAst(throwDefAst</span>
+<span class="fc" id="L133">                    .getFirstChild());</span>
+<span class="pc bpc" id="L134" title="1 of 2 branches missed.">            if (throwingExceptionNameAst != null</span>
+<span class="fc" id="L135">                    &amp;&amp; anonymousExceptions.contains(throwingExceptionNameAst</span>
+<span class="fc bfc" id="L136" title="All 2 branches covered.">                            .getText())) {</span>
+<span class="fc" id="L137">                log(throwDefAst, MSG_KEY);</span>
+            }
+        }
+<span class="fc" id="L140">    }</span>
+
+    /**
+     * Analyzes variable definition for anonymous exception definition. if found
+     * - adds it to list of anonymous exceptions
+     * @param variableDefAst The token to examine.
+     */
+    private void
+            lookForAnonymousExceptionDefinition(DetailAST variableDefAst) {
+<span class="fc" id="L149">        DetailAST variableLiteralNewAst = null;</span>
+<span class="fc" id="L150">        final DetailAST variableAssignment = variableDefAst.findFirstToken(TokenTypes.ASSIGN);</span>
+<span class="pc bpc" id="L151" title="2 of 4 branches missed.">        if (variableAssignment != null &amp;&amp; variableAssignment.getFirstChild() != null) {</span>
+<span class="fc" id="L152">            variableLiteralNewAst = getLiteralNew(variableAssignment);</span>
+        }
+
+<span class="fc" id="L155">        final DetailAST variableNameAst = variableDefAst</span>
+<span class="fc" id="L156">                .findFirstToken(TokenTypes.TYPE).getNextSibling();</span>
+<span class="fc bfc" id="L157" title="All 2 branches covered.">        if (isExceptionName(variableNameAst)) {</span>
+<span class="fc" id="L158">            final String exceptionName = variableNameAst.getText();</span>
+
+<span class="fc bfc" id="L160" title="All 2 branches covered.">            if (anonymousExceptions.contains(exceptionName)) {</span>
+<span class="fc" id="L161">                anonymousExceptions.remove(exceptionName);</span>
+            }
+
+<span class="pc bpc" id="L164" title="1 of 2 branches missed.">            if (variableLiteralNewAst != null</span>
+<span class="fc bfc" id="L165" title="All 2 branches covered.">                    &amp;&amp; hasObjectBlock(variableLiteralNewAst)) {</span>
+<span class="fc" id="L166">                anonymousExceptions.add(exceptionName);</span>
+            }
+        }
+<span class="fc" id="L169">    }</span>
+
+    /**
+     * Gets the literal new node from variable definition node or throw node.
+     * @param literalThrowOrVariableDefAst The token to examine.
+     * @return the specified node.
+     */
+    private static DetailAST
+            getLiteralNew(DetailAST literalThrowOrVariableDefAst) {
+<span class="fc" id="L178">        return literalThrowOrVariableDefAst.getFirstChild().findFirstToken(</span>
+<span class="fc" id="L179">                TokenTypes.LITERAL_NEW);</span>
+    }
+
+    /**
+     * Retrieves the AST node which contains the name of throwing exception.
+     * @param expressionAst The token to examine.
+     * @return the specified node.
+     */
+    private static DetailAST
+            getThrowingExceptionNameAst(DetailAST expressionAst) {
+<span class="fc" id="L189">        return expressionAst.findFirstToken(TokenTypes.IDENT);</span>
+    }
+
+    /**
+     * Checks if definition with a literal new has an ObjBlock.
+     * @param literalNewAst The token to examine.
+     * @return true if the new has an object block.
+     */
+    private static boolean hasObjectBlock(DetailAST literalNewAst) {
+<span class="fc bfc" id="L198" title="All 2 branches covered.">        return literalNewAst.getLastChild().getType() == TokenTypes.OBJBLOCK;</span>
+    }
+
+    /**
+     * Checks if variable name is definitely an exception name. It is so if
+     * variable type ends with &quot;Exception&quot; suffix
+     * @param variableNameAst The token to examine.
+     * @return true if the name is an exception.
+     */
+    private boolean isExceptionName(DetailAST variableNameAst) {
+<span class="fc" id="L208">        final DetailAST typeAst = variableNameAst.getPreviousSibling();</span>
+<span class="fc" id="L209">        final String typeName = typeAst.getFirstChild().getText();</span>
+<span class="fc" id="L210">        return pattern.matcher(typeName).matches();</span>
+    }
+
+}
+</pre><div class="footer"><span class="right">Created with <a href="http://www.eclemma.org/jacoco">JaCoCo</a> 0.7.1.201405082137</span></div></body></html>

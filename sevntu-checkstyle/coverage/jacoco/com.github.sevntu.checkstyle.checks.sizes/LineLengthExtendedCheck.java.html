@@ -1,0 +1,277 @@
+<?xml version="1.0" encoding="UTF-8"?><!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Strict//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-strict.dtd"><html xmlns="http://www.w3.org/1999/xhtml" lang="en"><head><meta http-equiv="Content-Type" content="text/html;charset=UTF-8"/><link rel="stylesheet" href="../.resources/report.css" type="text/css"/><link rel="shortcut icon" href="../.resources/report.gif" type="image/gif"/><title>LineLengthExtendedCheck.java</title><link rel="stylesheet" href="../.resources/prettify.css" type="text/css"/><script type="text/javascript" src="../.resources/prettify.js"></script></head><body onload="window['PR_TAB_WIDTH']=4;prettyPrint()"><div class="breadcrumb" id="breadcrumb"><span class="info"><a href="../.sessions.html" class="el_session">Sessions</a></span><a href="../index.html" class="el_report">sevntu-checks</a> &gt; <a href="index.source.html" class="el_package">com.github.sevntu.checkstyle.checks.sizes</a> &gt; <span class="el_source">LineLengthExtendedCheck.java</span></div><h1>LineLengthExtendedCheck.java</h1><pre class="source lang-java linenums">////////////////////////////////////////////////////////////////////////////////
+// checkstyle: Checks Java source code for adherence to a set of rules.
+// Copyright (C) 2001-2019 the original author or authors.
+//
+// This library is free software; you can redistribute it and/or
+// modify it under the terms of the GNU Lesser General Public
+// License as published by the Free Software Foundation; either
+// version 2.1 of the License, or (at your option) any later version.
+//
+// This library is distributed in the hope that it will be useful,
+// but WITHOUT ANY WARRANTY; without even the implied warranty of
+// MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the GNU
+// Lesser General Public License for more details.
+//
+// You should have received a copy of the GNU Lesser General Public
+// License along with this library; if not, write to the Free Software
+// Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA
+////////////////////////////////////////////////////////////////////////////////
+
+package com.github.sevntu.checkstyle.checks.sizes;
+
+import java.util.ArrayList;
+import java.util.List;
+import java.util.regex.Pattern;
+import java.util.regex.PatternSyntaxException;
+
+import com.puppycrawl.tools.checkstyle.api.AbstractCheck;
+import com.puppycrawl.tools.checkstyle.api.DetailAST;
+import com.puppycrawl.tools.checkstyle.api.TokenTypes;
+import com.puppycrawl.tools.checkstyle.utils.CommonUtil;
+
+/**
+ * Checks for long lines.
+ *
+ * &lt;p&gt;
+ * Rationale: Long lines are hard to read in printouts or if developers have limited screen
+ * space for the source code,
+ * e.g. if the IDE displays additional information like project tree, class hierarchy, etc.
+ * &lt;/p&gt;
+ *
+ * &lt;p&gt;
+ * Note: Support for the special handling of imports in CheckStyle Version 2 has been dropped as
+ * it is a special case of regexp: The user can set the ignorePattern to &quot;^import&quot; and achieve
+ * the same effect.
+ * &lt;/p&gt;
+ * &lt;p&gt;
+ * The default maximum allowable line length is 80 characters. To change the maximum, set
+ * property max.
+ * &lt;/p&gt;
+ * &lt;p&gt;
+ * To ignore lines in the check, set property ignorePattern to a regular expression for the
+ * lines to ignore.
+ * &lt;/p&gt;
+ * &lt;p&gt;
+ * An example of how to configure the check is:
+ * &lt;/p&gt;
+ *
+ * &lt;pre&gt;
+ * &amp;lt;module name=&quot;LineLength&quot;/&amp;gt;
+ * &lt;/pre&gt;
+ * &lt;p&gt;
+ * An example of how to configure the check to accept lines up to 120 characters long is:
+ * &lt;/p&gt;
+ *
+ * &lt;pre&gt;
+ * &amp;lt;module name=&quot;LineLength&quot;&amp;gt;
+ *    &amp;lt;property name=&quot;max&quot; value=&quot;120&quot;/&amp;gt;
+ * &amp;lt;/module&amp;gt;
+ * &lt;/pre&gt;
+ * &lt;p&gt;
+ * An example of how to configure the check to ignore lines that begin with &amp;quot; * &amp;quot;,
+ * followed by just one word, such as within a Javadoc comment, is:
+ * &lt;/p&gt;
+ *
+ * &lt;pre&gt;
+ * &amp;lt;module name=&quot;LineLength&quot;&amp;gt;
+ *    &amp;lt;property name=&quot;ignorePattern&quot; value=&quot;^ *\* *[^ ]+$&quot;/&amp;gt;
+ * &amp;lt;/module&amp;gt;
+ * &lt;/pre&gt;
+ *
+ * &lt;pre&gt;
+ * There are some exceptions for class, constructor, field and method
+ * declarations. To ignore to check such lines there are enable|disable options.
+ * By default they have &quot;false&quot; values.
+ * &lt;/pre&gt;
+ *
+ * @author Lars KÃ¼hne
+ * @author &lt;a href=&quot;mailto:ryly@mail.ru&quot;&gt;Ruslan Dyachenko&lt;/a&gt;
+ * @since 1.5.1
+ */
+public class LineLengthExtendedCheck extends AbstractCheck {
+
+    /** Warning message key. */
+    public static final String MSG_KEY = &quot;maxLineLen&quot;;
+
+    /** Default maximum number of columns in a line. */
+    private static final int DEFAULT_MAX_COLUMNS = 80;
+
+    /** The maximum number of columns in a line. */
+<span class="fc" id="L100">    private int max = DEFAULT_MAX_COLUMNS;</span>
+
+    /** The regexp when long lines are ignored. */
+    private Pattern ignorePattern;
+
+    /** Array of strings in source file. */
+    private String[] lines;
+
+    /** Check field declaration length. */
+    private boolean ignoreField;
+
+    /** Check method declaration length. */
+    private boolean ignoreMethod;
+
+    /** Check constructor declaration length. */
+    private boolean ignoreConstructor;
+
+    /** Check class declaration length. */
+    private boolean ignoreClass;
+
+    /**
+     * Creates a new &lt;code&gt;LineLengthCheck&lt;/code&gt; instance.
+     */
+<span class="fc" id="L123">    public LineLengthExtendedCheck() {</span>
+<span class="fc" id="L124">        setIgnorePattern(&quot;^$&quot;);</span>
+<span class="fc" id="L125">    }</span>
+
+    /**
+     * Enable|Disable checking field declaration length.
+     *
+     * @param value
+     *            check field declaration length.
+     */
+    public void setIgnoreField(boolean value) {
+<span class="fc" id="L134">        ignoreField = value;</span>
+<span class="fc" id="L135">    }</span>
+
+    /**
+     * Enable|Disable checking method declaration length.
+     *
+     * @param value
+     *            check method declaration length.
+     */
+    public void setIgnoreMethod(boolean value) {
+<span class="fc" id="L144">        ignoreMethod = value;</span>
+<span class="fc" id="L145">    }</span>
+
+    /**
+     * Enable|Disable checking constructor declaration length.
+     *
+     * @param value
+     *            check constructor declaration length.
+     */
+    public void setIgnoreConstructor(boolean value) {
+<span class="fc" id="L154">        ignoreConstructor = value;</span>
+<span class="fc" id="L155">    }</span>
+
+    /**
+     * Enable|Disable checking class declaration length.
+     *
+     * @param value
+     *            check class declaration length.
+     */
+    public void setIgnoreClass(boolean value) {
+<span class="fc" id="L164">        ignoreClass = value;</span>
+<span class="fc" id="L165">    }</span>
+
+    @Override
+    public int[] getDefaultTokens() {
+        // array of tokens
+<span class="fc" id="L170">        final List&lt;Integer&gt; tokens = new ArrayList&lt;&gt;();</span>
+
+        // disable checking field, method, constructor
+        // or class declaration length
+<span class="fc bfc" id="L174" title="All 2 branches covered.">        if (ignoreClass) {</span>
+<span class="fc" id="L175">            tokens.add(TokenTypes.CLASS_DEF);</span>
+        }
+<span class="fc bfc" id="L177" title="All 2 branches covered.">        if (ignoreConstructor) {</span>
+<span class="fc" id="L178">            tokens.add(TokenTypes.CTOR_DEF);</span>
+        }
+<span class="fc bfc" id="L180" title="All 2 branches covered.">        if (ignoreField) {</span>
+<span class="fc" id="L181">            tokens.add(TokenTypes.VARIABLE_DEF);</span>
+        }
+<span class="fc bfc" id="L183" title="All 2 branches covered.">        if (ignoreMethod) {</span>
+<span class="fc" id="L184">            tokens.add(TokenTypes.METHOD_DEF);</span>
+        }
+
+        // array of return tokens
+<span class="fc" id="L188">        final int[] returnTokens = new int[tokens.size()];</span>
+
+<span class="fc bfc" id="L190" title="All 2 branches covered.">        for (int index = 0; index &lt; tokens.size(); index++) {</span>
+<span class="fc" id="L191">            returnTokens[index] = tokens.get(index);</span>
+        }
+
+<span class="fc" id="L194">        return returnTokens;</span>
+    }
+
+    @Override
+    public int[] getAcceptableTokens() {
+<span class="fc" id="L199">        return getDefaultTokens();</span>
+    }
+
+    @Override
+    public int[] getRequiredTokens() {
+<span class="fc" id="L204">        return getDefaultTokens();</span>
+    }
+
+    @Override
+    public void visitToken(DetailAST ast) {
+<span class="fc bfc" id="L209" title="All 2 branches covered.">        if (ast.getParent() != null</span>
+<span class="fc bfc" id="L210" title="All 2 branches covered.">                &amp;&amp; ast.getParent().getType() == TokenTypes.OBJBLOCK</span>
+<span class="fc bfc" id="L211" title="All 2 branches covered.">                || ast.getType() == TokenTypes.CLASS_DEF) {</span>
+<span class="fc" id="L212">            final int mNumberOfLine = ast.getLineNo();</span>
+<span class="fc" id="L213">            final DetailAST endOfIgnoreLine = ast.findFirstToken(TokenTypes.SLIST);</span>
+
+<span class="fc bfc" id="L215" title="All 2 branches covered.">            if (endOfIgnoreLine == null) {</span>
+<span class="fc" id="L216">                lines[mNumberOfLine - 1] = null;</span>
+<span class="fc" id="L217">            }</span>
+            else {
+<span class="fc" id="L219">                int mEndNumberOfLine = endOfIgnoreLine.getLineNo();</span>
+<span class="fc bfc" id="L220" title="All 2 branches covered.">                while (mEndNumberOfLine &gt;= mNumberOfLine) {</span>
+<span class="fc" id="L221">                    lines[mEndNumberOfLine - 1] = null;</span>
+<span class="fc" id="L222">                    mEndNumberOfLine--;</span>
+                }
+            }
+        }
+<span class="fc" id="L226">    }</span>
+
+    @Override
+    public void beginTree(DetailAST rootAST) {
+<span class="fc" id="L230">        lines = getLines();</span>
+<span class="fc" id="L231">    }</span>
+
+    @Override
+    public void finishTree(DetailAST rootAST) {
+<span class="fc bfc" id="L235" title="All 2 branches covered.">        for (int i = 0; i &lt; lines.length; i++) {</span>
+<span class="fc bfc" id="L236" title="All 2 branches covered.">            if (lines[i] == null) {</span>
+<span class="fc" id="L237">                continue;</span>
+            }
+
+<span class="fc" id="L240">            final String line = lines[i];</span>
+<span class="fc" id="L241">            final int realLength = CommonUtil.lengthExpandedTabs(line,</span>
+<span class="fc" id="L242">                    line.length(), getTabWidth());</span>
+
+<span class="fc bfc" id="L244" title="All 4 branches covered.">            if (realLength &gt; max &amp;&amp; !ignorePattern.matcher(line).find()) {</span>
+<span class="fc" id="L245">                log(i + 1, MSG_KEY, max, realLength);</span>
+            }
+        }
+<span class="fc" id="L248">    }</span>
+
+    /**
+     * Setter for the field max.
+     * @param length
+     *            the maximum length of a line
+     */
+    public void setMax(int length) {
+<span class="fc" id="L256">        max = length;</span>
+<span class="fc" id="L257">    }</span>
+
+    /**
+     * Set the ignore pattern.
+     *
+     * @param format
+     *            a &lt;code&gt;String&lt;/code&gt; value
+     * @throws IllegalArgumentException
+     *             unable to parse aFormat
+     */
+    public final void setIgnorePattern(String format) {
+        try {
+<span class="fc" id="L269">            ignorePattern = Pattern.compile(format);</span>
+<span class="fc" id="L270">        }</span>
+<span class="fc" id="L271">        catch (final PatternSyntaxException ex) {</span>
+<span class="fc" id="L272">            throw new IllegalArgumentException(&quot;unable to parse &quot; + format, ex);</span>
+        }
+<span class="fc" id="L274">    }</span>
+
+}
+</pre><div class="footer"><span class="right">Created with <a href="http://www.eclemma.org/jacoco">JaCoCo</a> 0.7.1.201405082137</span></div></body></html>

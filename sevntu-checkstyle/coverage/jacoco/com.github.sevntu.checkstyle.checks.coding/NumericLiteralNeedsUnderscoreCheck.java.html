@@ -1,0 +1,668 @@
+<?xml version="1.0" encoding="UTF-8"?><!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Strict//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-strict.dtd"><html xmlns="http://www.w3.org/1999/xhtml" lang="en"><head><meta http-equiv="Content-Type" content="text/html;charset=UTF-8"/><link rel="stylesheet" href="../.resources/report.css" type="text/css"/><link rel="shortcut icon" href="../.resources/report.gif" type="image/gif"/><title>NumericLiteralNeedsUnderscoreCheck.java</title><link rel="stylesheet" href="../.resources/prettify.css" type="text/css"/><script type="text/javascript" src="../.resources/prettify.js"></script></head><body onload="window['PR_TAB_WIDTH']=4;prettyPrint()"><div class="breadcrumb" id="breadcrumb"><span class="info"><a href="../.sessions.html" class="el_session">Sessions</a></span><a href="../index.html" class="el_report">sevntu-checks</a> &gt; <a href="index.source.html" class="el_package">com.github.sevntu.checkstyle.checks.coding</a> &gt; <span class="el_source">NumericLiteralNeedsUnderscoreCheck.java</span></div><h1>NumericLiteralNeedsUnderscoreCheck.java</h1><pre class="source lang-java linenums"><span class="nc" id="L1">////////////////////////////////////////////////////////////////////////////////</span>
+// checkstyle: Checks Java source code for adherence to a set of rules.
+// Copyright (C) 2001-2019 the original author or authors.
+//
+// This library is free software; you can redistribute it and/or
+// modify it under the terms of the GNU Lesser General Public
+// License as published by the Free Software Foundation; either
+// version 2.1 of the License, or (at your option) any later version.
+//
+// This library is distributed in the hope that it will be useful,
+// but WITHOUT ANY WARRANTY; without even the implied warranty of
+// MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the GNU
+// Lesser General Public License for more details.
+//
+// You should have received a copy of the GNU Lesser General Public
+// License along with this library; if not, write to the Free Software
+// Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA
+////////////////////////////////////////////////////////////////////////////////
+
+package com.github.sevntu.checkstyle.checks.coding;
+
+import java.util.regex.Pattern;
+
+import com.puppycrawl.tools.checkstyle.api.AbstractCheck;
+import com.puppycrawl.tools.checkstyle.api.DetailAST;
+import com.puppycrawl.tools.checkstyle.api.TokenTypes;
+
+/**
+ * &lt;p&gt;
+ * This check verifies that large numeric literals are spaced by underscores.
+ * &lt;/p&gt;
+ * &lt;p&gt;
+ * Java 7 allows for underscores to delimit numeric literals to enhance readability because
+ * very large numeric literals are hard to read. For example:
+ * &lt;/p&gt;
+ * &lt;code&gt;
+ * long creditCardNumber = 1234_5678_1234_5678L;
+ * &lt;/code&gt;
+ * &lt;p&gt;
+ * is much easier to read than
+ * &lt;/p&gt;
+ * &lt;code&gt;
+ * long creditCardNumber = 1234567812345678L;
+ * &lt;/code&gt;
+ * &lt;p&gt;
+ * This check comes with the following parameters:
+ * &lt;/p&gt;
+ * &lt;p&gt;
+ * &quot;minDecimalSymbolLength&quot; - The minimum number of symbols in a decimal literal (includes int,
+ * long, float, and double) before the check begins to look for underscores. Numeric literals
+ * with delimiters like decimal points or exponentials will be split before checking the
+ * length. Default is 7.
+ * &lt;/p&gt;
+ * &lt;p&gt;
+ * &quot;maxDecimalSymbolsUntilUnderscore&quot; - The maximum number of symbols in a decimal literal
+ * allowed before the check demands an underscore. This does not take postfixes and delimiters
+ * like decimal points and exponentials into account. Default is 3.
+ * &lt;/p&gt;
+ * &lt;p&gt;
+ * &quot;minHexSymbolLength&quot; - The minimum number of symbols in a hex literal before the check
+ * begins to look for underscores. Numeric literals with delimiters like decimal points or
+ * exponentials will be split before checking the length. Default is 5.
+ * &lt;/p&gt;
+ * &lt;p&gt;
+ * &quot;maxHexSymbolsUntilUnderscore&quot; - The maximum number of symbols in a hex literal allowed
+ * before the check demands an underscore. This does not take the prefix 0x, delimiters like
+ * decimal points and exponentials, and postfixes into account. Default is 4.
+ * &lt;/p&gt;
+ * &lt;p&gt;
+ * &quot;minBinarySymbolLength&quot; - The minimum number of symbols in a binary literal before the check
+ * begins to look for underscores. Default is 9.
+ * &lt;/p&gt;
+ * &lt;p&gt;
+ * &quot;maxBinarySymbolsUntilUnderscore&quot; - The maximum number of symbols in a binary literal
+ * allowed before the check demands an underscore. This does not take the prefix 0b and
+ * postfixes into account. Default is 8.
+ * &lt;/p&gt;
+ * &lt;p&gt;
+ * Examples (assuming default parameters):
+ * &lt;/p&gt;
+ *
+ * &lt;pre&gt;
+ * // Ignored because length of token is 6, which is less than minDecimalSymbolLength (7)
+ * int ignoredDecimal = 123456;
+ * // Ignored because the postfix L is not taken into account
+ * long ignoredDecimal = 123456L;
+ * // Ignored because each segment delimited by the decimal point has a length
+ * // less than minDecimalSymbolLength (7)
+ * float ignoredDecimal = 123456.123456f;
+ * // Failed because token does not have underscores every 3 characters
+ * // (maxDecimalSymbolsUntilUnderscore = 3)
+ * int failingDecimal = 1234567;
+ * double failingDecimal = 1.1234567e0d;
+ * int passingDecimal = 1_234_567;
+ * double passingDecimal = 123456.123456e0d;
+ * double passingDecimal = 1.123_456_7e0d;
+ * int ignoredHex = 0xFFFF;
+ * int failingHex = 0xFFFFFFFF;
+ * int passingHex = 0xFFFF_FFFF;
+ * float passingHex = 0xAAAA.BBBBp1f;
+ * int ignoredBinary = 0b01010101;
+ * int failingBinary = 0b0000000000000000;
+ * int passingBinary = 0b00000000_00000000;
+ * &lt;/pre&gt;
+ * &lt;p&gt;
+ * An example of how to configure parameters:
+ * &lt;/p&gt;
+ *
+ * &lt;pre&gt;
+ * &amp;lt;module name=&quot;NumericLiteralNeedsUnderscoreCheck&quot;&amp;gt;
+ *    &amp;lt;property name=&quot;minDecimalSymbolLength&quot; value=&quot;4&quot;/&amp;gt;
+ *    &amp;lt;property name=&quot;maxDecimalSymbolsUntilUnderscore&quot; value=&quot;3&quot;/&amp;gt;
+ *    &amp;lt;property name=&quot;minHexSymbolLength&quot; value=&quot;3&quot;/&amp;gt;
+ *    &amp;lt;property name=&quot;maxHexSymbolsUntilUnderscore&quot; value=&quot;2&quot;/&amp;gt;
+ *    &amp;lt;property name=&quot;minBinarySymbolLength&quot; value=&quot;5&quot;/&amp;gt;
+ *    &amp;lt;property name=&quot;maxBinarySymbolsUntilUnderscore&quot; value=&quot;4&quot;/&amp;gt;
+ * &amp;lt;/module&amp;gt;
+ * &lt;/pre&gt;
+ * &lt;p&gt;
+ * Examples (assuming above parameters):
+ * &lt;/p&gt;
+ *
+ * &lt;pre&gt;
+ * // Ignored because length of token is 3, which is less than minDecimalSymbolLength (4)
+ * int ignoredDecimal = 123;
+ * // Ignored because each segment delimited by the decimal point has a length
+ * // less than minDecimalSymbolLength (4)
+ * float ignoredDecimal = 123.123f;
+ * // Failed because token does not have underscores every 3 characters
+ * // (maxDecimalSymbolsUntilUnderscore = 3)
+ * int failingDecimal = 1234;
+ * int passingDecimal = 1_234;
+ * int ignoredHex = 0xFF;
+ * int failingHex = 0xFFFF;
+ * int passingHex = 0xFF_FF;
+ * int ignoredBinary = 0b0101;
+ * int failingBinary = 0b00001111;
+ * int passingBinary = 0b0000_1111;
+ * &lt;/pre&gt;
+ * @author Cheng-Yu Pai
+ * @since 1.18.0
+ */
+
+<span class="fc" id="L144">public class NumericLiteralNeedsUnderscoreCheck extends AbstractCheck {</span>
+
+    /**
+     * Key for error message.
+     */
+    public static final String MSG_KEY = &quot;numeric.literal.need.underscore&quot;;
+
+    /**
+     * Type of numeric literal.
+     */
+<span class="nc" id="L154">    protected enum NumericType {</span>
+
+<span class="nc" id="L156">        /**</span>
+         * Denotes a decimal literal. For example, 1.2f
+         */
+<span class="nc" id="L159">        DECIMAL,</span>
+
+<span class="nc" id="L161">        /**</span>
+         * Denotes a hex literal. For example, 0x00FF
+         */
+<span class="nc" id="L164">        HEX,</span>
+
+<span class="nc" id="L166">        /**</span>
+         * Denotes a binary literal. For example, 0b0011
+         */
+<span class="nc" id="L169">        BINARY;</span>
+
+    }
+
+    /**
+     * Default minimum symbols for a decimal literal before checking.
+     */
+    private static final int DEFAULT_MIN_DECIMAL_SYMBOL_LEN = 7;
+
+    /**
+     * Default maximum symbols for a decimal literal before it demands an underscore.
+     */
+    private static final int DEFAULT_MAX_DECIMAL_SYMBOLS_UNTIL_UNDERSCORE = 3;
+
+    /**
+     * Default minimum symbols for a hex literal before checking.
+     */
+    private static final int DEFAULT_MIN_HEX_SYMBOL_LEN = 5;
+
+    /**
+     * Default maximum symbols for a hex literal before it demands an underscore.
+     */
+    private static final int DEFAULT_MAX_HEX_SYMBOLS_UNTIL_UNDERSCORE = 4;
+
+    /**
+     * Default minimum symbols for a binary literal before checking.
+     */
+    private static final int DEFAULT_MIN_BINARY_SYMBOL_LEN = 9;
+
+    /**
+     * Default maximum symbols for a binary literal before it demands an underscore.
+     */
+    private static final int DEFAULT_MAX_BINARY_SYMBOLS_UNTIL_UNDERSCORE = 8;
+
+    /**
+     * Default regexp for fields to ignore for this check.
+     */
+<span class="fc" id="L206">    private static final Pattern DEFAULT_IGNORE_FIELD_NAME_PATTERN =</span>
+<span class="fc" id="L207">            Pattern.compile(&quot;serialVersionUID&quot;);</span>
+
+    /**
+     * Regex for splitting a decimal literal into checkable substrings.
+     */
+<span class="fc" id="L212">    private static final Pattern DECIMAL_SPLITTER = Pattern.compile(&quot;[\\.eE]&quot;);</span>
+
+    /**
+     * Regex for splitting a hex literal into checkable substrings.
+     */
+<span class="fc" id="L217">    private static final Pattern HEX_SPLITTER = Pattern.compile(&quot;[\\.pP]&quot;);</span>
+
+    /**
+     * Length of prefixes. Prefixes are 0x and 0b.
+     */
+    private static final int PREFIX_LENGTH = 2;
+
+    /**
+     * Unexpected numeric type error string.
+     */
+<span class="fc" id="L227">    private static final String UNEXPECTED_NUMERIC_TYPE_ERROR = &quot;Unexpected numeric type &quot;;</span>
+
+    /**
+     * Minimum symbols for a decimal literal before checking.
+     */
+<span class="fc" id="L232">    private int minDecimalSymbolLength = DEFAULT_MIN_DECIMAL_SYMBOL_LEN;</span>
+
+    /**
+     * Maximum symbols for a decimal literal before it demands an underscore.
+     */
+<span class="fc" id="L237">    private int maxDecimalSymbolsUntilUnderscore = DEFAULT_MAX_DECIMAL_SYMBOLS_UNTIL_UNDERSCORE;</span>
+
+    /**
+     * Minimum symbols for a hex literal before checking.
+     */
+<span class="fc" id="L242">    private int minHexSymbolLength = DEFAULT_MIN_HEX_SYMBOL_LEN;</span>
+
+    /**
+     * Maximum symbols for a hex literal before it demands an underscore.
+     */
+<span class="fc" id="L247">    private int maxHexSymbolsUntilUnderscore = DEFAULT_MAX_HEX_SYMBOLS_UNTIL_UNDERSCORE;</span>
+
+    /**
+     * Minimum symbols for a binary literal before checking.
+     */
+<span class="fc" id="L252">    private int minBinarySymbolLength = DEFAULT_MIN_BINARY_SYMBOL_LEN;</span>
+
+    /**
+     * Maximum symbols for a binary literal before it demands an underscore.
+     */
+<span class="fc" id="L257">    private int maxBinarySymbolsUntilUnderscore = DEFAULT_MAX_BINARY_SYMBOLS_UNTIL_UNDERSCORE;</span>
+
+    /**
+     * Regexp for fields to ignore.
+     */
+<span class="fc" id="L262">    private Pattern ignoreFieldNamePattern = DEFAULT_IGNORE_FIELD_NAME_PATTERN;</span>
+
+    /**
+     * Sets how many characters in a decimal literal there must be before it checks for an
+     * underscore.
+     * @param length
+     *        minimum checking length of the literal
+     */
+    public void setMinDecimalSymbolLength(int length) {
+<span class="nc" id="L271">        minDecimalSymbolLength = length;</span>
+<span class="nc" id="L272">    }</span>
+
+    /**
+     * Sets how many characters there can be until there must be an underscore (for decimal
+     * literals).
+     * @param amount
+     *        maximum number of characters between underscores
+     */
+    public void setMaxDecimalSymbolsUntilUnderscore(int amount) {
+<span class="nc" id="L281">        maxDecimalSymbolsUntilUnderscore = amount;</span>
+<span class="nc" id="L282">    }</span>
+
+    /**
+     * Sets how many characters in a hex literal there must be before it checks for an
+     * underscore.
+     * @param length
+     *        minimum checking length of the literal
+     */
+    public void setMinHexSymbolLength(int length) {
+<span class="nc" id="L291">        minHexSymbolLength = length;</span>
+<span class="nc" id="L292">    }</span>
+
+    /**
+     * Sets how many characters there can be until there must be an underscore (for hex
+     * literals).
+     * @param amount
+     *        maximum number of characters between underscores
+     */
+    public void setMaxHexSymbolsUntilUnderscore(int amount) {
+<span class="nc" id="L301">        maxHexSymbolsUntilUnderscore = amount;</span>
+<span class="nc" id="L302">    }</span>
+
+    /**
+     * Sets how many characters in a byte literal there must be before it checks for an
+     * underscore.
+     * @param length
+     *        minimum checking length of the literal
+     */
+    public void setMinBinarySymbolLength(int length) {
+<span class="nc" id="L311">        minBinarySymbolLength = length;</span>
+<span class="nc" id="L312">    }</span>
+
+    /**
+     * Sets how many characters there can be until there must be an underscore (binary
+     * literals).
+     * @param amount
+     *        maximum number of characters between underscores
+     */
+    public void setMaxBinarySymbolsUntilUnderscore(int amount) {
+<span class="nc" id="L321">        maxBinarySymbolsUntilUnderscore = amount;</span>
+<span class="nc" id="L322">    }</span>
+
+    /**
+     * Sets the regexp pattern for field names to ignore.
+     * @param pattern
+     *        the regexp pattern of fields to ignore
+     */
+    public void setIgnoreFieldNamePattern(String pattern) {
+<span class="nc" id="L330">        ignoreFieldNamePattern = Pattern.compile(pattern);</span>
+<span class="nc" id="L331">    }</span>
+
+    @Override
+    public int[] getDefaultTokens() {
+<span class="fc" id="L335">        return new int[] {</span>
+<span class="fc" id="L336">            TokenTypes.NUM_INT,</span>
+<span class="fc" id="L337">            TokenTypes.NUM_LONG,</span>
+<span class="fc" id="L338">            TokenTypes.NUM_FLOAT,</span>
+<span class="fc" id="L339">            TokenTypes.NUM_DOUBLE,</span>
+        };
+    }
+
+    @Override
+    public int[] getAcceptableTokens() {
+<span class="fc" id="L345">        return getDefaultTokens();</span>
+    }
+
+    @Override
+    public int[] getRequiredTokens() {
+<span class="fc" id="L350">        return getDefaultTokens();</span>
+    }
+
+    @Override
+    public void visitToken(final DetailAST ast) {
+<span class="nc bnc" id="L355" title="All 2 branches missed.">        if (!passesCheck(ast)) {</span>
+<span class="nc" id="L356">            log(ast, MSG_KEY);</span>
+        }
+<span class="nc" id="L358">    }</span>
+
+    /**
+     * Checks if the provided token is a field.
+     * @param ast
+     *        the token to check
+     * @return whether or not the token is a field
+     */
+    private static boolean isField(final DetailAST ast) {
+<span class="nc" id="L367">        DetailAST current = ast;</span>
+<span class="nc bnc" id="L368" title="All 4 branches missed.">        while (current.getParent() != null &amp;&amp; current.getType() != TokenTypes.VARIABLE_DEF) {</span>
+<span class="nc" id="L369">            current = current.getParent();</span>
+        }
+<span class="nc bnc" id="L371" title="All 2 branches missed.">        return current.getType() == TokenTypes.VARIABLE_DEF</span>
+<span class="nc bnc" id="L372" title="All 2 branches missed.">                &amp;&amp; current.findFirstToken(TokenTypes.MODIFIERS)</span>
+<span class="nc" id="L373">                    .findFirstToken(TokenTypes.LITERAL_STATIC) != null</span>
+<span class="nc bnc" id="L374" title="All 2 branches missed.">                &amp;&amp; current.findFirstToken(TokenTypes.MODIFIERS)</span>
+<span class="nc" id="L375">                    .findFirstToken(TokenTypes.FINAL) != null;</span>
+    }
+
+    /**
+     * Returns the provided field's name.
+     * @param ast
+     *        the field for which the function looks for a name
+     * @return the field's name
+     */
+    private static String getFieldName(final DetailAST ast) {
+<span class="nc" id="L385">        DetailAST current = ast;</span>
+<span class="nc bnc" id="L386" title="All 2 branches missed.">        while (current.getType() != TokenTypes.VARIABLE_DEF) {</span>
+<span class="nc" id="L387">            current = current.getParent();</span>
+        }
+<span class="nc" id="L389">        current = current.getFirstChild();</span>
+<span class="nc bnc" id="L390" title="All 2 branches missed.">        while (current.getType() != TokenTypes.IDENT) {</span>
+<span class="nc" id="L391">            current = current.getNextSibling();</span>
+        }
+<span class="nc" id="L393">        return current.getText();</span>
+    }
+
+    /**
+     * Returns true if the ast passes the check.
+     * @param ast
+     *        the numeric literal to check
+     * @return if the numeric literal passes the check
+     */
+    private boolean passesCheck(final DetailAST ast) {
+        boolean passing;
+<span class="nc bnc" id="L404" title="All 4 branches missed.">        if (isField(ast) &amp;&amp; ignoreFieldNamePattern.matcher(getFieldName(ast)).find()) {</span>
+<span class="nc" id="L405">            passing = true;</span>
+<span class="nc" id="L406">        }</span>
+        else {
+<span class="nc" id="L408">            final String rawLiteral = ast.getText();</span>
+<span class="nc" id="L409">            final NumericType type = getNumericType(rawLiteral);</span>
+<span class="nc" id="L410">            final int minCheckingLength = minSymbolsBeforeChecking(type);</span>
+<span class="nc" id="L411">            final int symbolsUntilUnderscore = maxSymbolsUntilUnderscore(type);</span>
+<span class="nc" id="L412">            final String strippedLiteral = removePrePostfixByType(rawLiteral, type);</span>
+<span class="nc" id="L413">            final String[] numericSegments = getNumericSegments(strippedLiteral, type);</span>
+<span class="nc" id="L414">            passing = true;</span>
+<span class="nc bnc" id="L415" title="All 2 branches missed.">            for (String numericSegment : numericSegments) {</span>
+<span class="nc" id="L416">                if (!numericSegmentPassesRequirement(numericSegment,</span>
+<span class="nc bnc" id="L417" title="All 2 branches missed.">                        minCheckingLength, symbolsUntilUnderscore)) {</span>
+<span class="nc" id="L418">                    passing = false;</span>
+<span class="nc" id="L419">                    break;</span>
+                }
+            }
+        }
+<span class="nc" id="L423">        return passing;</span>
+    }
+
+    /**
+     * Parses the numeric literal to return the minimum checking length for the literal's type.
+     * @param type
+     *        the type of numerical literal
+     * @return minimum length before checking
+     */
+    private int minSymbolsBeforeChecking(NumericType type) {
+        final int minLength;
+<span class="nc bnc" id="L434" title="All 2 branches missed.">        if (type.equals(NumericType.DECIMAL)) {</span>
+<span class="nc" id="L435">            minLength = minDecimalSymbolLength;</span>
+<span class="nc" id="L436">        }</span>
+<span class="nc bnc" id="L437" title="All 2 branches missed.">        else if (type.equals(NumericType.HEX)) {</span>
+<span class="nc" id="L438">            minLength = minHexSymbolLength;</span>
+<span class="nc" id="L439">        }</span>
+<span class="nc bnc" id="L440" title="All 2 branches missed.">        else if (type.equals(NumericType.BINARY)) {</span>
+<span class="nc" id="L441">            minLength = minBinarySymbolLength;</span>
+<span class="nc" id="L442">        }</span>
+        else {
+<span class="nc" id="L444">            throw new IllegalStateException(UNEXPECTED_NUMERIC_TYPE_ERROR</span>
+<span class="nc" id="L445">                    + type.toString());</span>
+        }
+<span class="nc" id="L447">        return minLength;</span>
+    }
+
+    /**
+     * Parses the numeric literal to return the maximum number of characters before there must
+     * be an underscore for the literal's type.
+     * @param type
+     *        the type of numerical literal
+     * @return maximum number of characters between underscores
+     */
+    private int maxSymbolsUntilUnderscore(NumericType type) {
+        final int maxSymbols;
+<span class="nc bnc" id="L459" title="All 2 branches missed.">        if (type.equals(NumericType.DECIMAL)) {</span>
+<span class="nc" id="L460">            maxSymbols = maxDecimalSymbolsUntilUnderscore;</span>
+<span class="nc" id="L461">        }</span>
+<span class="nc bnc" id="L462" title="All 2 branches missed.">        else if (type.equals(NumericType.HEX)) {</span>
+<span class="nc" id="L463">            maxSymbols = maxHexSymbolsUntilUnderscore;</span>
+<span class="nc" id="L464">        }</span>
+<span class="nc bnc" id="L465" title="All 2 branches missed.">        else if (type.equals(NumericType.BINARY)) {</span>
+<span class="nc" id="L466">            maxSymbols = maxBinarySymbolsUntilUnderscore;</span>
+<span class="nc" id="L467">        }</span>
+        else {
+<span class="nc" id="L469">            throw new IllegalStateException(UNEXPECTED_NUMERIC_TYPE_ERROR</span>
+<span class="nc" id="L470">                    + type.toString());</span>
+        }
+<span class="nc" id="L472">        return maxSymbols;</span>
+    }
+
+    /**
+     * &lt;p&gt;
+     * Generates easily checkable numeric tokens from the raw literal text, assuming
+     * the numeric type provided.
+     * &lt;/p&gt;
+     * &lt;p&gt;
+     * For example: 123.4567 passes because each section itself is not too long and is
+     * perfectly readable.
+     * &lt;/p&gt;
+     * Additionally, Java will not compile underscores next to decimal points etc.
+     * @param strippedLiteral
+     *        numeric literal stripped of any prefixes and postfixes
+     * @param type
+     *        the numeric type of the literal
+     * @return numeric tokens (segments) without non-numeric characters
+     */
+    private static String[] getNumericSegments(String strippedLiteral, NumericType type) {
+        final String[] numericSegments;
+<span class="nc bnc" id="L493" title="All 2 branches missed.">        if (type.equals(NumericType.DECIMAL)) {</span>
+<span class="nc" id="L494">            numericSegments = DECIMAL_SPLITTER.split(strippedLiteral);</span>
+<span class="nc" id="L495">        }</span>
+<span class="nc bnc" id="L496" title="All 2 branches missed.">        else if (type.equals(NumericType.HEX)) {</span>
+<span class="nc" id="L497">            numericSegments = HEX_SPLITTER.split(strippedLiteral);</span>
+<span class="nc" id="L498">        }</span>
+<span class="nc bnc" id="L499" title="All 2 branches missed.">        else if (type.equals(NumericType.BINARY)) {</span>
+<span class="nc" id="L500">            numericSegments = new String[1];</span>
+<span class="nc" id="L501">            numericSegments[0] = strippedLiteral;</span>
+<span class="nc" id="L502">        }</span>
+        else {
+<span class="nc" id="L504">            throw new IllegalStateException(UNEXPECTED_NUMERIC_TYPE_ERROR</span>
+<span class="nc" id="L505">                    + type.toString());</span>
+        }
+<span class="nc" id="L507">        return numericSegments;</span>
+    }
+
+    /**
+     * &lt;p&gt;
+     * Returns the type of numeric literal given the raw text.
+     * &lt;/p&gt;
+     * &lt;p&gt;
+     * Decimal literals are normal numbers. Example: 1, 1.0, 1.0e0f, 1L
+     * &lt;/p&gt;
+     * &lt;p&gt;
+     * Hex literals are preceded by 0x. Example: 0xDEADBEEF, 0xA.Bp1d
+     * &lt;/p&gt;
+     * &lt;p&gt;
+     * Binary literals are preceded by 0b. Example: 0b00001111
+     * &lt;/p&gt;
+     * @param rawLiteral
+     *        numeric literal
+     * @return the type of literal (either decimal, hex, or binary)
+     */
+    private static NumericType getNumericType(String rawLiteral) {
+        final NumericType type;
+<span class="nc bnc" id="L529" title="All 2 branches missed.">        if (rawLiteral.length() &lt; PREFIX_LENGTH) {</span>
+<span class="nc" id="L530">            type = NumericType.DECIMAL;</span>
+<span class="nc" id="L531">        }</span>
+        else {
+<span class="nc" id="L533">            final String prefix = rawLiteral.substring(0, PREFIX_LENGTH);</span>
+<span class="nc bnc" id="L534" title="All 2 branches missed.">            if (&quot;0x&quot;.equals(prefix)) {</span>
+<span class="nc" id="L535">                type = NumericType.HEX;</span>
+<span class="nc" id="L536">            }</span>
+<span class="nc bnc" id="L537" title="All 2 branches missed.">            else if (&quot;0b&quot;.equals(prefix)) {</span>
+<span class="nc" id="L538">                type = NumericType.BINARY;</span>
+<span class="nc" id="L539">            }</span>
+            else {
+<span class="nc" id="L541">                type = NumericType.DECIMAL;</span>
+            }
+        }
+<span class="nc" id="L544">        return type;</span>
+    }
+
+    /**
+     * Returns whether or not the text passes the underscore requirement given the text and
+     * minimum length.
+     * @param numericSegment
+     *        the numeric segment to check
+     * @param minLength
+     *        minimum length for the numericSegment
+     * @param symbolsUntilUnderscore
+     *        maximum number of characters until there must be an underscore
+     * @return whether or not the numeric segment passes the requirements
+     */
+    private static boolean numericSegmentPassesRequirement(String numericSegment,
+            int minLength, int symbolsUntilUnderscore) {
+<span class="nc" id="L560">        boolean passes = true;</span>
+<span class="nc bnc" id="L561" title="All 2 branches missed.">        if (numericSegment.length() &gt;= minLength) {</span>
+<span class="nc" id="L562">            final char underscore = '_';</span>
+<span class="nc" id="L563">            int symbolCount = 0;</span>
+
+<span class="nc bnc" id="L565" title="All 2 branches missed.">            for (int i = 0; i &lt; numericSegment.length(); i++) {</span>
+<span class="nc" id="L566">                final char current = numericSegment.charAt(i);</span>
+<span class="nc bnc" id="L567" title="All 4 branches missed.">                if (symbolCount &gt;= symbolsUntilUnderscore &amp;&amp; current != underscore) {</span>
+<span class="nc" id="L568">                    passes = false;</span>
+<span class="nc" id="L569">                    break;</span>
+                }
+<span class="nc bnc" id="L571" title="All 2 branches missed.">                if (current == underscore) {</span>
+<span class="nc" id="L572">                    symbolCount = 0;</span>
+<span class="nc" id="L573">                }</span>
+                else {
+<span class="nc" id="L575">                    symbolCount++;</span>
+                }
+            }
+        }
+<span class="nc" id="L579">        return passes;</span>
+    }
+
+    /**
+     * Removes 0x, 0b prefixes, and l, L, f, F, d, D postfixes from numeric literals.
+     * @param rawLiteral
+     *        the numeric literal that needs to be stripped of prefixes and postfixes
+     * @param literalType
+     *        the type of the literal being passed in
+     * @return a stripped version of the raw literal
+     */
+    private static String removePrePostfixByType(String rawLiteral, NumericType literalType) {
+        String processedLiteral;
+<span class="nc bnc" id="L592" title="All 2 branches missed.">        if (literalType.equals(NumericType.DECIMAL)) {</span>
+<span class="nc" id="L593">            processedLiteral = removeLetterPostfix(rawLiteral);</span>
+<span class="nc" id="L594">        }</span>
+<span class="nc bnc" id="L595" title="All 2 branches missed.">        else if (literalType.equals(NumericType.HEX)) {</span>
+<span class="nc" id="L596">            processedLiteral = removePrefix(rawLiteral);</span>
+<span class="nc" id="L597">            processedLiteral = removePostfixHex(processedLiteral);</span>
+<span class="nc" id="L598">        }</span>
+<span class="nc bnc" id="L599" title="All 2 branches missed.">        else if (literalType.equals(NumericType.BINARY)) {</span>
+<span class="nc" id="L600">            processedLiteral = removePrefix(rawLiteral);</span>
+<span class="nc" id="L601">            processedLiteral = removeLetterPostfix(processedLiteral);</span>
+<span class="nc" id="L602">        }</span>
+        else {
+<span class="nc" id="L604">            throw new IllegalStateException(UNEXPECTED_NUMERIC_TYPE_ERROR</span>
+<span class="nc" id="L605">                    + literalType.toString());</span>
+        }
+<span class="nc" id="L607">        return processedLiteral;</span>
+    }
+
+    /**
+     * Removes the prefixes 0x and 0b.
+     * @param text
+     *        the text to remove the prefixes
+     * @return the text without the prefixes
+     */
+    private static String removePrefix(String text) {
+<span class="nc" id="L617">        return text.substring(PREFIX_LENGTH);</span>
+    }
+
+    /**
+     * Removes the postfix from the text if it exists. Does not handle hex literals correctly,
+     * for that use removePostfixHex.
+     * @param text
+     *        the text to remove the postfixes
+     * @return the text without the postfixes
+     */
+    private static String removeLetterPostfix(String text) {
+<span class="nc" id="L628">        final char lastchar = text.charAt(text.length() - 1);</span>
+        final String noPostfixText;
+<span class="nc bnc" id="L630" title="All 2 branches missed.">        if (Character.isDigit(lastchar)) {</span>
+<span class="nc" id="L631">            noPostfixText = text;</span>
+<span class="nc" id="L632">        }</span>
+        else {
+<span class="nc" id="L634">            noPostfixText = text.substring(0, text.length() - 1);</span>
+        }
+<span class="nc" id="L636">        return noPostfixText;</span>
+    }
+
+    /**
+     * Removes the postfix from the hex literal text if it exists. Does not handle other
+     * literals correctly, for those use removeLetterPostfix.
+     * @param text
+     *        the text to remove the postfixes
+     * @return the text without the postfixes
+     */
+    private static String removePostfixHex(String text) {
+<span class="nc" id="L647">        final char lastchar = Character.toUpperCase(text.charAt(text.length() - 1));</span>
+<span class="nc" id="L648">        boolean hasPostfix = false;</span>
+<span class="nc bnc" id="L649" title="All 2 branches missed.">        if (lastchar == 'L') {</span>
+            // Example: 0x00FFL
+<span class="nc" id="L651">            hasPostfix = true;</span>
+<span class="nc" id="L652">        }</span>
+<span class="nc bnc" id="L653" title="All 6 branches missed.">        else if (lastchar == 'F' &amp;&amp; (text.contains(&quot;p&quot;) || text.contains(&quot;P&quot;))) {</span>
+            // Example: 0x1.0p1f (Hex Float)
+<span class="nc" id="L655">            hasPostfix = true;</span>
+        }
+        final String noPostfixText;
+<span class="nc bnc" id="L658" title="All 2 branches missed.">        if (hasPostfix) {</span>
+<span class="nc" id="L659">            noPostfixText = text.substring(0, text.length() - 1);</span>
+<span class="nc" id="L660">        }</span>
+        else {
+<span class="nc" id="L662">            noPostfixText = text;</span>
+        }
+<span class="nc" id="L664">        return noPostfixText;</span>
+    }
+
+}
+</pre><div class="footer"><span class="right">Created with <a href="http://www.eclemma.org/jacoco">JaCoCo</a> 0.7.1.201405082137</span></div></body></html>

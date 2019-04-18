@@ -1,0 +1,376 @@
+<?xml version="1.0" encoding="UTF-8"?><!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Strict//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-strict.dtd"><html xmlns="http://www.w3.org/1999/xhtml" lang="en"><head><meta http-equiv="Content-Type" content="text/html;charset=UTF-8"/><link rel="stylesheet" href="../.resources/report.css" type="text/css"/><link rel="shortcut icon" href="../.resources/report.gif" type="image/gif"/><title>SimpleAccessorNameNotationCheck.java</title><link rel="stylesheet" href="../.resources/prettify.css" type="text/css"/><script type="text/javascript" src="../.resources/prettify.js"></script></head><body onload="window['PR_TAB_WIDTH']=4;prettyPrint()"><div class="breadcrumb" id="breadcrumb"><span class="info"><a href="../.sessions.html" class="el_session">Sessions</a></span><a href="../index.html" class="el_report">sevntu-checks</a> &gt; <a href="index.source.html" class="el_package">com.github.sevntu.checkstyle.checks.coding</a> &gt; <span class="el_source">SimpleAccessorNameNotationCheck.java</span></div><h1>SimpleAccessorNameNotationCheck.java</h1><pre class="source lang-java linenums">////////////////////////////////////////////////////////////////////////////////
+// checkstyle: Checks Java source code for adherence to a set of rules.
+// Copyright (C) 2001-2019 the original author or authors.
+//
+// This library is free software; you can redistribute it and/or
+// modify it under the terms of the GNU Lesser General Public
+// License as published by the Free Software Foundation; either
+// version 2.1 of the License, or (at your option) any later version.
+//
+// This library is distributed in the hope that it will be useful,
+// but WITHOUT ANY WARRANTY; without even the implied warranty of
+// MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the GNU
+// Lesser General Public License for more details.
+//
+// You should have received a copy of the GNU Lesser General Public
+// License along with this library; if not, write to the Free Software
+// Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA
+////////////////////////////////////////////////////////////////////////////////
+
+package com.github.sevntu.checkstyle.checks.coding;
+
+import com.puppycrawl.tools.checkstyle.api.AbstractCheck;
+import com.puppycrawl.tools.checkstyle.api.DetailAST;
+import com.puppycrawl.tools.checkstyle.api.TokenTypes;
+
+/**
+ * &lt;p&gt;
+ * This check verify incorrect name of setter and getter methods if it used
+ * field with other name.
+ * &lt;/p&gt;
+ * &lt;p&gt;
+ * For example, method has name 'setXXX', but define field with name 'YYY'.
+ * Setter and getter methods must have next view: XXXType getXXXName() {return
+ * XXXName} XXXType getXXXName() {return this.XXXName} void setXXXName(XXXType
+ * value) { this.XXXName = value} void setXXXName(XXXType value) { XXXName =
+ * value}
+ * &lt;/p&gt;
+ * &lt;p&gt;If name of field contains prefix,then must to be define parameter 'prefix'
+ * , for example:&lt;/p&gt;
+ *
+ * &lt;pre&gt;
+ * &amp;lt;module name=&quot;SimpleAccessorNameNotationCheck&quot;&amp;gt; &amp;lt;
+ * property name=&quot;prefix&quot; value=&quot;m_&quot;/&amp;gt;
+ * &amp;lt;/module&amp;gt;
+ * &lt;/pre&gt;
+ *
+ *
+ * @author &lt;a href=&quot;mailto:hidoyatov.v.i@gmail.com&quot;&gt;Hidoyatov Victor&lt;/a&gt;
+ * @author &lt;a href=&quot;mailto:iliadubinin91@gmail.com&quot;&gt;Ilja Dubinin&lt;/a&gt;
+ * @since 1.9.0
+ */
+<span class="fc" id="L52">public class SimpleAccessorNameNotationCheck extends AbstractCheck {</span>
+
+    /**
+     * A key is pointing to the warning message text in &quot;messages.properties&quot;
+     * file.
+     */
+    public static final String MSG_KEY_GETTER = &quot;incorrect.getter.name&quot;;
+    /**
+     * A key is pointing to the warning message text in &quot;messages.properties&quot;
+     * file.
+     */
+    public static final String MSG_KEY_SETTER = &quot;incorrect.setter.name&quot;;
+    /** Prefix for boolean getter methods. */
+    private static final String BOOLEAN_GETTER_PREFIX = &quot;is&quot;;
+    /** Prefix for non-boolean getter methods. */
+    private static final String GETTER_PREFIX = &quot;get&quot;;
+    /** Prefix for setter methods. */
+    private static final String SETTER_PREFIX = &quot;set&quot;;
+    /**
+     * Number of children in expression only block. Expecting three children:
+     * EXPR, SEMI and RCURLY.
+     */
+    private static final int EXPRESSION_BLOCK_CHILD_COUNT = 3;
+    /**
+     * Prefix of field's name.
+     */
+<span class="fc" id="L78">    private String prefix = &quot;&quot;;</span>
+
+    /**
+     * Setter for prefix.
+     * @param prefix
+     *        - prefix of field's name
+     */
+    public void setPrefix(String prefix) {
+<span class="fc" id="L86">        this.prefix = prefix;</span>
+<span class="fc" id="L87">    }</span>
+
+    @Override
+    public int[] getDefaultTokens() {
+<span class="fc" id="L91">        return new int[] {</span>
+<span class="fc" id="L92">            TokenTypes.METHOD_DEF,</span>
+        };
+    }
+
+    @Override
+    public int[] getAcceptableTokens() {
+<span class="fc" id="L98">        return getDefaultTokens();</span>
+    }
+
+    @Override
+    public int[] getRequiredTokens() {
+<span class="fc" id="L103">        return getDefaultTokens();</span>
+    }
+
+    @Override
+    public void visitToken(DetailAST methodDef) {
+<span class="fc bfc" id="L108" title="All 4 branches covered.">        if (hasBody(methodDef) &amp;&amp; !isMethodAtAnonymousClass(methodDef)) {</span>
+<span class="fc" id="L109">            final String methodName = methodDef.findFirstToken(TokenTypes.IDENT).getText();</span>
+<span class="fc bfc" id="L110" title="All 2 branches covered.">            if (methodName.startsWith(BOOLEAN_GETTER_PREFIX)) {</span>
+<span class="fc" id="L111">                if (!isGetterCorrect(methodDef,</span>
+<span class="fc bfc" id="L112" title="All 2 branches covered.">                        methodName.substring(BOOLEAN_GETTER_PREFIX.length()))) {</span>
+<span class="fc" id="L113">                    log(methodDef, MSG_KEY_GETTER);</span>
+                }
+<span class="fc" id="L115">            }</span>
+<span class="fc bfc" id="L116" title="All 2 branches covered.">            else if (methodName.startsWith(SETTER_PREFIX)) {</span>
+<span class="fc bfc" id="L117" title="All 2 branches covered.">                if (!isSetterCorrect(methodDef, methodName.substring(SETTER_PREFIX.length()))) {</span>
+<span class="fc" id="L118">                    log(methodDef, MSG_KEY_SETTER);</span>
+                }
+<span class="fc" id="L120">            }</span>
+<span class="fc bfc" id="L121" title="All 2 branches covered.">            else if (methodName.startsWith(GETTER_PREFIX)</span>
+<span class="fc bfc" id="L122" title="All 2 branches covered.">                    &amp;&amp; !isGetterCorrect(methodDef, methodName.substring(GETTER_PREFIX.length()))) {</span>
+<span class="fc" id="L123">                log(methodDef, MSG_KEY_GETTER);</span>
+            }
+        }
+<span class="fc" id="L126">    }</span>
+
+    /**
+     * &lt;p&gt;
+     * Returns true when setter is correct.
+     * &lt;/p&gt;
+     * @param methodDef
+     *        - DetailAST contains method definition.
+     * @param methodName
+     *        - name of setter without &quot;set&quot;.
+     * @return true when setter is correct.
+     */
+    private boolean isSetterCorrect(DetailAST methodDef, String methodName) {
+<span class="fc" id="L139">        final DetailAST methodType = methodDef.findFirstToken(TokenTypes.TYPE);</span>
+<span class="fc" id="L140">        boolean result = true;</span>
+<span class="fc bfc" id="L141" title="All 2 branches covered.">        if (methodType.findFirstToken(TokenTypes.LITERAL_VOID) != null) {</span>
+<span class="fc" id="L142">            DetailAST currentVerifiedTop = methodDef.findFirstToken(TokenTypes.SLIST);</span>
+
+<span class="fc bfc" id="L144" title="All 2 branches covered.">            if (containsOnlyExpression(currentVerifiedTop)) {</span>
+<span class="fc" id="L145">                currentVerifiedTop = currentVerifiedTop.getFirstChild();</span>
+<span class="fc bfc" id="L146" title="All 2 branches covered.">                final boolean containsOnlyOneAssignment = currentVerifiedTop.getFirstChild()</span>
+<span class="fc" id="L147">                        .getType() == TokenTypes.ASSIGN;</span>
+<span class="fc bfc" id="L148" title="All 2 branches covered.">                if (containsOnlyOneAssignment) {</span>
+<span class="fc" id="L149">                    currentVerifiedTop = currentVerifiedTop.getFirstChild();</span>
+<span class="fc" id="L150">                    final DetailAST parameters =</span>
+<span class="fc" id="L151">                            methodDef.findFirstToken(TokenTypes.PARAMETERS);</span>
+<span class="fc" id="L152">                    final String nameOfSettingField = getNameOfSettingField(</span>
+<span class="fc" id="L153">                            currentVerifiedTop, parameters);</span>
+
+<span class="fc bfc" id="L155" title="All 2 branches covered.">                    if (nameOfSettingField != null</span>
+<span class="fc" id="L156">                            &amp;&amp; verifyFieldAndMethodName(nameOfSettingField,</span>
+<span class="fc bfc" id="L157" title="All 2 branches covered.">                                    methodName)) {</span>
+<span class="fc" id="L158">                        result = false;</span>
+                    }
+                }
+            }
+        }
+<span class="fc" id="L163">        return result;</span>
+    }
+
+    /**
+     * &lt;p&gt;
+     * Returns true when getter is correct.
+     * &lt;/p&gt;
+     * .
+     * @param methodDef
+     *        - DetailAST contains method definition.
+     * @param methodName
+     *        - name of getter without &quot;get&quot; or &quot;is&quot;.
+     * @return true when getter is correct.
+     */
+    private boolean isGetterCorrect(DetailAST methodDef, String methodName) {
+<span class="fc" id="L178">        final DetailAST parameters = methodDef.findFirstToken(TokenTypes.PARAMETERS);</span>
+<span class="fc" id="L179">        boolean result = true;</span>
+<span class="fc bfc" id="L180" title="All 2 branches covered.">        if (parameters.getChildCount() == 0) {</span>
+<span class="fc" id="L181">            DetailAST currentVerifiedTop =</span>
+<span class="fc" id="L182">                    methodDef.findFirstToken(TokenTypes.SLIST);</span>
+<span class="fc bfc" id="L183" title="All 2 branches covered.">            if (containsOnlyReturn(currentVerifiedTop)) {</span>
+<span class="fc" id="L184">                currentVerifiedTop = currentVerifiedTop.getFirstChild();</span>
+
+<span class="fc bfc" id="L186" title="All 2 branches covered.">                if (isCorrectReturn(currentVerifiedTop)) {</span>
+<span class="fc" id="L187">                    currentVerifiedTop = currentVerifiedTop.getFirstChild();</span>
+<span class="fc" id="L188">                    final String nameOfGettingField = getNameOfGettingField(currentVerifiedTop);</span>
+
+<span class="fc bfc" id="L190" title="All 2 branches covered.">                    if (nameOfGettingField != null</span>
+<span class="fc" id="L191">                            &amp;&amp; verifyFieldAndMethodName(nameOfGettingField,</span>
+<span class="fc bfc" id="L192" title="All 2 branches covered.">                                    methodName)) {</span>
+<span class="fc" id="L193">                        result = false;</span>
+                    }
+                }
+            }
+        }
+<span class="fc" id="L198">        return result;</span>
+    }
+
+    /**
+     * &lt;p&gt;
+     * Returns true, when object block contains only three child: EXPR, SEMI and
+     * RCURLY.
+     * &lt;/p&gt;
+     * @param objectBlock
+     *        - is a link to checked block
+     * @return true if object block is correct
+     */
+    private static boolean containsOnlyExpression(DetailAST objectBlock) {
+        //three child: EXPR, SEMI and RCURLY
+<span class="fc bfc" id="L212" title="All 2 branches covered.">        return objectBlock.getChildCount() == EXPRESSION_BLOCK_CHILD_COUNT</span>
+<span class="fc bfc" id="L213" title="All 2 branches covered.">                &amp;&amp; objectBlock.getFirstChild().getType() == TokenTypes.EXPR;</span>
+    }
+
+    /**
+     * &lt;p&gt;
+     * Return name of the field, that use in the setter.
+     * &lt;/p&gt;
+     * @param assign
+     *        - DetailAST contains ASSIGN from EXPR of the setter.
+     * @param parameters
+     *        - DetailAST contains parameters of the setter.
+     * @return name of field, that use in setter.
+     */
+    private static String getNameOfSettingField(DetailAST assign,
+            DetailAST parameters) {
+<span class="fc" id="L228">        String nameOfSettingField = null;</span>
+
+<span class="fc bfc" id="L230" title="All 2 branches covered.">        if (assign.getChildCount() == 2</span>
+<span class="fc bfc" id="L231" title="All 2 branches covered.">                &amp;&amp; assign.getLastChild().getType() == TokenTypes.IDENT) {</span>
+<span class="fc" id="L232">            final DetailAST assigningFirstChild = assign.getFirstChild();</span>
+
+<span class="fc bfc" id="L234" title="All 2 branches covered.">            if (assigningFirstChild.getType() == TokenTypes.IDENT) {</span>
+<span class="fc" id="L235">                nameOfSettingField = assigningFirstChild.getText();</span>
+
+<span class="fc bfc" id="L237" title="All 2 branches covered.">                if (checkNameOfParameters(parameters, nameOfSettingField)) {</span>
+<span class="fc" id="L238">                    nameOfSettingField = null;</span>
+                }
+<span class="fc" id="L240">            }</span>
+<span class="fc bfc" id="L241" title="All 2 branches covered.">            else if (assigningFirstChild.getType() == TokenTypes.DOT</span>
+<span class="fc bfc" id="L242" title="All 2 branches covered.">                    &amp;&amp; &quot;this&quot;.equals(assigningFirstChild.getFirstChild().getText())) {</span>
+<span class="fc" id="L243">                nameOfSettingField = assigningFirstChild.getLastChild()</span>
+<span class="fc" id="L244">                        .getText();</span>
+            }
+        }
+
+<span class="fc" id="L248">        return nameOfSettingField;</span>
+    }
+
+    /**
+     * &lt;p&gt;
+     * Compare name of the field and part of name of the method. Return true
+     * when they are different.
+     * &lt;/p&gt;
+     * @param fieldName
+     *        - name of the field.
+     * @param methodName
+     *        - part of name of the method (without &quot;set&quot;, &quot;get&quot; or &quot;is&quot;).
+     * @return true when names are different.
+     */
+    private boolean verifyFieldAndMethodName(String fieldName,
+            String methodName) {
+<span class="fc" id="L264">        final String name = prefix + methodName;</span>
+<span class="fc bfc" id="L265" title="All 2 branches covered.">        return !fieldName.equalsIgnoreCase(name);</span>
+    }
+
+    /**
+     * &lt;p&gt;
+     * Returns true, when object block contains only one child: LITERAL_RETURN.
+     * &lt;/p&gt;
+     * @param methodBody
+     *        - DetailAST contains object block of the getter.
+     * @return true when object block correct.
+     */
+    private static boolean containsOnlyReturn(DetailAST methodBody) {
+<span class="fc bfc" id="L277" title="All 2 branches covered.">        return methodBody.getFirstChild().getType() == TokenTypes.LITERAL_RETURN;</span>
+    }
+
+    /**
+     * &lt;p&gt;
+     * Return true when getter has correct arguments of return.
+     * &lt;/p&gt;
+     * @param literalReturn
+     *        - DetailAST contains LITERAL_RETURN
+     * @return - true when getter has correct return.
+     */
+    private static boolean isCorrectReturn(DetailAST literalReturn) {
+        //two child: EXPR and SEMI
+<span class="fc bfc" id="L290" title="All 2 branches covered.">        return literalReturn.getChildCount() == 2</span>
+<span class="fc bfc" id="L291" title="All 2 branches covered.">                &amp;&amp; literalReturn.getFirstChild().getType() == TokenTypes.EXPR;</span>
+    }
+
+    /**
+     * &lt;p&gt;
+     * Return name of the field, that use in the getter.
+     * &lt;/p&gt;
+     * @param expr
+     *        - DetailAST contains expression from getter.
+     * @return name of the field, that use in getter.
+     */
+    private static String getNameOfGettingField(DetailAST expr) {
+<span class="fc" id="L303">        String nameOfGettingField = null;</span>
+
+<span class="fc bfc" id="L305" title="All 2 branches covered.">        if (expr.getChildCount() == 1) {</span>
+<span class="fc" id="L306">            final DetailAST exprFirstChild = expr.getFirstChild();</span>
+
+<span class="fc bfc" id="L308" title="All 2 branches covered.">            if (exprFirstChild.getType() == TokenTypes.IDENT) {</span>
+<span class="fc" id="L309">                nameOfGettingField = exprFirstChild.getText();</span>
+<span class="fc" id="L310">            }</span>
+            else {
+<span class="fc bfc" id="L312" title="All 2 branches covered.">                if (exprFirstChild.getType() == TokenTypes.DOT</span>
+<span class="fc bfc" id="L313" title="All 2 branches covered.">                        &amp;&amp; exprFirstChild.getChildCount() == 2</span>
+<span class="fc bfc" id="L314" title="All 2 branches covered.">                        &amp;&amp; exprFirstChild.getFirstChild().getType() == TokenTypes.LITERAL_THIS) {</span>
+<span class="fc" id="L315">                    nameOfGettingField = exprFirstChild.getLastChild().getText();</span>
+                }
+            }
+        }
+
+<span class="fc" id="L320">        return nameOfGettingField;</span>
+    }
+
+    /**
+     * &lt;p&gt;
+     * Return true when name of the field is not contained in parameters of the
+     * setter method.
+     * &lt;/p&gt;
+     * @param parameters
+     *        - DetailAST contains parameters of the setter.
+     * @param fieldName
+     *        - name of the field.
+     * @return true when name of the field is not contained in parameters.
+     */
+    private static boolean checkNameOfParameters(DetailAST parameters,
+            String fieldName) {
+<span class="fc" id="L336">        boolean isNameOfParameter = false;</span>
+<span class="fc" id="L337">        final int parametersChildCount = parameters.getChildCount();</span>
+
+<span class="fc" id="L339">        final DetailAST parameterDef = parameters</span>
+<span class="fc" id="L340">                .findFirstToken(TokenTypes.PARAMETER_DEF);</span>
+
+<span class="fc bfc" id="L342" title="All 4 branches covered.">        for (int i = 0; i &lt; parametersChildCount &amp;&amp; !isNameOfParameter; i++) {</span>
+<span class="fc" id="L343">            isNameOfParameter = parameterDef.findFirstToken(TokenTypes.IDENT).getText()</span>
+<span class="fc" id="L344">                    .equals(fieldName);</span>
+        }
+
+<span class="fc" id="L347">        return isNameOfParameter;</span>
+    }
+
+    /**
+     * &lt;p&gt;
+     * Returns true when method has contained into an anonymous class.
+     * &lt;/p&gt;
+     * @param methodDef the METHOD_DEF token.
+     * @return true when method has contained into an anonymous class.
+     */
+    private static boolean isMethodAtAnonymousClass(DetailAST methodDef) {
+<span class="fc" id="L358">        final DetailAST classObjBlock = methodDef.getParent();</span>
+<span class="fc bfc" id="L359" title="All 2 branches covered.">        return classObjBlock.getParent().getType() == TokenTypes.LITERAL_NEW;</span>
+    }
+
+    /**
+     * &lt;p&gt;
+     * Returns true when method or other block has a body.
+     * &lt;/p&gt;
+     * @param methodDef
+     *        - method definition node
+     * @return true when method or other block has a body.
+     */
+    private static boolean hasBody(DetailAST methodDef) {
+<span class="fc" id="L371">        final DetailAST body = methodDef.findFirstToken(TokenTypes.SLIST);</span>
+<span class="fc bfc" id="L372" title="All 2 branches covered.">        return body != null;</span>
+    }
+
+}
+</pre><div class="footer"><span class="right">Created with <a href="http://www.eclemma.org/jacoco">JaCoCo</a> 0.7.1.201405082137</span></div></body></html>

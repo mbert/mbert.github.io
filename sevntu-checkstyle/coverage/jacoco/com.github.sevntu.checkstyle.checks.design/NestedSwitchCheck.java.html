@@ -1,0 +1,112 @@
+<?xml version="1.0" encoding="UTF-8"?><!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Strict//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-strict.dtd"><html xmlns="http://www.w3.org/1999/xhtml" lang="en"><head><meta http-equiv="Content-Type" content="text/html;charset=UTF-8"/><link rel="stylesheet" href="../.resources/report.css" type="text/css"/><link rel="shortcut icon" href="../.resources/report.gif" type="image/gif"/><title>NestedSwitchCheck.java</title><link rel="stylesheet" href="../.resources/prettify.css" type="text/css"/><script type="text/javascript" src="../.resources/prettify.js"></script></head><body onload="window['PR_TAB_WIDTH']=4;prettyPrint()"><div class="breadcrumb" id="breadcrumb"><span class="info"><a href="../.sessions.html" class="el_session">Sessions</a></span><a href="../index.html" class="el_report">sevntu-checks</a> &gt; <a href="index.source.html" class="el_package">com.github.sevntu.checkstyle.checks.design</a> &gt; <span class="el_source">NestedSwitchCheck.java</span></div><h1>NestedSwitchCheck.java</h1><pre class="source lang-java linenums">////////////////////////////////////////////////////////////////////////////////
+// checkstyle: Checks Java source code for adherence to a set of rules.
+// Copyright (C) 2001-2019 the original author or authors.
+//
+// This library is free software; you can redistribute it and/or
+// modify it under the terms of the GNU Lesser General Public
+// License as published by the Free Software Foundation; either
+// version 2.1 of the License, or (at your option) any later version.
+//
+// This library is distributed in the hope that it will be useful,
+// but WITHOUT ANY WARRANTY; without even the implied warranty of
+// MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the GNU
+// Lesser General Public License for more details.
+//
+// You should have received a copy of the GNU Lesser General Public
+// License along with this library; if not, write to the Free Software
+// Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA
+////////////////////////////////////////////////////////////////////////////////
+
+package com.github.sevntu.checkstyle.checks.design;
+
+import com.puppycrawl.tools.checkstyle.api.AbstractCheck;
+import com.puppycrawl.tools.checkstyle.api.DetailAST;
+import com.puppycrawl.tools.checkstyle.api.TokenTypes;
+
+/**
+ * &lt;p&gt;
+ * This check ensures that there is no switch block inside other switch block. In such case nested
+ * block should be exposed into new method.
+ * &lt;/p&gt;
+ * Assuming following block:
+ *
+ * &lt;pre&gt;
+ *      switch (color) {
+ *      case GREEN:
+ *          switch (type) {
+ *          case MEDIUM:
+ *          }
+ *      case BLUE:
+ *      }
+ * &lt;/pre&gt;
+ *
+ * &lt;p&gt;
+ * Nested switch block that checks &lt;code&gt;type&lt;/code&gt; parameter should be converted into separate
+ * method.&lt;br&gt;
+ * To enable this check use following configuration:
+ * &lt;/p&gt;
+ *
+ * &lt;pre&gt;
+ * &amp;lt;module name=&amp;quot;NestedSwitchCheck&amp;quot;/&amp;gt;
+ * &lt;/pre&gt;
+ * @author Damian Szczepanik (damianszczepanik@github)
+ * @since 1.13.0
+ */
+<span class="fc" id="L55">public class NestedSwitchCheck extends AbstractCheck {</span>
+
+    /**
+     * A key is pointing to the warning message text in &quot;messages.properties&quot;
+     * file.
+     */
+    public static final String MSG_KEY = &quot;avoid.nested.switch&quot;;
+
+    /** Maximum allowed nesting depth. */
+    private int max;
+    /** Current nesting depth. */
+    private int depth;
+
+    /**
+     * Setter for maximum allowed nesting depth.
+     * @param max maximum allowed nesting depth.
+     */
+    public final void setMax(int max) {
+<span class="fc" id="L73">        this.max = max;</span>
+<span class="fc" id="L74">    }</span>
+
+    @Override
+    public int[] getDefaultTokens() {
+<span class="fc" id="L78">        return new int[] {</span>
+<span class="fc" id="L79">            TokenTypes.LITERAL_SWITCH,</span>
+        };
+    }
+
+    @Override
+    public int[] getAcceptableTokens() {
+<span class="fc" id="L85">        return getDefaultTokens();</span>
+    }
+
+    @Override
+    public final int[] getRequiredTokens() {
+<span class="fc" id="L90">        return getDefaultTokens();</span>
+    }
+
+    @Override
+    public void beginTree(DetailAST rootAST) {
+<span class="fc" id="L95">        depth = 0;</span>
+<span class="fc" id="L96">    }</span>
+
+    @Override
+    public void visitToken(DetailAST aAST) {
+<span class="fc bfc" id="L100" title="All 2 branches covered.">        if (depth &gt; max) {</span>
+<span class="fc" id="L101">            log(aAST, MSG_KEY, depth, max);</span>
+        }
+<span class="fc" id="L103">        ++depth;</span>
+<span class="fc" id="L104">    }</span>
+
+    @Override
+    public void leaveToken(DetailAST aAST) {
+<span class="fc" id="L108">        --depth;</span>
+<span class="fc" id="L109">    }</span>
+
+}
+</pre><div class="footer"><span class="right">Created with <a href="http://www.eclemma.org/jacoco">JaCoCo</a> 0.7.1.201405082137</span></div></body></html>

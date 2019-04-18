@@ -1,0 +1,280 @@
+<?xml version="1.0" encoding="UTF-8"?><!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Strict//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-strict.dtd"><html xmlns="http://www.w3.org/1999/xhtml" lang="en"><head><meta http-equiv="Content-Type" content="text/html;charset=UTF-8"/><link rel="stylesheet" href="../.resources/report.css" type="text/css"/><link rel="shortcut icon" href="../.resources/report.gif" type="image/gif"/><title>AvoidDefaultSerializableInInnerClassesCheck.java</title><link rel="stylesheet" href="../.resources/prettify.css" type="text/css"/><script type="text/javascript" src="../.resources/prettify.js"></script></head><body onload="window['PR_TAB_WIDTH']=4;prettyPrint()"><div class="breadcrumb" id="breadcrumb"><span class="info"><a href="../.sessions.html" class="el_session">Sessions</a></span><a href="../index.html" class="el_report">sevntu-checks</a> &gt; <a href="index.source.html" class="el_package">com.github.sevntu.checkstyle.checks.coding</a> &gt; <span class="el_source">AvoidDefaultSerializableInInnerClassesCheck.java</span></div><h1>AvoidDefaultSerializableInInnerClassesCheck.java</h1><pre class="source lang-java linenums">////////////////////////////////////////////////////////////////////////////////
+// checkstyle: Checks Java source code for adherence to a set of rules.
+// Copyright (C) 2001-2019 the original author or authors.
+//
+// This library is free software; you can redistribute it and/or
+// modify it under the terms of the GNU Lesser General Public
+// License as published by the Free Software Foundation; either
+// version 2.1 of the License, or (at your option) any later version.
+//
+// This library is distributed in the hope that it will be useful,
+// but WITHOUT ANY WARRANTY; without even the implied warranty of
+// MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the GNU
+// Lesser General Public License for more details.
+//
+// You should have received a copy of the GNU Lesser General Public
+// License along with this library; if not, write to the Free Software
+// Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA
+////////////////////////////////////////////////////////////////////////////////
+
+package com.github.sevntu.checkstyle.checks.coding;
+
+import com.puppycrawl.tools.checkstyle.api.AbstractCheck;
+import com.puppycrawl.tools.checkstyle.api.DetailAST;
+import com.puppycrawl.tools.checkstyle.api.TokenTypes;
+
+/**
+ * &lt;p&gt;
+ * This check prevents the default implementation Serializable interface in
+ * inner classes (Serializable interface are default if methods readObject() or
+ * writeObject() are not override in class). Check has option, that allow
+ * implementation only one method, if it true, but if it false - class must
+ * implement both methods. For more information read
+ * &quot;Effective Java (2nd edition)&quot; chapter 11, item 74, page 294.
+ * &lt;/p&gt;
+ * @author &lt;a href=&quot;mailto:IliaDubinin91@gmail.com&quot;&gt;Ilia Dubinin&lt;/a&gt;
+ * @since 1.8.0
+ */
+<span class="fc" id="L38">public class AvoidDefaultSerializableInInnerClassesCheck extends AbstractCheck {</span>
+
+    /**
+     * A key is pointing to the warning message text in &quot;messages.properties&quot;
+     * file.
+     */
+    public static final String MSG_KEY = &quot;avoid.default.serializable.in.inner.classes&quot;;
+
+    /**
+    *&lt;b&gt;
+    *Option, that allow partial implementation of serializable interface.
+    *&lt;/b&gt;
+    */
+    private boolean allowPartialImplementation;
+
+    /**
+     * &lt;p&gt;
+     * Set allow partly implementation serializable interface.
+     * &lt;/p&gt;
+     * @param allow - Option, that allow partial implementation
+     *        of serializable interface.
+     */
+    public void setAllowPartialImplementation(boolean allow) {
+<span class="fc" id="L61">        this.allowPartialImplementation = allow;</span>
+<span class="fc" id="L62">    }</span>
+
+    @Override
+    public int[] getDefaultTokens() {
+<span class="fc" id="L66">        return new int[] {TokenTypes.CLASS_DEF };</span>
+    }
+
+    @Override
+    public int[] getAcceptableTokens() {
+<span class="fc" id="L71">        return getDefaultTokens();</span>
+    }
+
+    @Override
+    public int[] getRequiredTokens() {
+<span class="fc" id="L76">        return getDefaultTokens();</span>
+    }
+
+    @Override
+    public void visitToken(DetailAST detailAST) {
+<span class="fc bfc" id="L81" title="All 2 branches covered.">        final boolean topLevelClass = detailAST.getParent() == null;</span>
+<span class="fc bfc" id="L82" title="All 4 branches covered.">        if (!topLevelClass &amp;&amp; isSerializable(detailAST)</span>
+<span class="fc bfc" id="L83" title="All 2 branches covered.">                &amp;&amp; !isStatic(detailAST)</span>
+<span class="fc bfc" id="L84" title="All 2 branches covered.">                &amp;&amp; !hasSerialazableMethods(detailAST)) {</span>
+<span class="fc" id="L85">            final DetailAST implementsBlock = detailAST</span>
+<span class="fc" id="L86">                    .findFirstToken(TokenTypes.IMPLEMENTS_CLAUSE);</span>
+<span class="fc" id="L87">            log(implementsBlock,</span>
+<span class="fc" id="L88">                    MSG_KEY);</span>
+        }
+<span class="fc" id="L90">    }</span>
+
+    /**
+     * &lt;p&gt;
+     * Return true if it is nested class. Terminology is here :
+     * http://download.oracle.com/javase/tutorial/java/javaOO/nested.html
+     * &lt;/p&gt;
+     * @param classNode - class node
+     * @return - boolean variable
+     */
+    private static boolean isStatic(DetailAST classNode) {
+<span class="fc" id="L101">        boolean result = false;</span>
+<span class="fc" id="L102">        DetailAST modifiers = classNode.findFirstToken(TokenTypes.MODIFIERS);</span>
+<span class="fc" id="L103">        modifiers = modifiers.getFirstChild();</span>
+<span class="fc bfc" id="L104" title="All 4 branches covered.">        while (!result &amp;&amp; modifiers != null) {</span>
+<span class="fc" id="L105">            result = &quot;static&quot;.equals(modifiers.getText());</span>
+<span class="fc" id="L106">            modifiers = modifiers.getNextSibling();</span>
+        }
+<span class="fc" id="L108">        return result;</span>
+    }
+
+    /**
+     * Return {@code true}, if inner class contain override method {@code readObject()} and
+     * {@code writeObject()}.
+     *
+     * @param classNode
+     *        the start node of class definition.
+     * @return The boolean value. True, if method was override.
+     */
+    private boolean hasSerialazableMethods(DetailAST classNode) {
+<span class="fc" id="L120">        final DetailAST objectBody =</span>
+<span class="fc" id="L121">                classNode.findFirstToken(TokenTypes.OBJBLOCK);</span>
+<span class="fc" id="L122">        int numberOfSerializationMethods = 0;</span>
+
+<span class="fc" id="L124">        final SiblingIterator methodsIter = new SiblingIterator(objectBody);</span>
+<span class="fc" id="L125">        boolean result = false;</span>
+<span class="fc bfc" id="L126" title="All 2 branches covered.">        while (methodsIter.hasNextSibling()) {</span>
+<span class="fc" id="L127">            final DetailAST methodNode = methodsIter.nextSibling();</span>
+<span class="fc bfc" id="L128" title="All 2 branches covered.">            if (isPrivateMethod(methodNode)</span>
+<span class="fc bfc" id="L129" title="All 2 branches covered.">                        &amp;&amp; isVoidMethod(methodNode)</span>
+<span class="fc bfc" id="L130" title="All 2 branches covered.">                        &amp;&amp; (hasCorrectParameter(methodNode, &quot;ObjectInputStream&quot;)</span>
+<span class="fc bfc" id="L131" title="All 2 branches covered.">                        || hasCorrectParameter(methodNode, &quot;ObjectOutputStream&quot;)</span>
+                        )) {
+<span class="fc" id="L133">                numberOfSerializationMethods++;</span>
+            }
+<span class="fc bfc" id="L135" title="All 2 branches covered.">            if (numberOfSerializationMethods == 1</span>
+<span class="fc bfc" id="L136" title="All 2 branches covered.">                &amp;&amp; allowPartialImplementation</span>
+<span class="fc bfc" id="L137" title="All 2 branches covered.">                || numberOfSerializationMethods == 2) {</span>
+<span class="fc" id="L138">                result = true;</span>
+<span class="fc" id="L139">                break;</span>
+            }
+        }
+<span class="fc" id="L142">        return result;</span>
+    }
+
+    /**
+     * &lt;p&gt;
+     * Return true, if methods readObject() and writeObject() have correct
+     * modifiers.
+     * &lt;/p&gt;
+     * @param methodNode
+     *        - current method node;
+     * @return boolean value;
+     */
+    private static boolean isPrivateMethod(DetailAST methodNode) {
+<span class="fc" id="L155">        DetailAST modifiers = methodNode.findFirstToken(TokenTypes.MODIFIERS);</span>
+<span class="fc" id="L156">        modifiers = modifiers.getFirstChild();</span>
+<span class="fc" id="L157">        boolean isPrivate = false;</span>
+<span class="fc bfc" id="L158" title="All 4 branches covered.">        while (!isPrivate &amp;&amp; modifiers != null) {</span>
+<span class="fc" id="L159">            isPrivate = &quot;private&quot;.equals(modifiers.getText());</span>
+<span class="fc" id="L160">            modifiers = modifiers.getNextSibling();</span>
+        }
+<span class="fc" id="L162">        return isPrivate;</span>
+    }
+
+    /**
+     * &lt;p&gt;
+     * Return true, if method has void type.
+     * &lt;/p&gt;
+     * @param methodNode - method node
+     * @return boolean variable
+     */
+    private static boolean isVoidMethod(DetailAST methodNode) {
+<span class="fc" id="L173">        DetailAST type = methodNode.findFirstToken(TokenTypes.TYPE);</span>
+<span class="fc" id="L174">        type = type.getFirstChild();</span>
+<span class="fc bfc" id="L175" title="All 2 branches covered.">        return TokenTypes.LITERAL_VOID == type.getType();</span>
+    }
+
+    /**
+     * &lt;p&gt;
+     * Return true, if method has correct parameters (ObjectInputStream for
+     * readObject() and ObjectOutputStream for writeObject()).
+     * &lt;/p&gt;
+     * @param methodNode - method node.
+     * @param parameterText - correct parameter text.
+     * @return boolean variable.
+     */
+    private static boolean hasCorrectParameter(DetailAST methodNode,
+            String parameterText) {
+<span class="fc" id="L189">        DetailAST parameters =</span>
+<span class="fc" id="L190">            methodNode.findFirstToken(TokenTypes.PARAMETERS);</span>
+<span class="fc" id="L191">        boolean result = false;</span>
+<span class="fc bfc" id="L192" title="All 2 branches covered.">        if (parameters.getChildCount(TokenTypes.PARAMETER_DEF) == 1) {</span>
+<span class="fc" id="L193">            parameters = parameters.findFirstToken(TokenTypes.PARAMETER_DEF);</span>
+<span class="fc" id="L194">            parameters = parameters.findFirstToken(TokenTypes.TYPE);</span>
+<span class="fc" id="L195">            parameters = parameters.getFirstChild();</span>
+<span class="fc" id="L196">            result = parameterText.equals(parameters.getText());</span>
+        }
+<span class="fc" id="L198">        return result;</span>
+    }
+
+    /**
+     * Return {@code true}, if class implement Serializable interface.
+     *
+     * @param classDefNode
+     *        - the start node for class definition.
+     * @return boolean value. True, if class implements Serializable interface.
+     */
+    private static boolean isSerializable(DetailAST classDefNode) {
+<span class="fc" id="L209">        DetailAST implementationsDef = classDefNode</span>
+<span class="fc" id="L210">                .findFirstToken(TokenTypes.IMPLEMENTS_CLAUSE);</span>
+<span class="fc" id="L211">        boolean result = false;</span>
+<span class="fc bfc" id="L212" title="All 2 branches covered.">        if (implementationsDef != null) {</span>
+<span class="fc" id="L213">            implementationsDef = implementationsDef.getFirstChild();</span>
+<span class="fc bfc" id="L214" title="All 4 branches covered.">            while (!result &amp;&amp; implementationsDef != null) {</span>
+<span class="fc bfc" id="L215" title="All 2 branches covered.">                if (implementationsDef.getType() == TokenTypes.DOT) {</span>
+<span class="fc" id="L216">                    implementationsDef = implementationsDef.getLastChild();</span>
+                }
+<span class="fc" id="L218">                result = &quot;Serializable&quot;.equals(implementationsDef.getText());</span>
+<span class="fc" id="L219">                implementationsDef = implementationsDef.getNextSibling();</span>
+            }
+        }
+<span class="fc" id="L222">        return result;</span>
+    }
+
+    /**
+     *&lt;b&gt;
+     * Nested class, that implements custom iterator for DetailAST method nodes.
+     *&lt;/b&gt;
+     */
+    private final class SiblingIterator {
+
+        /**
+        *&lt;b&gt;
+        *Next.
+        *&lt;/b&gt;
+        */
+        private DetailAST next;
+
+        /**
+        *&lt;b&gt;
+        *Children Iterator constructor.
+        *&lt;/b&gt;
+        *@param parent - child parent.
+        */
+<span class="fc" id="L245">        /* package */ SiblingIterator(DetailAST parent) {</span>
+<span class="fc" id="L246">            next = parent.findFirstToken(TokenTypes.METHOD_DEF);</span>
+<span class="fc" id="L247">        }</span>
+
+        /**
+        *&lt;b&gt;
+        *Return boolean value, if has next element.
+        *&lt;/b&gt;
+        *@return boolean value
+        */
+        public boolean hasNextSibling() {
+<span class="fc bfc" id="L256" title="All 2 branches covered.">            return next != null;</span>
+        }
+
+        /**
+        *&lt;b&gt;
+        *Return next DetailAST element.
+        *&lt;/b&gt;
+        *@return next DetailAST.
+        */
+
+        public DetailAST nextSibling() {
+<span class="fc" id="L267">            final DetailAST result = next;</span>
+<span class="fc bfc" id="L268" title="All 2 branches covered.">            while (next != null) {</span>
+<span class="fc" id="L269">                next = next.getNextSibling();</span>
+<span class="fc bfc" id="L270" title="All 4 branches covered.">                if (next != null &amp;&amp; next.getType() == TokenTypes.METHOD_DEF) {</span>
+<span class="fc" id="L271">                    break;</span>
+                }
+            }
+<span class="fc" id="L274">            return result;</span>
+        }
+
+    }
+
+}
+</pre><div class="footer"><span class="right">Created with <a href="http://www.eclemma.org/jacoco">JaCoCo</a> 0.7.1.201405082137</span></div></body></html>

@@ -1,0 +1,174 @@
+<?xml version="1.0" encoding="UTF-8"?><!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Strict//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-strict.dtd"><html xmlns="http://www.w3.org/1999/xhtml" lang="en"><head><meta http-equiv="Content-Type" content="text/html;charset=UTF-8"/><link rel="stylesheet" href="../.resources/report.css" type="text/css"/><link rel="shortcut icon" href="../.resources/report.gif" type="image/gif"/><title>ConstructorWithoutParamsCheck.java</title><link rel="stylesheet" href="../.resources/prettify.css" type="text/css"/><script type="text/javascript" src="../.resources/prettify.js"></script></head><body onload="window['PR_TAB_WIDTH']=4;prettyPrint()"><div class="breadcrumb" id="breadcrumb"><span class="info"><a href="../.sessions.html" class="el_session">Sessions</a></span><a href="../index.html" class="el_report">sevntu-checks</a> &gt; <a href="index.source.html" class="el_package">com.github.sevntu.checkstyle.checks.design</a> &gt; <span class="el_source">ConstructorWithoutParamsCheck.java</span></div><h1>ConstructorWithoutParamsCheck.java</h1><pre class="source lang-java linenums">////////////////////////////////////////////////////////////////////////////////
+// checkstyle: Checks Java source code for adherence to a set of rules.
+// Copyright (C) 2001-2019 the original author or authors.
+//
+// This library is free software; you can redistribute it and/or
+// modify it under the terms of the GNU Lesser General Public
+// License as published by the Free Software Foundation; either
+// version 2.1 of the License, or (at your option) any later version.
+//
+// This library is distributed in the hope that it will be useful,
+// but WITHOUT ANY WARRANTY; without even the implied warranty of
+// MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the GNU
+// Lesser General Public License for more details.
+//
+// You should have received a copy of the GNU Lesser General Public
+// License along with this library; if not, write to the Free Software
+// Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA
+////////////////////////////////////////////////////////////////////////////////
+
+package com.github.sevntu.checkstyle.checks.design;
+
+import java.util.regex.Pattern;
+
+import com.puppycrawl.tools.checkstyle.api.AbstractCheck;
+import com.puppycrawl.tools.checkstyle.api.DetailAST;
+import com.puppycrawl.tools.checkstyle.api.TokenTypes;
+import com.puppycrawl.tools.checkstyle.utils.CommonUtil;
+
+/**
+ * This check prohibits usage of parameterless constructors,
+ * including the default ones.
+ *
+ * &lt;p&gt;&lt;b&gt;Rationale:&lt;/b&gt; constructors of certain classes must always take arguments
+ * to properly instantiate objects. Exception classes are the primary example:
+ * their objects must contain enough info to find out why an exception occurred
+ * (see &quot;Effective Java&quot;, item 63). Constructing an exception without a cause exception
+ * or an exception message leaves out such info and thus should be prohibited.
+ * &lt;/p&gt;
+ *
+ * &lt;p&gt;This check prohibits classes which simple names match the RegExp
+ *     defined in 'classNameFormat' property.
+ * &lt;/p&gt;
+ *
+ * &lt;p&gt;&lt;b&gt;Default configuration:&lt;/b&gt;
+ *     &lt;pre&gt;
+ *         &amp;lt;module name=&quot;ConstructorWithoutParamsCheck&quot;&amp;gt;
+ *           &amp;lt;property name=&quot;classNameFormat&quot; value=&quot;.*Exception$&quot;/&amp;gt;
+ *           &amp;lt;property name=&quot;ignoredClassNameFormat&quot; value=&quot;UnsupportedOperationException&quot;/&amp;gt;
+ *         &amp;lt;/module&amp;gt;
+ *     &lt;/pre&gt;
+ *
+ * &lt;p&gt;&lt;b&gt;Examples:&lt;/b&gt;
+ * &lt;pre&gt;
+ * // Assume a RegExp in classNameFormat catches example class names
+ * // the check can prohibit default constructors of built-in classes
+ * RuntimeException ex = new RuntimeException(); // violation expected
+ *
+ * // the check ignores classes which names match ignoredClassNameFormat
+ * // the default config ignores UnsupportedOperationException
+ * UnsupportedOperationException ex2 = new UnsupportedOperationException(); // no violation expected
+ *
+ * // the check allows constructors with empty arguments
+ * RuntimeException ex = new RuntimeException(&quot;&quot;); // no violation expected
+ *
+ * // the check can prohibit default constructors of user-defined classes
+ * public class Clazz1 {
+ * }
+ *
+ * Clazz1 o1 = new Clazz1(); // violation expected
+ *
+ * // the check can prohibit  user-defined parameterless constructors
+ * public class Clazz2 {
+ *
+ *   Clazz2() {
+ *     foobar();
+ *   }
+ *
+ * }
+ *
+ * Clazz2 o2 = new Clazz2(); // violation expected
+ * &lt;/pre&gt;
+ * &lt;p&gt;For more examples, see InputConstructorWithoutParamsCheck.
+ * For discussion, see the sevntu-checkstyle
+ * &lt;a href=https://github.com/sevntu-checkstyle/sevntu.checkstyle/issues/412&gt; issue 412&lt;/a&gt;&lt;/p&gt;.
+ *
+ * @author &lt;a href=&quot;mailto:Sergey.Dudoladov@gmail.com&quot;&gt;Sergey Dudoladov&lt;/a&gt;
+ * @since 1.20.0
+ */
+<span class="fc" id="L89">public class ConstructorWithoutParamsCheck extends AbstractCheck {</span>
+
+    /**
+     * This key points to the warning message in the  &quot;messages.properties&quot; file.
+     */
+    public static final String MSG_KEY = &quot;constructor.without.params&quot;;
+
+    /**
+     * The format string of the regexp for a check to apply to.
+     */
+<span class="fc" id="L99">    private String classNameFormat = &quot;.*Exception$&quot;;</span>
+
+    /**
+     * The format string of the regexp of class names to ignore.
+     */
+<span class="fc" id="L104">    private String ignoredClassNameFormat = &quot;UnsupportedOperationException&quot;;</span>
+
+    /**
+     * The regexp to match against.
+     */
+<span class="fc" id="L109">    private Pattern regexp = CommonUtil.createPattern(classNameFormat);</span>
+
+    /**
+     * The regexp to select class names to ignore.
+     */
+<span class="fc" id="L114">    private Pattern ignoredRegexp = CommonUtil.createPattern(ignoredClassNameFormat);</span>
+
+    /**
+     * Sets the classNameFormat based on the XML configuration value.
+     *
+     * @param classNameFormat the regexp pattern
+     */
+    public void setClassNameFormat(String classNameFormat) {
+<span class="fc" id="L122">        this.classNameFormat = classNameFormat;</span>
+<span class="fc" id="L123">        regexp = CommonUtil.createPattern(classNameFormat);</span>
+<span class="fc" id="L124">    }</span>
+
+    /**
+     * Sets the ignoredClassNameFormat based on the XML configuration value.
+     *
+     * @param ignoredClassNameFormat the regexp pattern
+     */
+    public void setIgnoredClassNameFormat(String ignoredClassNameFormat) {
+<span class="fc" id="L132">        this.ignoredClassNameFormat = ignoredClassNameFormat;</span>
+<span class="fc" id="L133">        ignoredRegexp = CommonUtil.createPattern(this.ignoredClassNameFormat);</span>
+<span class="fc" id="L134">    }</span>
+
+    @Override
+    public int[] getDefaultTokens() {
+<span class="fc" id="L138">        return new int[] {TokenTypes.LITERAL_NEW};</span>
+    }
+
+    @Override
+    public int[] getRequiredTokens() {
+<span class="fc" id="L143">        return getDefaultTokens();</span>
+    }
+
+    @Override
+    public int[] getAcceptableTokens() {
+<span class="fc" id="L148">        return getDefaultTokens();</span>
+    }
+
+    @Override
+    public void visitToken(DetailAST ast) {
+<span class="fc" id="L153">        final DetailAST firstChild = ast.getFirstChild();</span>
+<span class="fc bfc" id="L154" title="All 2 branches covered.">        if (firstChild != null) {</span>
+<span class="fc" id="L155">            final String className = firstChild.getText();</span>
+
+            // The &quot;new&quot; keyword either creates objects or declares arrays.
+            // In the case of arrays, no objects (array elements) are automatically created,
+            // and this check does not apply.
+<span class="fc bfc" id="L160" title="All 2 branches covered.">            if (regexp.matcher(className).find()</span>
+<span class="fc bfc" id="L161" title="All 2 branches covered.">                &amp;&amp; !ignoredRegexp.matcher(className).find()</span>
+<span class="fc bfc" id="L162" title="All 2 branches covered.">                &amp;&amp; ast.findFirstToken(TokenTypes.ARRAY_DECLARATOR) == null) {</span>
+<span class="fc" id="L163">                final DetailAST parameterListAST = ast.findFirstToken(TokenTypes.ELIST);</span>
+<span class="fc" id="L164">                final int numberOfParameters = parameterListAST.getChildCount();</span>
+
+<span class="fc bfc" id="L166" title="All 2 branches covered.">                if (numberOfParameters == 0) {</span>
+<span class="fc" id="L167">                    log(ast, MSG_KEY, className);</span>
+                }
+            }
+        }
+<span class="fc" id="L171">    }</span>
+
+}
+</pre><div class="footer"><span class="right">Created with <a href="http://www.eclemma.org/jacoco">JaCoCo</a> 0.7.1.201405082137</span></div></body></html>

@@ -1,0 +1,365 @@
+<?xml version="1.0" encoding="UTF-8"?><!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Strict//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-strict.dtd"><html xmlns="http://www.w3.org/1999/xhtml" lang="en"><head><meta http-equiv="Content-Type" content="text/html;charset=UTF-8"/><link rel="stylesheet" href="../.resources/report.css" type="text/css"/><link rel="shortcut icon" href="../.resources/report.gif" type="image/gif"/><title>MoveVariableInsideIfCheck.java</title><link rel="stylesheet" href="../.resources/prettify.css" type="text/css"/><script type="text/javascript" src="../.resources/prettify.js"></script></head><body onload="window['PR_TAB_WIDTH']=4;prettyPrint()"><div class="breadcrumb" id="breadcrumb"><span class="info"><a href="../.sessions.html" class="el_session">Sessions</a></span><a href="../index.html" class="el_report">sevntu-checks</a> &gt; <a href="index.source.html" class="el_package">com.github.sevntu.checkstyle.checks.coding</a> &gt; <span class="el_source">MoveVariableInsideIfCheck.java</span></div><h1>MoveVariableInsideIfCheck.java</h1><pre class="source lang-java linenums">////////////////////////////////////////////////////////////////////////////////
+// checkstyle: Checks Java source code for adherence to a set of rules.
+// Copyright (C) 2001-2019 the original author or authors.
+//
+// This library is free software; you can redistribute it and/or
+// modify it under the terms of the GNU Lesser General Public
+// License as published by the Free Software Foundation; either
+// version 2.1 of the License, or (at your option) any later version.
+//
+// This library is distributed in the hope that it will be useful,
+// but WITHOUT ANY WARRANTY; without even the implied warranty of
+// MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the GNU
+// Lesser General Public License for more details.
+//
+// You should have received a copy of the GNU Lesser General Public
+// License along with this library; if not, write to the Free Software
+// Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA
+////////////////////////////////////////////////////////////////////////////////
+
+package com.github.sevntu.checkstyle.checks.coding;
+
+import com.puppycrawl.tools.checkstyle.api.AbstractCheck;
+import com.puppycrawl.tools.checkstyle.api.DetailAST;
+import com.puppycrawl.tools.checkstyle.api.TokenTypes;
+import com.puppycrawl.tools.checkstyle.utils.ScopeUtil;
+
+/**
+ * &lt;p&gt;
+ * Checks if a variable is only used inside if statements and asks for it's
+ * declaration to be moved there too.
+ * &lt;/p&gt;
+ * &lt;p&gt;
+ * Rationale: Code inside if/else statements are only executed when those specific block
+ * conditions evaluate to true. Moving variables inside these blocks prevents the code from being
+ * executed when the value of the variable is not even being used. It also helps limit the scope
+ * of the variables from being too broad to confuse new readers. Suppressing variables with false
+ * violations because of the check's limitations (stated below) also help clearly state the
+ * purpose of the variable as a temporary storage for a current/future changing value.
+ * &lt;/p&gt;
+ * &lt;p&gt;
+ * An example of how to configure the check is:
+ * &lt;/p&gt;
+ * &lt;pre&gt;
+ * &amp;lt;module name=&quot;MoveVariableInsideIfCheck&quot;/&amp;gt;
+ * &lt;/pre&gt;
+ * &lt;p&gt;
+ * which will produce the following violation:
+ * &lt;/p&gt;
+ * &lt;pre&gt;
+ * String variable = input.substring(1); // violation - variable is only used inside if block
+ *
+ * if (condition) {
+ *     return method(variable);
+ * }
+ *
+ * return &quot;&quot;;
+ * &lt;/pre&gt;
+ * &lt;p&gt;
+ * The code can be written as the following to avoid a violation:
+ * &lt;/p&gt;
+ * &lt;pre&gt;
+ * if (condition) {
+ *     String variable = input.substring(1);
+ *     return method(variable);
+ * }
+ *
+ * return &quot;&quot;;
+ * &lt;/pre&gt;
+ * &lt;p&gt;
+ * No violations will be produced if a variable is used in same scope as declaration, condition of
+ * block, or if used in multiple blocks.
+ * &lt;/p&gt;
+ * &lt;pre&gt;
+ * String variable = input.substring(1);
+ *
+ * if (condition &amp;amp;&amp;amp; variable.charAt(0) == 'T') {
+ *     return method(variable);
+ * }
+ * else {
+ *     return method2(variable);
+ * }
+ *
+ * return &quot;&quot;;
+ * &lt;/pre&gt;
+ * &lt;p&gt;
+ * Limitations: The check can not determine if the value of variable being stored is changed after
+ * the declaration. Variables like this can't be moved, or may be too complex to move, and thus
+ * should be suppressed.
+ * &lt;/p&gt;
+ * &lt;p&gt;
+ * &lt;b&gt;Case #1:&lt;/b&gt;
+ * &lt;/p&gt;
+ * &lt;pre&gt;
+ * final String variable = list.remove(0); // false positive - list is modified with storing value
+ * final String next = list.get(0); // expecting above list modification
+ *
+ * if (next.equals(input)) {
+ *     list.add(variable);
+ * }
+ * &lt;/pre&gt;
+ * &lt;p&gt;
+ * &lt;b&gt;Case #2:&lt;/b&gt;
+ * &lt;/p&gt;
+ * &lt;pre&gt;
+ * final String variable = field.get(0); // false positive - field is modified later, before block
+ *
+ * modifyField(); // field is modified inside this method
+ *
+ * if (condition) {
+ *     field.add(variable);
+ * }
+ * &lt;/pre&gt;
+ *
+ * @author Richard Veach
+ * @since 1.24.0
+ */
+<span class="fc" id="L117">public class MoveVariableInsideIfCheck extends AbstractCheck {</span>
+
+    /**
+     * A key is pointing to the warning message text in &quot;messages.properties&quot;
+     * file.
+     */
+    public static final String MSG_KEY = &quot;move.variable.inside&quot;;
+
+    @Override
+    public int[] getDefaultTokens() {
+<span class="fc" id="L127">        return new int[] {TokenTypes.VARIABLE_DEF};</span>
+    }
+
+    @Override
+    public int[] getAcceptableTokens() {
+<span class="fc" id="L132">        return getDefaultTokens();</span>
+    }
+
+    @Override
+    public int[] getRequiredTokens() {
+<span class="fc" id="L137">        return getDefaultTokens();</span>
+    }
+
+    @Override
+    public void visitToken(DetailAST ast) {
+<span class="fc bfc" id="L142" title="All 2 branches covered.">        if (ScopeUtil.isLocalVariableDef(ast)) {</span>
+<span class="fc" id="L143">            validateLocalVariable(ast);</span>
+        }
+<span class="fc" id="L145">    }</span>
+
+    /**
+     * Examines the local variable for violations to be moved inside an nest if
+     * statement.
+     *
+     * @param ast The local variable to examine.
+     */
+    private void validateLocalVariable(DetailAST ast) {
+<span class="fc" id="L154">        final Holder holder = new Holder(ast);</span>
+
+<span class="fc bfc" id="L156" title="All 4 branches covered.">        for (DetailAST child = ast.getNextSibling(); !holder.exit &amp;&amp; child != null;</span>
+<span class="fc" id="L157">                child = child.getNextSibling()) {</span>
+<span class="fc bfc" id="L158" title="All 2 branches covered.">            if (child.getType() == TokenTypes.LITERAL_IF) {</span>
+<span class="fc" id="L159">                validateIf(holder, child);</span>
+<span class="fc" id="L160">            }</span>
+            else {
+<span class="fc" id="L162">                validateOther(holder, child);</span>
+            }
+        }
+
+<span class="fc bfc" id="L166" title="All 2 branches covered.">        if (holder.blockNode != null) {</span>
+<span class="fc" id="L167">            log(ast, MSG_KEY, holder.variableName, holder.blockNode.getLineNo());</span>
+        }
+<span class="fc" id="L169">    }</span>
+
+    /**
+     * Examines an if statement to see how many times the specified variable
+     * identifier was used inside it.
+     *
+     * @param holder The object holder with the specified variable to check and
+     *        it's current state.
+     * @param ifNodeGiven The current if node to examine.
+     */
+    private static void validateIf(Holder holder, DetailAST ifNodeGiven) {
+<span class="fc" id="L180">        DetailAST ifNode = ifNodeGiven;</span>
+
+        // -@cs[SingleBreakOrContinue] Too complex to break apart
+        while (true) {
+            // check condition
+<span class="fc" id="L185">            final DetailAST rparen = ifNode.findFirstToken(TokenTypes.RPAREN);</span>
+<span class="fc" id="L186">            final boolean usedInCondition = holder.hasIdent(</span>
+<span class="fc" id="L187">                    ifNode.findFirstToken(TokenTypes.LPAREN), rparen);</span>
+
+<span class="fc bfc" id="L189" title="All 2 branches covered.">            if (usedInCondition) {</span>
+<span class="fc" id="L190">                holder.setExit();</span>
+<span class="fc" id="L191">                break;</span>
+            }
+
+<span class="fc" id="L194">            final DetailAST elseNode = ifNode.getLastChild();</span>
+
+            // check body of if
+<span class="fc" id="L197">            final DetailAST body = rparen.getNextSibling();</span>
+            final DetailAST bodyEnd;
+
+<span class="fc bfc" id="L200" title="All 2 branches covered.">            if (body.getType() == TokenTypes.SLIST) {</span>
+<span class="fc" id="L201">                bodyEnd = body.getLastChild();</span>
+<span class="fc" id="L202">            }</span>
+            else {
+<span class="fc" id="L204">                bodyEnd = elseNode;</span>
+            }
+
+<span class="fc" id="L207">            final boolean used = holder.hasIdent(body, bodyEnd);</span>
+
+<span class="fc bfc" id="L209" title="All 2 branches covered.">            if (used) {</span>
+<span class="fc" id="L210">                holder.setBlockNode(ifNode);</span>
+
+<span class="fc bfc" id="L212" title="All 2 branches covered.">                if (holder.exit) {</span>
+<span class="fc" id="L213">                    break;</span>
+                }
+            }
+
+<span class="fc bfc" id="L217" title="All 2 branches covered.">            if (elseNode.getType() != TokenTypes.LITERAL_ELSE) {</span>
+<span class="fc" id="L218">                break;</span>
+            }
+
+<span class="fc" id="L221">            ifNode = elseNode.getFirstChild();</span>
+
+<span class="fc bfc" id="L223" title="All 2 branches covered.">            if (ifNode.getType() != TokenTypes.LITERAL_IF) {</span>
+                // check body of else
+
+<span class="fc" id="L226">                validateElseOfIf(holder, ifNode, elseNode);</span>
+                break;
+            }
+        }
+<span class="fc" id="L230">    }</span>
+
+    /**
+     * Examines the else of an if statement to see how many times the specified
+     * variable identifier was used inside it.
+     *
+     * @param holder The object holder with the specified variable to check and
+     *        it's current state.
+     * @param ifNode The if node of the specified else.
+     * @param elseNode The current else node to examine.
+     */
+    private static void validateElseOfIf(Holder holder, DetailAST ifNode, DetailAST elseNode) {
+        final boolean used;
+
+<span class="fc bfc" id="L244" title="All 2 branches covered.">        if (ifNode.getType() == TokenTypes.SLIST) {</span>
+<span class="fc" id="L245">            used = holder.hasIdent(ifNode.getFirstChild(), ifNode.getLastChild());</span>
+<span class="fc" id="L246">        }</span>
+        else {
+<span class="fc" id="L248">            used = holder.hasIdent(ifNode, elseNode.getLastChild());</span>
+        }
+
+<span class="fc bfc" id="L251" title="All 2 branches covered.">        if (used) {</span>
+<span class="fc" id="L252">            holder.setBlockNode(elseNode);</span>
+        }
+<span class="fc" id="L254">    }</span>
+
+    /**
+     * Examines other nodes to see how many times a variable was used inside it.
+     * If the variable is used, no violations are reported for it.
+     *
+     * @param holder The object holder with the specified variable to check and
+     *        it's current state.
+     * @param child The current node to examine.
+     */
+    private static void validateOther(Holder holder, DetailAST child) {
+<span class="fc" id="L265">        final boolean used = holder.hasIdent(child, child.getNextSibling());</span>
+
+<span class="fc bfc" id="L267" title="All 2 branches covered.">        if (used) {</span>
+<span class="fc" id="L268">            holder.setExit();</span>
+        }
+<span class="fc" id="L270">    }</span>
+
+    /**
+     * The holder of information for the specified variable.
+     *
+     * @author Richard Veach
+     */
+    private static class Holder {
+
+        /** The name of the variable being examined. */
+        private final String variableName;
+        /** Switch to trigger ending examining more nodes. */
+        private boolean exit;
+        /** The node to report violations on. */
+        private DetailAST blockNode;
+
+        /**
+         * Default constructor for the class.
+         *
+         * @param ast The variable the holder is for.
+         */
+<span class="fc" id="L291">        /* package */ Holder(DetailAST ast) {</span>
+<span class="fc" id="L292">            variableName = ast.findFirstToken(TokenTypes.IDENT).getText();</span>
+<span class="fc" id="L293">        }</span>
+
+        /**
+         * Sets the specified node that is to be reported for the violation for
+         * the block. If there is already a node being reported, then no nodes
+         * are reported.
+         *
+         * @param blockNode The given block node to report for.
+         */
+        public void setBlockNode(DetailAST blockNode) {
+<span class="fc bfc" id="L303" title="All 2 branches covered.">            if (this.blockNode == null) {</span>
+<span class="fc" id="L304">                this.blockNode = blockNode;</span>
+<span class="fc" id="L305">            }</span>
+            else {
+<span class="fc" id="L307">                setExit();</span>
+            }
+<span class="fc" id="L309">        }</span>
+
+        /** Sets the state to exit examining further nodes. */
+        public void setExit() {
+<span class="fc" id="L313">            blockNode = null;</span>
+<span class="fc" id="L314">            exit = true;</span>
+<span class="fc" id="L315">        }</span>
+
+        /**
+         * Checks if any of the nodes between the given start and end are an
+         * identifier with the name of the variable.
+         *
+         * @param start The node to start examining from.
+         * @param end The last node to stop examining once reached. If null,
+         *        then the last node is when we leave the start node.
+         * @return true if the identifier has been found, otherwise false.
+         */
+        public boolean hasIdent(DetailAST start, DetailAST end) {
+<span class="fc" id="L327">            boolean found = false;</span>
+<span class="fc" id="L328">            DetailAST curNode = start;</span>
+
+            // -@cs[SingleBreakOrContinue] Too complex to break apart
+<span class="fc bfc" id="L331" title="All 2 branches covered.">            while (curNode != null) {</span>
+<span class="fc bfc" id="L332" title="All 2 branches covered.">                if (curNode.getType() == TokenTypes.IDENT</span>
+<span class="fc bfc" id="L333" title="All 2 branches covered.">                        &amp;&amp; variableName.equals(curNode.getText())) {</span>
+<span class="fc" id="L334">                    found = true;</span>
+<span class="fc" id="L335">                    break;</span>
+                }
+
+<span class="fc bfc" id="L338" title="All 2 branches covered.">                if (curNode == end) {</span>
+<span class="fc" id="L339">                    break;</span>
+                }
+
+<span class="fc" id="L342">                DetailAST toVisit = curNode.getFirstChild();</span>
+
+<span class="fc bfc" id="L344" title="All 2 branches covered.">                while (toVisit == null) {</span>
+<span class="fc" id="L345">                    toVisit = curNode.getNextSibling();</span>
+
+<span class="fc bfc" id="L347" title="All 2 branches covered.">                    if (toVisit == null) {</span>
+<span class="fc bfc" id="L348" title="All 2 branches covered.">                        if (end == null) {</span>
+<span class="fc" id="L349">                            break;</span>
+                        }
+
+<span class="fc" id="L352">                        curNode = curNode.getParent();</span>
+                    }
+                }
+
+<span class="fc" id="L356">                curNode = toVisit;</span>
+            }
+
+<span class="fc" id="L359">            return found;</span>
+        }
+
+    }
+
+}
+</pre><div class="footer"><span class="right">Created with <a href="http://www.eclemma.org/jacoco">JaCoCo</a> 0.7.1.201405082137</span></div></body></html>

@@ -1,0 +1,460 @@
+<?xml version="1.0" encoding="UTF-8"?><!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Strict//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-strict.dtd"><html xmlns="http://www.w3.org/1999/xhtml" lang="en"><head><meta http-equiv="Content-Type" content="text/html;charset=UTF-8"/><link rel="stylesheet" href="../.resources/report.css" type="text/css"/><link rel="shortcut icon" href="../.resources/report.gif" type="image/gif"/><title>ReturnCountExtendedCheck.java</title><link rel="stylesheet" href="../.resources/prettify.css" type="text/css"/><script type="text/javascript" src="../.resources/prettify.js"></script></head><body onload="window['PR_TAB_WIDTH']=4;prettyPrint()"><div class="breadcrumb" id="breadcrumb"><span class="info"><a href="../.sessions.html" class="el_session">Sessions</a></span><a href="../index.html" class="el_report">sevntu-checks</a> &gt; <a href="index.source.html" class="el_package">com.github.sevntu.checkstyle.checks.coding</a> &gt; <span class="el_source">ReturnCountExtendedCheck.java</span></div><h1>ReturnCountExtendedCheck.java</h1><pre class="source lang-java linenums">////////////////////////////////////////////////////////////////////////////////
+// checkstyle: Checks Java source code for adherence to a set of rules.
+// Copyright (C) 2001-2019 the original author or authors.
+//
+// This library is free software; you can redistribute it and/or
+// modify it under the terms of the GNU Lesser General Public
+// License as published by the Free Software Foundation; either
+// version 2.1 of the License, or (at your option) any later version.
+//
+// This library is distributed in the hope that it will be useful,
+// but WITHOUT ANY WARRANTY; without even the implied warranty of
+// MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the GNU
+// Lesser General Public License for more details.
+//
+// You should have received a copy of the GNU Lesser General Public
+// License along with this library; if not, write to the Free Software
+// Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA
+////////////////////////////////////////////////////////////////////////////////
+
+package com.github.sevntu.checkstyle.checks.coding;
+
+import java.util.Collection;
+import java.util.HashSet;
+import java.util.Set;
+
+import com.puppycrawl.tools.checkstyle.api.AbstractCheck;
+import com.puppycrawl.tools.checkstyle.api.DetailAST;
+import com.puppycrawl.tools.checkstyle.api.TokenTypes;
+import com.puppycrawl.tools.checkstyle.checks.coding.ReturnCountCheck;
+
+/**
+ * Checks that method/ctor &quot;return&quot; literal count is not greater than the given value
+ * (&quot;maxReturnCount&quot; property).&lt;br&gt;
+ * &lt;br&gt;
+ * Rationale:&lt;br&gt;
+ * &lt;br&gt;
+ * One return per method is a good practice as its ease understanding of method logic. &lt;br&gt;
+ * &lt;br&gt;
+ * Reasoning is that:
+ * &lt;ul&gt;
+ * &lt;li&gt;It is easier to understand control flow when you know exactly where the method returns.
+ * &lt;li&gt;Methods with 2-3 or many &quot;return&quot; statements are much more difficult to understand,
+ * debug and refactor.
+ * &lt;/ul&gt;
+ * Setting up the check options will make it to ignore:
+ * &lt;ol&gt;
+ * &lt;li&gt;Methods by name (&quot;ignoreMethodsNames&quot; property). Note, that the &quot;ignoreMethodsNames&quot;
+ * property type is a RegExp:
+ * using this property you can list the names of ignored methods separated by comma (but you
+ * can also use '|' to separate different method names in usual for RegExp style).
+ * If the violation is on a lambda, since it has no method name, you can specify the string
+ * {@code null} to ignore all lambda violations for now. It should be noted, that ignoring lambdas
+ * this way may not always be supported as it is a hack and giving all lambdas the same name. It
+ * could be changed if a better way to single out individual lambdas if found.
+ * &lt;/li&gt;
+ * &lt;li&gt;Methods which linelength less than given value (&quot;linesLimit&quot; property).
+ * &lt;li&gt;&quot;return&quot; statements which depth is greater or equal to the given value (&quot;returnDepthLimit&quot;
+ * property). There are few supported &lt;br&gt;
+ * coding blocks when depth counting: &quot;if-else&quot;, &quot;for&quot;, &quot;while&quot;/&quot;do-while&quot; and &quot;switch&quot;.
+ * &lt;li&gt;&quot;Empty&quot; return statements = return statements in void methods and ctors that have not
+ * any expression (&quot;ignoreEmptyReturns&quot; property).
+ * &lt;li&gt;Return statements, which are located in the top lines of method/ctor (you can specify
+ * the count of top method/ctor lines that will be ignored using &quot;rowsToIgnoreCount&quot; property).
+ * &lt;/ol&gt;
+ * So, this is much improved version of the existing {@link ReturnCountCheck}. &lt;br&gt;
+ * &lt;br&gt;
+ *
+ * @author &lt;a href=&quot;mailto:Daniil.Yaroslavtsev@gmail.com&quot;&gt; Daniil Yaroslavtsev&lt;/a&gt;
+ * @since 1.8.0
+ */
+public class ReturnCountExtendedCheck extends AbstractCheck {
+
+    /**
+     * A key is pointing to the warning message text in &quot;messages.properties&quot;
+     * file.
+     */
+    public static final String MSG_KEY_METHOD =
+            &quot;return.count.extended.method&quot;;
+
+    /**
+     * A key is pointing to the warning message text in &quot;messages.properties&quot;
+     * file.
+     */
+    public static final String MSG_KEY_CTOR =
+            &quot;return.count.extended.ctor&quot;;
+
+    /**
+     * A key is pointing to the warning message text in &quot;messages.properties&quot;
+     * file.
+     */
+    public static final String MSG_KEY_LAMBDA =
+            &quot;return.count.extended.lambda&quot;;
+
+    /**
+     * Default maximum allowed &quot;return&quot; literals count per method/ctor/lambda.
+     */
+    private static final int DEFAULT_MAX_RETURN_COUNT = 1;
+
+    /**
+     * Default number of lines of which method/ctor/lambda body may consist to be
+     * skipped by check.
+     */
+    private static final int DEFAULT_IGNORE_METHOD_LINES_COUNT = 20;
+
+    /**
+     * Default minimum &quot;return&quot; statement depth when current &quot;return statement&quot;
+     * will be skipped by check.
+     */
+    private static final int DEFAULT_MIN_IGNORE_RETURN_DEPTH = 4;
+
+    /**
+     * Number which defines, how many lines of code on the top of current
+     * processed method/ctor/lambda will be ignored by check.
+     */
+    private static final int DEFAULT_TOP_LINES_TO_IGNORE_COUNT = 5;
+
+    /**
+     * List contains RegExp patterns for methods' names which would be ignored by check.
+     */
+<span class="fc" id="L120">    private final Set&lt;String&gt; ignoreMethodsNames = new HashSet&lt;&gt;();</span>
+
+    /**
+     * Maximum allowed &quot;return&quot; literals count per method/ctor/lambda (1 by default).
+     */
+<span class="fc" id="L125">    private int maxReturnCount = DEFAULT_MAX_RETURN_COUNT;</span>
+
+    /**
+     * Maximum number of lines of which method/ctor/lambda body may consist to be
+     * skipped by check. 20 by default.
+     */
+<span class="fc" id="L131">    private int ignoreMethodLinesCount = DEFAULT_IGNORE_METHOD_LINES_COUNT;</span>
+
+    /**
+     * Minimum &quot;return&quot; statement depth to be skipped by check. 4 by default.
+     */
+<span class="fc" id="L136">    private int minIgnoreReturnDepth = DEFAULT_MIN_IGNORE_RETURN_DEPTH;</span>
+
+    /**
+     * Option to ignore &quot;empty&quot; return statements in void methods and ctors and lambdas.
+     * &quot;true&quot; by default.
+     */
+<span class="fc" id="L142">    private boolean ignoreEmptyReturns = true;</span>
+
+    /**
+     * Number which defines, how many lines of code on the top of each
+     * processed method/ctor/lambda will be ignored by check. 5 by default.
+     */
+<span class="fc" id="L148">    private int topLinesToIgnoreCount = DEFAULT_TOP_LINES_TO_IGNORE_COUNT;</span>
+
+    /**
+     * Creates the new check instance.
+     */
+<span class="fc" id="L153">    public ReturnCountExtendedCheck() {</span>
+<span class="fc" id="L154">        ignoreMethodsNames.add(&quot;equals&quot;);</span>
+<span class="fc" id="L155">    }</span>
+
+    /**
+     * Sets the RegExp patterns for methods' names which would be ignored by check.
+     *
+     * @param ignoreMethodNames
+     *            list of the RegExp patterns for methods' names which should be ignored by check
+     */
+    public void setIgnoreMethodsNames(String... ignoreMethodNames) {
+<span class="fc" id="L164">        ignoreMethodsNames.clear();</span>
+<span class="fc bfc" id="L165" title="All 2 branches covered.">        if (ignoreMethodNames != null) {</span>
+<span class="fc bfc" id="L166" title="All 2 branches covered.">            for (String name : ignoreMethodNames) {</span>
+<span class="fc" id="L167">                ignoreMethodsNames.add(name);</span>
+            }
+        }
+<span class="fc" id="L170">    }</span>
+
+    /**
+     * Sets maximum allowed &quot;return&quot; literals count per method/ctor/lambda.
+     * @param maxReturnCount - the new &quot;maxReturnCount&quot; property value.
+     * @see ReturnCountExtendedCheck#maxReturnCount
+     */
+    public void setMaxReturnCount(int maxReturnCount) {
+<span class="fc" id="L178">        this.maxReturnCount = maxReturnCount;</span>
+<span class="fc" id="L179">    }</span>
+
+    /**
+     * Sets the maximum number of lines of which method/ctor/lambda body may consist to
+     * be skipped by check.
+     * @param ignoreMethodLinesCount
+     *        - the new value of &quot;ignoreMethodLinesCount&quot; property.
+     * @see ReturnCountExtendedCheck#ignoreMethodLinesCount
+     */
+    public void setIgnoreMethodLinesCount(int ignoreMethodLinesCount) {
+<span class="fc" id="L189">        this.ignoreMethodLinesCount = ignoreMethodLinesCount;</span>
+<span class="fc" id="L190">    }</span>
+
+    /**
+     * Sets the minimum &quot;return&quot; statement depth with that will be skipped by
+     * check.
+     * @param minIgnoreReturnDepth
+     *        - the new &quot;minIgnoreReturnDepth&quot; property value.
+     */
+    public void setMinIgnoreReturnDepth(int minIgnoreReturnDepth) {
+<span class="fc" id="L199">        this.minIgnoreReturnDepth = minIgnoreReturnDepth;</span>
+<span class="fc" id="L200">    }</span>
+
+    /**
+     * Sets the &quot;ignoring empty return statements in void methods and ctors and lambdas&quot;
+     * option state.
+     * @param ignoreEmptyReturns
+     *        the new &quot;allowEmptyReturns&quot; property value.
+     * @see ReturnCountExtendedCheck#ignoreEmptyReturns
+     */
+    public void setIgnoreEmptyReturns(boolean ignoreEmptyReturns) {
+<span class="fc" id="L210">        this.ignoreEmptyReturns = ignoreEmptyReturns;</span>
+<span class="fc" id="L211">    }</span>
+
+    /**
+     * Sets the count of code lines on the top of each
+     * processed method/ctor that will be ignored by check.
+     * @param topLinesToIgnoreCount
+     *        the new &quot;rowsToIgnoreCount&quot; property value.
+     * @see ReturnCountExtendedCheck#topLinesToIgnoreCount
+     */
+    public void setTopLinesToIgnoreCount(int topLinesToIgnoreCount) {
+<span class="fc" id="L221">        this.topLinesToIgnoreCount = topLinesToIgnoreCount;</span>
+<span class="fc" id="L222">    }</span>
+
+    @Override
+    public int[] getDefaultTokens() {
+<span class="fc" id="L226">        return new int[] {</span>
+<span class="fc" id="L227">            TokenTypes.METHOD_DEF,</span>
+<span class="fc" id="L228">            TokenTypes.CTOR_DEF,</span>
+<span class="fc" id="L229">            TokenTypes.LAMBDA,</span>
+        };
+    }
+
+    @Override
+    public int[] getAcceptableTokens() {
+<span class="fc" id="L235">        return getDefaultTokens();</span>
+    }
+
+    @Override
+    public int[] getRequiredTokens() {
+<span class="fc" id="L240">        return getDefaultTokens();</span>
+    }
+
+    @Override
+    public void visitToken(final DetailAST node) {
+<span class="fc" id="L245">        final DetailAST openingBrace = node</span>
+<span class="fc" id="L246">                .findFirstToken(TokenTypes.SLIST);</span>
+<span class="fc" id="L247">        final String nodeName = getMethodName(node);</span>
+<span class="fc bfc" id="L248" title="All 2 branches covered.">        if (openingBrace != null</span>
+<span class="fc bfc" id="L249" title="All 2 branches covered.">                &amp;&amp; !matches(nodeName, ignoreMethodsNames)) {</span>
+<span class="fc" id="L250">            final DetailAST closingBrace = openingBrace.getLastChild();</span>
+
+<span class="fc" id="L252">            int curMethodLinesCount = getLinesCount(openingBrace,</span>
+<span class="fc" id="L253">                    closingBrace);</span>
+
+<span class="fc bfc" id="L255" title="All 2 branches covered.">            if (curMethodLinesCount != 0) {</span>
+<span class="fc" id="L256">                curMethodLinesCount--;</span>
+            }
+
+<span class="fc bfc" id="L259" title="All 2 branches covered.">            if (curMethodLinesCount &gt;= ignoreMethodLinesCount) {</span>
+<span class="fc" id="L260">                final int mCurReturnCount = getReturnCount(node,</span>
+<span class="fc" id="L261">                        openingBrace);</span>
+
+<span class="fc bfc" id="L263" title="All 2 branches covered.">                if (mCurReturnCount &gt; maxReturnCount) {</span>
+<span class="fc" id="L264">                    logViolation(node, nodeName, mCurReturnCount);</span>
+                }
+            }
+        }
+<span class="fc" id="L268">    }</span>
+
+    /**
+     * Reports violation to user based on the parameters given.
+     * @param node The node that the violation is on.
+     * @param nodeName The name given to the node.
+     * @param mCurReturnCount The return count violation amount.
+     */
+    private void logViolation(DetailAST node, String nodeName, int mCurReturnCount) {
+<span class="fc bfc" id="L277" title="All 2 branches covered.">        if (node.getType() == TokenTypes.LAMBDA) {</span>
+            // lambdas have no name
+<span class="fc" id="L279">            log(node, MSG_KEY_LAMBDA, mCurReturnCount, maxReturnCount);</span>
+<span class="fc" id="L280">        }</span>
+        else {
+<span class="fc" id="L282">            final DetailAST nodeNameToken = node</span>
+<span class="fc" id="L283">                    .findFirstToken(TokenTypes.IDENT);</span>
+            final String mKey;
+
+<span class="fc bfc" id="L286" title="All 2 branches covered.">            if (node.getType() == TokenTypes.METHOD_DEF) {</span>
+<span class="fc" id="L287">                mKey = MSG_KEY_METHOD;</span>
+<span class="fc" id="L288">            }</span>
+            else {
+<span class="fc" id="L290">                mKey = MSG_KEY_CTOR;</span>
+            }
+
+<span class="fc" id="L293">            log(nodeNameToken, mKey,</span>
+<span class="fc" id="L294">                    nodeName, mCurReturnCount,</span>
+<span class="fc" id="L295">                    maxReturnCount);</span>
+        }
+<span class="fc" id="L297">    }</span>
+
+    /**
+     * Gets the &quot;return&quot; statements count for given method/ctor/lambda and saves the
+     * last &quot;return&quot; statement DetailAST node for given method/ctor/lambda body. Uses
+     * an iterative algorithm.
+     * @param methodOpeningBrace
+     *        a DetailAST node that points to the current method`s opening
+     *        brace.
+     * @param methodDefNode
+     *        DetailAST node is pointing to current method definition is being
+     *        processed.
+     * @return &quot;return&quot; literals count for given method.
+     */
+    private int getReturnCount(final DetailAST methodDefNode,
+            final DetailAST methodOpeningBrace) {
+<span class="fc" id="L313">        int result = 0;</span>
+
+<span class="fc" id="L315">        DetailAST curNode = methodOpeningBrace;</span>
+
+        // stop at closing brace
+<span class="fc bfc" id="L318" title="All 2 branches covered.">        while (curNode.getType() != TokenTypes.RCURLY</span>
+<span class="fc bfc" id="L319" title="All 2 branches covered.">                || curNode.getParent() != methodOpeningBrace) {</span>
+<span class="fc bfc" id="L320" title="All 2 branches covered.">            if (curNode.getType() == TokenTypes.LITERAL_RETURN</span>
+<span class="fc bfc" id="L321" title="All 2 branches covered.">                    &amp;&amp; getDepth(methodDefNode, curNode) &lt; minIgnoreReturnDepth</span>
+<span class="fc bfc" id="L322" title="All 2 branches covered.">                    &amp;&amp; shouldEmptyReturnStatementBeCounted(curNode)</span>
+<span class="fc" id="L323">                    &amp;&amp; getLinesCount(methodOpeningBrace,</span>
+<span class="fc bfc" id="L324" title="All 2 branches covered.">                            curNode) &gt; topLinesToIgnoreCount) {</span>
+<span class="fc" id="L325">                result++;</span>
+            }
+
+            // before node leaving
+<span class="fc" id="L329">            DetailAST nextNode = curNode.getFirstChild();</span>
+
+<span class="fc" id="L331">            final int type = curNode.getType();</span>
+            // skip nested methods (UI listeners, Runnable.run(), etc.)
+<span class="fc bfc" id="L333" title="All 2 branches covered.">            if (type == TokenTypes.METHOD_DEF</span>
+                  // skip anonymous classes
+<span class="fc bfc" id="L335" title="All 2 branches covered.">                  || type == TokenTypes.CLASS_DEF</span>
+                  // skip lambdas which is like an anonymous class/method
+<span class="fc bfc" id="L337" title="All 2 branches covered.">                  || type == TokenTypes.LAMBDA) {</span>
+<span class="fc" id="L338">                nextNode = curNode.getNextSibling();</span>
+            }
+
+<span class="fc bfc" id="L341" title="All 2 branches covered.">            while (nextNode == null) {</span>
+                // leave the visited Node
+<span class="fc" id="L343">                nextNode = curNode.getNextSibling();</span>
+<span class="fc bfc" id="L344" title="All 2 branches covered.">                if (nextNode == null) {</span>
+<span class="fc" id="L345">                    curNode = curNode.getParent();</span>
+                }
+            }
+<span class="fc" id="L348">            curNode = nextNode;</span>
+        }
+<span class="fc" id="L350">        return result;</span>
+    }
+
+    /**
+     * Checks that the current processed &quot;return&quot; statement is &quot;empty&quot; and
+     * should to be counted.
+     * @param returnNode
+     *        the DetailAST node is pointing to the current &quot;return&quot; statement.
+     *        is being processed.
+     * @return true if current processed &quot;return&quot; statement is empty or if
+     *         mIgnoreEmptyReturns option has &quot;false&quot; value.
+     */
+    private boolean shouldEmptyReturnStatementBeCounted(DetailAST returnNode) {
+<span class="fc" id="L363">        final DetailAST returnChildNode = returnNode.getFirstChild();</span>
+<span class="fc bfc" id="L364" title="All 2 branches covered.">        return !ignoreEmptyReturns</span>
+<span class="fc bfc" id="L365" title="All 2 branches covered.">                || returnChildNode.getType() != TokenTypes.SEMI;</span>
+    }
+
+    /**
+     * Gets the depth level of given &quot;return&quot; statement. There are few supported
+     * coding blocks when depth counting: &quot;if-else&quot;, &quot;for&quot;, &quot;while&quot;/&quot;do-while&quot;
+     * and &quot;switch&quot;.
+     * @param methodDefNode
+     *        a DetailAST node that points to the current method`s definition.
+     * @param returnStmtNode
+     *        given &quot;return&quot; statement node.
+     * @return the depth of given
+     */
+    private static int getDepth(DetailAST methodDefNode,
+            DetailAST returnStmtNode) {
+<span class="fc" id="L380">        int result = 0;</span>
+
+<span class="fc" id="L382">        DetailAST curNode = returnStmtNode;</span>
+
+<span class="fc bfc" id="L384" title="All 2 branches covered.">        while (!curNode.equals(methodDefNode)) {</span>
+<span class="fc" id="L385">            curNode = curNode.getParent();</span>
+<span class="fc" id="L386">            final int type = curNode.getType();</span>
+<span class="fc bfc" id="L387" title="All 2 branches covered.">            if (type == TokenTypes.LITERAL_IF</span>
+<span class="fc bfc" id="L388" title="All 2 branches covered.">                    || type == TokenTypes.LITERAL_SWITCH</span>
+<span class="fc bfc" id="L389" title="All 2 branches covered.">                    || type == TokenTypes.LITERAL_FOR</span>
+<span class="fc bfc" id="L390" title="All 2 branches covered.">                    || type == TokenTypes.LITERAL_DO</span>
+<span class="fc bfc" id="L391" title="All 2 branches covered.">                    || type == TokenTypes.LITERAL_WHILE</span>
+<span class="fc bfc" id="L392" title="All 2 branches covered.">                    || type == TokenTypes.LITERAL_TRY) {</span>
+<span class="fc" id="L393">                result++;</span>
+            }
+        }
+<span class="fc" id="L396">        return result;</span>
+    }
+
+    /**
+     * Gets the name of given method by DetailAST node is pointing to desired
+     * method definition.
+     * @param methodDefNode
+     *        a DetailAST node that points to the current method`s definition.
+     * @return the method name.
+     */
+    private static String getMethodName(DetailAST methodDefNode) {
+<span class="fc" id="L407">        String result = null;</span>
+<span class="fc" id="L408">        final DetailAST ident = methodDefNode.findFirstToken(TokenTypes.IDENT);</span>
+
+        // lambdas don't have a name
+<span class="fc bfc" id="L411" title="All 4 branches covered.">        if (ident != null &amp;&amp; methodDefNode.getType() != TokenTypes.LAMBDA) {</span>
+<span class="fc" id="L412">            result = ident.getText();</span>
+        }
+
+<span class="fc" id="L415">        return result;</span>
+    }
+
+    /**
+     * Gets the line count between the two DetailASTs which are related to the
+     * given &quot;begin&quot; and &quot;end&quot; tokens.
+     * @param beginAst
+     *        the &quot;begin&quot; token AST node.
+     * @param endAST
+     *        the &quot;end&quot; token AST node.
+     * @return the line count between &quot;begin&quot; and &quot;end&quot; tokens.
+     */
+    private static int getLinesCount(DetailAST beginAst, DetailAST endAST) {
+<span class="fc" id="L428">        return endAST.getLineNo() - beginAst.getLineNo();</span>
+    }
+
+    /**
+     * Matches string to given list of RegExp patterns.
+     *
+     * @param string
+     *            String to be matched.
+     * @param patterns
+     *            Collection of RegExp patterns to match with.
+     * @return true if given string could be fully matched by one of given patterns, false otherwise
+     */
+    private static boolean matches(String string, Collection&lt;String&gt; patterns) {
+<span class="fc" id="L441">        String match = string;</span>
+
+<span class="fc bfc" id="L443" title="All 2 branches covered.">        if (match == null) {</span>
+<span class="fc" id="L444">            match = &quot;null&quot;;</span>
+        }
+
+<span class="fc" id="L447">        boolean result = false;</span>
+<span class="fc bfc" id="L448" title="All 2 branches covered.">        if (!patterns.isEmpty()) {</span>
+<span class="fc bfc" id="L449" title="All 2 branches covered.">            for (String pattern : patterns) {</span>
+<span class="fc bfc" id="L450" title="All 2 branches covered.">                if (match.matches(pattern)) {</span>
+<span class="fc" id="L451">                    result = true;</span>
+<span class="fc" id="L452">                    break;</span>
+                }
+            }
+        }
+<span class="fc" id="L456">        return result;</span>
+    }
+
+}
+</pre><div class="footer"><span class="right">Created with <a href="http://www.eclemma.org/jacoco">JaCoCo</a> 0.7.1.201405082137</span></div></body></html>

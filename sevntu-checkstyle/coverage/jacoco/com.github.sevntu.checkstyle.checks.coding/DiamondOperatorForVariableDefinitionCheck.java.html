@@ -1,0 +1,117 @@
+<?xml version="1.0" encoding="UTF-8"?><!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Strict//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-strict.dtd"><html xmlns="http://www.w3.org/1999/xhtml" lang="en"><head><meta http-equiv="Content-Type" content="text/html;charset=UTF-8"/><link rel="stylesheet" href="../.resources/report.css" type="text/css"/><link rel="shortcut icon" href="../.resources/report.gif" type="image/gif"/><title>DiamondOperatorForVariableDefinitionCheck.java</title><link rel="stylesheet" href="../.resources/prettify.css" type="text/css"/><script type="text/javascript" src="../.resources/prettify.js"></script></head><body onload="window['PR_TAB_WIDTH']=4;prettyPrint()"><div class="breadcrumb" id="breadcrumb"><span class="info"><a href="../.sessions.html" class="el_session">Sessions</a></span><a href="../index.html" class="el_report">sevntu-checks</a> &gt; <a href="index.source.html" class="el_package">com.github.sevntu.checkstyle.checks.coding</a> &gt; <span class="el_source">DiamondOperatorForVariableDefinitionCheck.java</span></div><h1>DiamondOperatorForVariableDefinitionCheck.java</h1><pre class="source lang-java linenums">////////////////////////////////////////////////////////////////////////////////
+// checkstyle: Checks Java source code for adherence to a set of rules.
+// Copyright (C) 2001-2019 the original author or authors.
+//
+// This library is free software; you can redistribute it and/or
+// modify it under the terms of the GNU Lesser General Public
+// License as published by the Free Software Foundation; either
+// version 2.1 of the License, or (at your option) any later version.
+//
+// This library is distributed in the hope that it will be useful,
+// but WITHOUT ANY WARRANTY; without even the implied warranty of
+// MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the GNU
+// Lesser General Public License for more details.
+//
+// You should have received a copy of the GNU Lesser General Public
+// License along with this library; if not, write to the Free Software
+// Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA
+////////////////////////////////////////////////////////////////////////////////
+
+package com.github.sevntu.checkstyle.checks.coding;
+
+import com.puppycrawl.tools.checkstyle.api.AbstractCheck;
+import com.puppycrawl.tools.checkstyle.api.DetailAST;
+import com.puppycrawl.tools.checkstyle.api.TokenTypes;
+
+/**
+ * This Check highlights variable definition statements where &lt;a href=
+ * &quot;http://docs.oracle.com/javase/7/docs/technotes/guides/language/type-inference-generic-instance-creation.html&quot;&gt;
+ * diamond operator&lt;/a&gt; could be used.&lt;br&gt;
+ * &lt;b&gt;Rationale&lt;/b&gt;: using diamond operator (introduced in Java 1.7) leads to shorter code&lt;br&gt;
+ * and better code readability. It is suggested by Oracle that the diamond primarily using&lt;br&gt;
+ * for variable declarations.&lt;br&gt;&lt;br&gt;
+ * E.g. of statements:
+ *
+ * &lt;p&gt;&lt;b&gt;Without diamond operator:&lt;/b&gt;&lt;br&gt;&lt;code&gt;
+ * Map&amp;lt;String, Map&amp;lt;String, Integer&amp;gt;&amp;gt; someMap =
+ *     new HashMap&amp;lt;String, Map&amp;lt;String, Integer&amp;gt;&amp;gt;();&lt;/code&gt;&lt;br&gt;
+ * &lt;b&gt;With diamond operator:&lt;/b&gt;&lt;br&gt;
+ * &lt;code&gt;
+ * Map&amp;lt;String, Map&amp;lt;String, Integer&amp;gt;&amp;gt; someMap = new HashMap&amp;lt;&amp;gt;();
+ * &lt;/code&gt;
+ * &lt;/p&gt;
+ * @author &lt;a href=&quot;mailto:nesterenko-aleksey@list.ru&quot;&gt;Aleksey Nesterenko&lt;/a&gt;
+ * @since 1.12.0
+ */
+<span class="fc" id="L46">public class DiamondOperatorForVariableDefinitionCheck extends AbstractCheck {</span>
+
+    /** A key is pointing to the warning message text in &quot;messages.properties&quot; file. */
+    public static final String MSG_KEY = &quot;diamond.operator.for.variable.definition&quot;;
+
+    @Override
+    public int[] getDefaultTokens() {
+<span class="fc" id="L53">        return new int[] {TokenTypes.VARIABLE_DEF};</span>
+    }
+
+    @Override
+    public int[] getAcceptableTokens() {
+<span class="fc" id="L58">        return getDefaultTokens();</span>
+    }
+
+    @Override
+    public int[] getRequiredTokens() {
+<span class="fc" id="L63">        return getDefaultTokens();</span>
+    }
+
+    @Override
+    public void visitToken(DetailAST variableDefNode) {
+<span class="fc" id="L68">        final DetailAST assignNode = variableDefNode.findFirstToken(TokenTypes.ASSIGN);</span>
+
+<span class="fc bfc" id="L70" title="All 2 branches covered.">        if (assignNode != null) {</span>
+<span class="fc" id="L71">            final DetailAST newNode = assignNode.getFirstChild().getFirstChild();</span>
+
+            // we check only creation by NEW
+<span class="fc bfc" id="L74" title="All 2 branches covered.">            if (newNode.getType() == TokenTypes.LITERAL_NEW) {</span>
+<span class="fc" id="L75">                final DetailAST variableDefNodeType =</span>
+<span class="fc" id="L76">                        variableDefNode.findFirstToken(TokenTypes.TYPE);</span>
+<span class="fc" id="L77">                final DetailAST varDefArguments = getFirstTypeArgumentsToken(variableDefNodeType);</span>
+
+                // generics has to be on left side
+<span class="fc bfc" id="L80" title="All 2 branches covered.">                if (varDefArguments != null</span>
+<span class="fc bfc" id="L81" title="All 2 branches covered.">                        &amp;&amp; newNode.getLastChild().getType() != TokenTypes.OBJBLOCK</span>
+                        // arrays can not be generics
+<span class="fc bfc" id="L83" title="All 2 branches covered.">                        &amp;&amp; newNode.findFirstToken(TokenTypes.ARRAY_DECLARATOR) == null) {</span>
+<span class="fc" id="L84">                    final DetailAST typeArgs = getFirstTypeArgumentsToken(newNode);</span>
+
+<span class="fc bfc" id="L86" title="All 2 branches covered.">                    if (varDefArguments.equalsTree(typeArgs)) {</span>
+<span class="fc" id="L87">                        log(typeArgs, MSG_KEY);</span>
+                    }
+                }
+            }
+        }
+<span class="fc" id="L92">    }</span>
+
+    /**
+     * Get first occurrence of TYPE_ARGUMENTS if exists.
+     * @param rootToken the token to start search from.
+     * @return TYPE_ARGUMENTS token if found.
+     */
+    private static DetailAST getFirstTypeArgumentsToken(DetailAST rootToken) {
+<span class="fc" id="L100">        DetailAST resultNode = rootToken.getFirstChild();</span>
+
+<span class="fc bfc" id="L102" title="All 2 branches covered.">        if (resultNode != null) {</span>
+<span class="fc bfc" id="L103" title="All 2 branches covered.">            if (resultNode.getType() == TokenTypes.DOT) {</span>
+<span class="fc" id="L104">                resultNode = resultNode.getFirstChild().getNextSibling();</span>
+            }
+<span class="fc" id="L106">            final DetailAST childNode = getFirstTypeArgumentsToken(resultNode);</span>
+
+<span class="fc bfc" id="L108" title="All 2 branches covered.">            if (childNode == null) {</span>
+<span class="fc" id="L109">                resultNode = resultNode.getNextSibling();</span>
+            }
+        }
+
+<span class="fc" id="L113">        return resultNode;</span>
+    }
+
+}
+</pre><div class="footer"><span class="right">Created with <a href="http://www.eclemma.org/jacoco">JaCoCo</a> 0.7.1.201405082137</span></div></body></html>

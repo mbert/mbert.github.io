@@ -1,0 +1,623 @@
+<?xml version="1.0" encoding="UTF-8"?><!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Strict//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-strict.dtd"><html xmlns="http://www.w3.org/1999/xhtml" lang="en"><head><meta http-equiv="Content-Type" content="text/html;charset=UTF-8"/><link rel="stylesheet" href="../.resources/report.css" type="text/css"/><link rel="shortcut icon" href="../.resources/report.gif" type="image/gif"/><title>EitherLogOrThrowCheck.java</title><link rel="stylesheet" href="../.resources/prettify.css" type="text/css"/><script type="text/javascript" src="../.resources/prettify.js"></script></head><body onload="window['PR_TAB_WIDTH']=4;prettyPrint()"><div class="breadcrumb" id="breadcrumb"><span class="info"><a href="../.sessions.html" class="el_session">Sessions</a></span><a href="../index.html" class="el_report">sevntu-checks</a> &gt; <a href="index.source.html" class="el_package">com.github.sevntu.checkstyle.checks.coding</a> &gt; <span class="el_source">EitherLogOrThrowCheck.java</span></div><h1>EitherLogOrThrowCheck.java</h1><pre class="source lang-java linenums">////////////////////////////////////////////////////////////////////////////////
+// checkstyle: Checks Java source code for adherence to a set of rules.
+// Copyright (C) 2001-2019 the original author or authors.
+//
+// This library is free software; you can redistribute it and/or
+// modify it under the terms of the GNU Lesser General Public
+// License as published by the Free Software Foundation; either
+// version 2.1 of the License, or (at your option) any later version.
+//
+// This library is distributed in the hope that it will be useful,
+// but WITHOUT ANY WARRANTY; without even the implied warranty of
+// MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the GNU
+// Lesser General Public License for more details.
+//
+// You should have received a copy of the GNU Lesser General Public
+// License along with this library; if not, write to the Free Software
+// Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA
+////////////////////////////////////////////////////////////////////////////////
+
+package com.github.sevntu.checkstyle.checks.coding;
+
+import java.util.ArrayList;
+import java.util.Arrays;
+import java.util.LinkedList;
+import java.util.List;
+import java.util.regex.Pattern;
+
+import com.github.sevntu.checkstyle.SevntuUtil;
+import com.puppycrawl.tools.checkstyle.api.AbstractCheck;
+import com.puppycrawl.tools.checkstyle.api.DetailAST;
+import com.puppycrawl.tools.checkstyle.api.FullIdent;
+import com.puppycrawl.tools.checkstyle.api.TokenTypes;
+
+/**
+ * &lt;p&gt;
+ * Either log the exception, or throw it, but never do both. Logging and
+ * throwing results in multiple log messages for a single problem in the code,
+ * and makes problems for the support engineer who is trying to dig through the
+ * logs. This is one of the most annoying error-handling antipatterns. All of
+ * these examples are equally wrong.
+ * &lt;/p&gt;
+ * &lt;p&gt;
+ * &lt;b&gt;Examples:&lt;/b&gt;
+ * &lt;/p&gt;
+ *
+ * &lt;pre&gt;
+ * catch (NoSuchMethodException e) {
+ *     LOG.error(&quot;Message&quot;, e);
+ *     throw e;
+ * }
+ * &lt;/pre&gt;
+ *
+ * &lt;b&gt;or&lt;/b&gt;
+ *
+ * &lt;pre&gt;
+ * catch (NoSuchMethodException e) {
+ *     LOG.error(&quot;Message&quot;, e);
+ *     throw new MyServiceException(&quot;AnotherMessage&quot;, e);
+ * }
+ * &lt;/pre&gt;
+ *
+ * &lt;b&gt;or&lt;/b&gt;
+ *
+ * &lt;pre&gt;
+ * catch (NoSuchMethodException e) {
+ *      e.printStackTrace();
+ *      throw new MyServiceException(&quot;Message&quot;, e);
+ * }
+ * &lt;/pre&gt;
+ *
+ * &lt;p&gt;
+ * &lt;b&gt;What check can detect:&lt;/b&gt; &lt;br&gt;
+ * &lt;b&gt;Loggers&lt;/b&gt;
+ * &lt;/p&gt;
+ * &lt;ul&gt;
+ * &lt;li&gt;logger is declared as class field&lt;/li&gt;
+ * &lt;li&gt;logger is declared as method's local variable&lt;/li&gt;
+ * &lt;li&gt;logger is declared as local variable in &lt;code&gt;catch&lt;/code&gt; block&lt;/li&gt;
+ * &lt;li&gt;logger is passed through method's parameters&lt;/li&gt;
+ * &lt;/ul&gt;
+ * &lt;b&gt;Exceptions&lt;/b&gt;
+ * &lt;ul&gt;
+ * &lt;li&gt;logger logs &lt;code&gt;catch&lt;/code&gt; parameter exception or it's message&lt;/li&gt;
+ * &lt;li&gt;throw &lt;code&gt;catch&lt;/code&gt; parameter exception&lt;/li&gt;
+ * &lt;li&gt;throw another exception which is based on &lt;code&gt;catch&lt;/code&gt; parameter
+ * exception&lt;/li&gt;
+ * &lt;li&gt;printStackTrace was called on &lt;code&gt;catch&lt;/code&gt; parameter exception&lt;/li&gt;
+ * &lt;/ul&gt;
+ * &lt;p&gt;
+ * &lt;b&gt;What check can not detect:&lt;/b&gt; &lt;br&gt;
+ * &lt;/p&gt;
+ * &lt;ul&gt;
+ * &lt;li&gt;loggers that is used like method's return value. Example:
+ *
+ * &lt;pre&gt;
+ * getLogger().error(&amp;quot;message&amp;quot;, e)
+ * &lt;/pre&gt;
+ *
+ * &lt;/li&gt;
+ * &lt;li&gt;loggers that is used like static fields from another classes:
+ *
+ * &lt;pre&gt;
+ * MyAnotherClass.LOGGER.error(&quot;message&quot;, e);
+ * &lt;/pre&gt;
+ * &lt;/li&gt;
+ * &lt;/ul&gt;
+ * &lt;p&gt;
+ * Default parameters are:
+ * &lt;/p&gt;
+ * &lt;ul&gt;
+ * &lt;li&gt;&lt;b&gt;loggerFullyQualifiedClassName&lt;/b&gt; - fully qualified class name of
+ * logger type. Default value is &lt;i&gt;&quot;org.slf4j.Logger&quot;&lt;/i&gt;.&lt;/li&gt;
+ * &lt;li&gt;&lt;b&gt;loggingMethodNames&lt;/b&gt; - comma separated names of logging methods.
+ * Default value is &lt;i&gt;&quot;error, warn, info, debug&quot;&lt;/i&gt;.&lt;/li&gt;
+ * &lt;/ul&gt;
+ * &lt;p&gt;
+ * Note that check works with only one logger type. If you have multiple
+ * different loggers, then create another instance of this check.
+ * &lt;/p&gt;
+ * @author &lt;a href=&quot;mailto:barataliba@gmail.com&quot;&gt;Baratali Izmailov&lt;/a&gt;
+ * @since 1.9.0
+ */
+<span class="fc" id="L123">public class EitherLogOrThrowCheck extends AbstractCheck {</span>
+
+    /**
+     * Key for error message.
+     */
+    public static final String MSG_KEY = &quot;either.log.or.throw&quot;;
+
+    /**
+     * Regexp of printStackTrace method.
+     */
+<span class="fc" id="L133">    private static final Pattern PRINT_STACK_TRACE_METHOD_PATTERN = Pattern</span>
+<span class="fc" id="L134">            .compile(&quot;.+\\.printStackTrace&quot;);</span>
+
+    /**
+     * Variables names of logger variables.
+     */
+<span class="fc" id="L139">    private final List&lt;String&gt; loggerFieldNames = new LinkedList&lt;&gt;();</span>
+
+    /**
+     * Current local variable names of logger type. It can be method's parameter
+     * or method's local variable.
+     */
+<span class="fc" id="L145">    private final List&lt;String&gt; currentLocalLoggerVariableNames = new ArrayList&lt;&gt;();</span>
+
+    /**
+     * Logger fully qualified class name.
+     */
+<span class="fc" id="L150">    private String loggerFullyQualifiedClassName = &quot;org.slf4j.Logger&quot;;</span>
+
+    /**
+     * Logger class name.
+     */
+<span class="fc" id="L155">    private String loggerSimpleClassName = &quot;Logger&quot;;</span>
+
+    /**
+     * Logger method names.
+     */
+<span class="fc" id="L160">    private List&lt;String&gt; loggingMethodNames =</span>
+<span class="fc" id="L161">            Arrays.asList(&quot;error&quot;, &quot;warn&quot;, &quot;info&quot;, &quot;debug&quot;);</span>
+
+    /**
+     * Logger class is in imports.
+     */
+    private boolean hasLoggerClassInImports;
+
+    /**
+     * Considered class definition.
+     */
+    private DetailAST currentClassDefAst;
+
+    /**
+     * Considered method definition.
+     */
+    private DetailAST currentMethodDefAst;
+
+    /**
+     * Set logger full class name and logger simple class name.
+     * @param loggerFullyQualifiedClassName
+     *        Logger full class name. Example: org.slf4j.Logger.
+     */
+    public void setLoggerFullyQualifiedClassName(
+            String loggerFullyQualifiedClassName) {
+<span class="fc" id="L185">        this.loggerFullyQualifiedClassName = loggerFullyQualifiedClassName;</span>
+<span class="fc" id="L186">        loggerSimpleClassName = loggerFullyQualifiedClassName;</span>
+<span class="fc" id="L187">        final int lastDotIndex =</span>
+<span class="fc" id="L188">                this.loggerFullyQualifiedClassName.lastIndexOf('.');</span>
+<span class="pc bpc" id="L189" title="1 of 2 branches missed.">        if (lastDotIndex != -1) {</span>
+<span class="fc" id="L190">            loggerSimpleClassName = this.loggerFullyQualifiedClassName</span>
+<span class="fc" id="L191">                    .substring(lastDotIndex + 1);</span>
+        }
+<span class="fc" id="L193">    }</span>
+
+    /**
+     * Set logging method names.
+     * @param loggingMethodNames Logger method names.
+     */
+    public void setLoggingMethodNames(String... loggingMethodNames) {
+<span class="fc" id="L200">        this.loggingMethodNames = Arrays.asList(loggingMethodNames);</span>
+<span class="fc" id="L201">    }</span>
+
+    @Override
+    public int[] getDefaultTokens() {
+<span class="fc" id="L205">        return new int[] {</span>
+<span class="fc" id="L206">            TokenTypes.IMPORT,</span>
+<span class="fc" id="L207">            TokenTypes.CLASS_DEF,</span>
+<span class="fc" id="L208">            TokenTypes.LITERAL_CATCH,</span>
+<span class="fc" id="L209">            TokenTypes.VARIABLE_DEF,</span>
+<span class="fc" id="L210">            TokenTypes.METHOD_DEF, };</span>
+    }
+
+    @Override
+    public int[] getAcceptableTokens() {
+<span class="fc" id="L215">        return getDefaultTokens();</span>
+    }
+
+    @Override
+    public int[] getRequiredTokens() {
+<span class="fc" id="L220">        return getDefaultTokens();</span>
+    }
+
+    @Override
+    public void visitToken(final DetailAST ast) {
+<span class="pc bpc" id="L225" title="1 of 6 branches missed.">        switch (ast.getType()) {</span>
+            case TokenTypes.IMPORT:
+<span class="pc bpc" id="L227" title="1 of 4 branches missed.">                if (!hasLoggerClassInImports</span>
+<span class="fc bfc" id="L228" title="All 2 branches covered.">                    &amp;&amp; isLoggerImport(ast)) {</span>
+<span class="fc" id="L229">                    hasLoggerClassInImports = true;</span>
+                }
+<span class="fc" id="L231">                break;</span>
+            case TokenTypes.CLASS_DEF:
+<span class="pc bpc" id="L233" title="1 of 4 branches missed.">                if (!isInnerClass(ast)) {</span>
+<span class="fc" id="L234">                    currentClassDefAst = ast;</span>
+<span class="fc" id="L235">                    collectLoggerFieldNames(ast);</span>
+                }
+<span class="fc" id="L237">                break;</span>
+            case TokenTypes.METHOD_DEF:
+<span class="pc bpc" id="L239" title="1 of 4 branches missed.">                if (isMethodOfCurrentClass(ast)) {</span>
+<span class="fc" id="L240">                    currentMethodDefAst = ast;</span>
+<span class="fc" id="L241">                    currentLocalLoggerVariableNames.clear();</span>
+<span class="fc" id="L242">                    final DetailAST parametersAst = currentMethodDefAst</span>
+<span class="fc" id="L243">                        .findFirstToken(TokenTypes.PARAMETERS);</span>
+<span class="fc" id="L244">                    collectLoggersFromParameters(parametersAst);</span>
+                }
+<span class="fc" id="L246">                break;</span>
+            case TokenTypes.VARIABLE_DEF:
+<span class="pc bpc" id="L248" title="1 of 2 branches missed.">                final DetailAST methodDefAst = ast.getParent().getParent();</span>
+<span class="fc bfc" id="L249" title="All 2 branches covered.">                if (methodDefAst == currentMethodDefAst</span>
+<span class="pc bpc" id="L250" title="1 of 2 branches missed.">                    &amp;&amp; methodDefAst.getType() == TokenTypes.METHOD_DEF</span>
+<span class="pc bpc" id="L251" title="1 of 2 branches missed.">                    &amp;&amp; isLoggerVariableDefinition(ast)) {</span>
+<span class="fc" id="L252">                    currentLocalLoggerVariableNames.add(getIdentifier(ast));</span>
+                }
+<span class="fc" id="L254">                break;</span>
+            case TokenTypes.LITERAL_CATCH:
+<span class="pc bpc" id="L256" title="1 of 2 branches missed.">                processCatchNode(ast);</span>
+<span class="fc" id="L257">                break;</span>
+            default:
+<span class="nc bnc" id="L259" title="All 2 branches missed.">                SevntuUtil.reportInvalidToken(ast.getType());</span>
+                break;
+        }
+<span class="fc" id="L262">    }</span>
+
+    /**
+     * Checks if AST object is logger import.
+     * @param importAst
+     *        DetailAST of import statement.
+     * @return true if import equals logger full class name.
+     */
+    private boolean isLoggerImport(final DetailAST importAst) {
+<span class="fc" id="L271">        final String importIdentifier =</span>
+<span class="fc" id="L272">                FullIdent.createFullIdent(importAst.getFirstChild()).getText();</span>
+<span class="fc" id="L273">        return loggerFullyQualifiedClassName.equals(importIdentifier);</span>
+    }
+
+    /**
+     * Verify that class is inner.
+     * @param classDefAst
+     *        DetailAST of class definition.
+     * @return true if class is inner, false otherwise.
+     */
+    private boolean isInnerClass(final DetailAST classDefAst) {
+<span class="fc" id="L283">        boolean result = false;</span>
+<span class="fc" id="L284">        DetailAST parentAst = classDefAst.getParent();</span>
+<span class="fc bfc" id="L285" title="All 2 branches covered.">        while (parentAst != null) {</span>
+<span class="fc bfc" id="L286" title="All 2 branches covered.">            if (parentAst == currentClassDefAst) {</span>
+<span class="fc" id="L287">                result = true;</span>
+<span class="fc" id="L288">                break;</span>
+            }
+<span class="fc" id="L290">            parentAst = parentAst.getParent();</span>
+        }
+<span class="fc" id="L292">        return result;</span>
+    }
+
+    /**
+     * Save names of parameters which have logger type.
+     * @param parametersAst
+     *        DetailAST of parameters.
+     */
+    private void collectLoggersFromParameters(final DetailAST parametersAst) {
+<span class="fc" id="L301">        DetailAST currentParameterAst = parametersAst</span>
+<span class="fc" id="L302">                .findFirstToken(TokenTypes.PARAMETER_DEF);</span>
+<span class="fc bfc" id="L303" title="All 2 branches covered.">        while (currentParameterAst != null) {</span>
+<span class="fc" id="L304">            final DetailAST parameterTypeAst = currentParameterAst</span>
+<span class="fc" id="L305">                    .findFirstToken(TokenTypes.TYPE);</span>
+<span class="fc" id="L306">            final String className = getIdentifier(parameterTypeAst);</span>
+<span class="fc bfc" id="L307" title="All 4 branches covered.">            if (className != null &amp;&amp; isLoggerClassName(className)) {</span>
+<span class="fc" id="L308">                currentLocalLoggerVariableNames</span>
+<span class="fc" id="L309">                        .add(getIdentifier(currentParameterAst));</span>
+            }
+<span class="fc" id="L311">            currentParameterAst = currentParameterAst.getNextSibling();</span>
+        }
+<span class="fc" id="L313">    }</span>
+
+    /**
+     * Verify that method's parent is class, stored in mCurrentClassDefAst.
+     * @param methodDefAst DetailAST of METHOD_DEF.
+     * @return true if method's parent is class, stored in mCurrentClassDefAst.
+     */
+    private boolean isMethodOfCurrentClass(final DetailAST methodDefAst) {
+<span class="fc" id="L321">        final DetailAST classDefAst = methodDefAst.getParent().getParent();</span>
+<span class="fc bfc" id="L322" title="All 2 branches covered.">        return classDefAst == currentClassDefAst;</span>
+    }
+
+    /**
+     * Find all logger fields in aClassDefAst and save them.
+     * @param classDefAst
+     *        DetailAST of class definition.
+     */
+    private void collectLoggerFieldNames(final DetailAST classDefAst) {
+<span class="fc" id="L331">        final DetailAST objBlockAst =</span>
+<span class="fc" id="L332">                classDefAst.findFirstToken(TokenTypes.OBJBLOCK);</span>
+<span class="fc" id="L333">        DetailAST variableDefAst =</span>
+<span class="fc" id="L334">                objBlockAst.findFirstToken(TokenTypes.VARIABLE_DEF);</span>
+<span class="fc bfc" id="L335" title="All 2 branches covered.">        while (variableDefAst != null) {</span>
+<span class="fc bfc" id="L336" title="All 2 branches covered.">            if (variableDefAst.getType() == TokenTypes.VARIABLE_DEF</span>
+<span class="pc bpc" id="L337" title="1 of 2 branches missed.">                    &amp;&amp; isLoggerVariableDefinition(variableDefAst)) {</span>
+<span class="fc" id="L338">                loggerFieldNames.add(getIdentifier(variableDefAst));</span>
+            }
+<span class="fc" id="L340">            variableDefAst = variableDefAst.getNextSibling();</span>
+        }
+<span class="fc" id="L342">    }</span>
+
+    /**
+     * Look at the each statement of catch block to find logging and throwing.
+     * If same exception is being logged and throwed, then prints warning
+     * message.
+     * @param catchAst
+     *        DetailAST of catch block.
+     */
+    private void processCatchNode(final DetailAST catchAst) {
+<span class="fc" id="L352">        boolean isLoggingExceptionFound = false;</span>
+<span class="fc" id="L353">        DetailAST loggingExceptionAst = null;</span>
+<span class="fc" id="L354">        final List&lt;String&gt; exceptionVariableNames = new LinkedList&lt;&gt;();</span>
+<span class="fc" id="L355">        final String catchParameterName = getCatchParameterName(catchAst);</span>
+<span class="fc" id="L356">        final DetailAST statementsAst =</span>
+<span class="fc" id="L357">                catchAst.findFirstToken(TokenTypes.SLIST);</span>
+<span class="fc" id="L358">        DetailAST currentStatementAst = statementsAst.getFirstChild();</span>
+<span class="fc bfc" id="L359" title="All 2 branches covered.">        while (currentStatementAst != null) {</span>
+<span class="fc bfc" id="L360" title="All 4 branches covered.">            switch (currentStatementAst.getType()) {</span>
+                // local logger or exception variable definition
+                case TokenTypes.VARIABLE_DEF:
+<span class="pc bpc" id="L363" title="1 of 4 branches missed.">                    if (isLoggerVariableDefinition(currentStatementAst)) {</span>
+<span class="fc" id="L364">                        currentLocalLoggerVariableNames</span>
+<span class="fc" id="L365">                            .add(getIdentifier(currentStatementAst));</span>
+<span class="fc" id="L366">                    }</span>
+                    else {
+<span class="fc" id="L368">                        final DetailAST assignAst = currentStatementAst</span>
+<span class="fc" id="L369">                            .findFirstToken(TokenTypes.ASSIGN);</span>
+<span class="pc bpc" id="L370" title="1 of 2 branches missed.">                        if (assignAst != null</span>
+<span class="fc" id="L371">                            &amp;&amp; isInstanceCreationBasedOnException(</span>
+<span class="fc" id="L372">                                assignAst.getFirstChild(),</span>
+<span class="fc bfc" id="L373" title="All 2 branches covered.">                                 catchParameterName)) {</span>
+<span class="fc" id="L374">                            exceptionVariableNames</span>
+<span class="fc" id="L375">                                .add(getIdentifier(currentStatementAst));</span>
+                        }
+                    }
+<span class="fc" id="L378">                    break;</span>
+                    // logging exception or printStackTrace
+                case TokenTypes.EXPR:
+<span class="pc bpc" id="L381" title="1 of 4 branches missed.">                    if (!isLoggingExceptionFound</span>
+<span class="fc bfc" id="L382" title="All 2 branches covered.">                        &amp;&amp; (isLoggingExceptionArgument(currentStatementAst, catchParameterName)</span>
+<span class="fc bfc" id="L383" title="All 2 branches covered.">                        || isPrintStackTrace(currentStatementAst, catchParameterName))) {</span>
+<span class="fc" id="L384">                        isLoggingExceptionFound = true;</span>
+<span class="fc" id="L385">                        loggingExceptionAst = currentStatementAst;</span>
+                    }
+<span class="fc" id="L387">                    break;</span>
+                    // throw exception
+                case TokenTypes.LITERAL_THROW:
+<span class="pc bpc" id="L390" title="1 of 4 branches missed.">                    if (isLoggingExceptionFound) {</span>
+<span class="fc" id="L391">                        exceptionVariableNames.add(catchParameterName);</span>
+<span class="fc" id="L392">                        final DetailAST thrownExceptionAst = currentStatementAst</span>
+<span class="fc" id="L393">                            .getFirstChild();</span>
+<span class="fc bfc" id="L394" title="All 2 branches covered.">                        if (exceptionVariableNames.contains(getIdentifier(thrownExceptionAst))</span>
+<span class="fc" id="L395">                            || isInstanceCreationBasedOnException(</span>
+<span class="fc bfc" id="L396" title="All 2 branches covered.">                                thrownExceptionAst, catchParameterName)) {</span>
+<span class="fc" id="L397">                            log(loggingExceptionAst, MSG_KEY);</span>
+<span class="fc" id="L398">                            break;</span>
+                        }
+                    }
+                    break;
+                default:
+                    // rest tokens shall be skipped
+                    break;
+            }
+<span class="fc bfc" id="L406" title="All 2 branches covered.">            currentStatementAst = currentStatementAst.getNextSibling();</span>
+        }
+<span class="fc" id="L408">    }</span>
+
+    /**
+     * Verify that aVariableDefAst is variable of logger type.
+     * @param variableDefAst
+     *        DetailAST of variable definition.
+     * @return true if variable is of logger type.
+     */
+    private boolean isLoggerVariableDefinition(final DetailAST variableDefAst) {
+<span class="fc" id="L417">        final DetailAST variableTypeAst =</span>
+<span class="fc" id="L418">                variableDefAst.findFirstToken(TokenTypes.TYPE).getFirstChild();</span>
+<span class="fc" id="L419">        final String variableTypeName =</span>
+<span class="fc" id="L420">                FullIdent.createFullIdent(variableTypeAst).getText();</span>
+<span class="fc" id="L421">        return isLoggerClassName(variableTypeName);</span>
+    }
+
+    /**
+     * Verify that aClassName is class name of logger type.
+     * @param className name of checked class.
+     * @return true aClassName is class name of logger type.
+     */
+    private boolean isLoggerClassName(String className) {
+<span class="pc bpc" id="L430" title="1 of 2 branches missed.">        return hasLoggerClassInImports</span>
+<span class="fc bfc" id="L431" title="All 2 branches covered.">                &amp;&amp; className.equals(loggerSimpleClassName)</span>
+<span class="fc bfc" id="L432" title="All 2 branches covered.">                || className.equals(loggerFullyQualifiedClassName);</span>
+    }
+
+    /**
+     * Get parameter name of catch block.
+     * @param catchAst
+     *        DetailAST of catch block.
+     * @return name of parameter.
+     */
+    private static String getCatchParameterName(final DetailAST catchAst) {
+<span class="fc" id="L442">        final DetailAST parameterDefAst =</span>
+<span class="fc" id="L443">                catchAst.findFirstToken(TokenTypes.PARAMETER_DEF);</span>
+<span class="fc" id="L444">        return getIdentifier(parameterDefAst);</span>
+    }
+
+    /**
+     * Get identifier of AST. These can be names of types, subpackages, fields,
+     * methods, parameters, and local variables.
+     * @param ast
+     *        DetailAST instance
+     * @return identifier of AST, null if AST does not have name.
+     */
+    private static String getIdentifier(final DetailAST ast) {
+<span class="fc" id="L455">        String result = null;</span>
+<span class="fc bfc" id="L456" title="All 2 branches covered.">        if (ast != null) {</span>
+<span class="fc" id="L457">            final DetailAST identAst = ast.findFirstToken(TokenTypes.IDENT);</span>
+<span class="fc bfc" id="L458" title="All 2 branches covered.">            if (identAst != null) {</span>
+<span class="fc" id="L459">                result = identAst.getText();</span>
+            }
+        }
+<span class="fc" id="L462">        return result;</span>
+    }
+
+    /**
+     * Verify that expression is creating instance. And this instance is created
+     * with exception argument. Example: new MyException(&quot;message&quot;, exception).
+     * @param expressionAst
+     *        DetailAST of expression.
+     * @param exceptionArgumentName
+     *        Exception argument name.
+     * @return true if given expression is creating new exception based on
+     *         another exception object named aExeceptionParameterName.
+     */
+    private static boolean isInstanceCreationBasedOnException(
+            final DetailAST expressionAst, final String exceptionArgumentName) {
+<span class="fc" id="L477">        boolean result = false;</span>
+<span class="fc" id="L478">        final DetailAST literalNewAst =</span>
+<span class="fc" id="L479">                expressionAst.findFirstToken(TokenTypes.LITERAL_NEW);</span>
+<span class="fc bfc" id="L480" title="All 2 branches covered.">        if (literalNewAst != null) {</span>
+<span class="fc" id="L481">            final DetailAST parametersAst = literalNewAst</span>
+<span class="fc" id="L482">                    .findFirstToken(TokenTypes.ELIST);</span>
+<span class="pc bpc" id="L483" title="1 of 2 branches missed.">            if (parametersAst != null) {</span>
+<span class="fc" id="L484">                result = containsExceptionParameter(parametersAst,</span>
+<span class="fc" id="L485">                        exceptionArgumentName);</span>
+            }
+        }
+<span class="fc" id="L488">        return result;</span>
+    }
+
+    /**
+     * Verify that expression is logging exception.
+     * @param expressionAst DetailAST of expression(EXPR).
+     * @param exceptionVariableName name of exception variable.
+     * @return true if expression is logging exception.
+     */
+    private boolean isLoggingExceptionArgument(
+            final DetailAST expressionAst, final String exceptionVariableName) {
+<span class="fc" id="L499">        boolean result = false;</span>
+<span class="fc bfc" id="L500" title="All 2 branches covered.">        if (isLoggingExpression(expressionAst)) {</span>
+<span class="fc" id="L501">            final DetailAST loggingMethodCallAst =</span>
+<span class="fc" id="L502">                    expressionAst.getFirstChild();</span>
+<span class="fc" id="L503">            final DetailAST loggerParametersAst =</span>
+<span class="fc" id="L504">                    loggingMethodCallAst.findFirstToken(TokenTypes.ELIST);</span>
+<span class="fc" id="L505">            result = containsExceptionParameter(</span>
+<span class="fc" id="L506">                    loggerParametersAst, exceptionVariableName);</span>
+        }
+<span class="fc" id="L508">        return result;</span>
+    }
+
+    /**
+     * Verify that aExpressionAst is a logging expression.
+     * @param expressionAst
+     *        DetailAST of expression.
+     * @return true if aExpressionAst is a logging expression.
+     */
+    private boolean isLoggingExpression(final DetailAST expressionAst) {
+<span class="fc" id="L518">        boolean result = false;</span>
+<span class="fc" id="L519">        final DetailAST methodCallAst = expressionAst.getFirstChild();</span>
+<span class="pc bpc" id="L520" title="1 of 2 branches missed.">        if (methodCallAst.getType() == TokenTypes.METHOD_CALL</span>
+<span class="pc bpc" id="L521" title="1 of 2 branches missed.">                &amp;&amp; hasChildToken(methodCallAst, TokenTypes.DOT)) {</span>
+<span class="fc" id="L522">            final DetailAST dotAst = methodCallAst.getFirstChild();</span>
+<span class="fc" id="L523">            final DetailAST loggerObjectAst = dotAst.getFirstChild();</span>
+<span class="fc" id="L524">            final DetailAST invokedMethodAst = loggerObjectAst.getNextSibling();</span>
+<span class="fc" id="L525">            final String loggerObjectIdentifier =</span>
+<span class="fc" id="L526">                    FullIdent.createFullIdent(loggerObjectAst).getText();</span>
+<span class="fc" id="L527">            final String invokedMethodIdentifier = invokedMethodAst.getText();</span>
+<span class="fc" id="L528">            result = (currentLocalLoggerVariableNames</span>
+<span class="fc bfc" id="L529" title="All 2 branches covered.">                    .contains(loggerObjectIdentifier)</span>
+<span class="fc bfc" id="L530" title="All 2 branches covered.">                    || loggerFieldNames.contains(loggerObjectIdentifier))</span>
+<span class="pc bpc" id="L531" title="1 of 2 branches missed.">                    &amp;&amp; loggingMethodNames.contains(invokedMethodIdentifier);</span>
+        }
+<span class="fc" id="L533">        return result;</span>
+    }
+
+    /**
+     * Verify that aExceptionVariableName is in aParametersAst.
+     * @param parametersAst
+     *            DetailAST of expression list(ELIST).
+     * @param exceptionVariableName
+     *            name of exception.
+     * @return true if aExceptionVariableName is in aParametersAst.
+     */
+    private static boolean containsExceptionParameter(
+            final DetailAST parametersAst, final String exceptionVariableName) {
+<span class="fc" id="L546">        boolean result = false;</span>
+<span class="fc" id="L547">        DetailAST parameterAst = parametersAst.getFirstChild();</span>
+
+<span class="fc bfc" id="L549" title="All 2 branches covered.">        while (parameterAst != null) {</span>
+<span class="fc bfc" id="L550" title="All 2 branches covered.">            if (exceptionVariableName.equals(getIdentifier(parameterAst))</span>
+<span class="fc" id="L551">                    || isInstanceMethodCall(exceptionVariableName,</span>
+<span class="fc bfc" id="L552" title="All 2 branches covered.">                            parameterAst.getFirstChild())) {</span>
+<span class="fc" id="L553">                result = true;</span>
+<span class="fc" id="L554">                parameterAst = null;</span>
+<span class="fc" id="L555">            }</span>
+            else {
+<span class="fc" id="L557">                parameterAst = parameterAst.getNextSibling();</span>
+            }
+        }
+<span class="fc" id="L560">        return result;</span>
+    }
+
+    /**
+     * Verify that expression is call of exception's printStackTrace method.
+     * @param expressionAst
+     *        DetailAST of expression.
+     * @param exceptionVariableName
+     *        name of exception variable.
+     * @return true if expression is call of exception's printStackTrace method.
+     */
+    private static boolean isPrintStackTrace(final DetailAST expressionAst,
+            final String exceptionVariableName) {
+<span class="fc" id="L573">        boolean result = false;</span>
+<span class="fc" id="L574">        final DetailAST methodCallAst = expressionAst.getFirstChild();</span>
+<span class="fc bfc" id="L575" title="All 2 branches covered.">        if (isInstanceMethodCall(exceptionVariableName, methodCallAst)) {</span>
+<span class="fc" id="L576">            final String methodCallStr =</span>
+<span class="fc" id="L577">                    FullIdent.createFullIdentBelow(methodCallAst).getText();</span>
+<span class="pc bpc" id="L578" title="1 of 2 branches missed.">            if (PRINT_STACK_TRACE_METHOD_PATTERN.matcher(methodCallStr).matches()) {</span>
+<span class="fc" id="L579">                result = true;</span>
+            }
+        }
+<span class="fc" id="L582">        return result;</span>
+    }
+
+    /**
+     * Verify that method is invoked on aUsedInstanceName.
+     * @param usedInstanceName name of instance.
+     * @param methodCallAst DetailAST of METHOD_CALL.
+     * @return true if method is invoked on aUsedInstanceName.
+     */
+    private static boolean isInstanceMethodCall(final String usedInstanceName,
+            final DetailAST methodCallAst) {
+<span class="fc" id="L593">        boolean result = false;</span>
+<span class="fc bfc" id="L594" title="All 2 branches covered.">        if (methodCallAst != null</span>
+<span class="fc bfc" id="L595" title="All 2 branches covered.">                &amp;&amp; methodCallAst.getType() == TokenTypes.METHOD_CALL) {</span>
+<span class="fc" id="L596">            final String methodCallIdent =</span>
+<span class="fc" id="L597">                    FullIdent.createFullIdentBelow(methodCallAst).getText();</span>
+<span class="fc" id="L598">            final int firstDotIndex = methodCallIdent.indexOf('.');</span>
+<span class="fc bfc" id="L599" title="All 2 branches covered.">            if (firstDotIndex != -1) {</span>
+<span class="fc" id="L600">                final String usedObjectName =</span>
+<span class="fc" id="L601">                        methodCallIdent.substring(0, firstDotIndex);</span>
+<span class="fc bfc" id="L602" title="All 2 branches covered.">                if (usedObjectName.equals(usedInstanceName)) {</span>
+<span class="fc" id="L603">                    result = true;</span>
+                }
+            }
+        }
+<span class="fc" id="L607">        return result;</span>
+    }
+
+    /**
+     * Return true if aAST has token of aTokenType type.
+     * @param ast
+     *        DetailAST instance.
+     * @param tokenType
+     *        one of TokenTypes
+     * @return true if aAST has token of given type, or false otherwise.
+     */
+    private static boolean hasChildToken(final DetailAST ast, int tokenType) {
+<span class="pc bpc" id="L619" title="1 of 2 branches missed.">        return ast.findFirstToken(tokenType) != null;</span>
+    }
+
+}
+</pre><div class="footer"><span class="right">Created with <a href="http://www.eclemma.org/jacoco">JaCoCo</a> 0.7.1.201405082137</span></div></body></html>

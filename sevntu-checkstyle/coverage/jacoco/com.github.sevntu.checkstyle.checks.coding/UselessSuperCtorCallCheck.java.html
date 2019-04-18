@@ -1,0 +1,309 @@
+<?xml version="1.0" encoding="UTF-8"?><!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Strict//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-strict.dtd"><html xmlns="http://www.w3.org/1999/xhtml" lang="en"><head><meta http-equiv="Content-Type" content="text/html;charset=UTF-8"/><link rel="stylesheet" href="../.resources/report.css" type="text/css"/><link rel="shortcut icon" href="../.resources/report.gif" type="image/gif"/><title>UselessSuperCtorCallCheck.java</title><link rel="stylesheet" href="../.resources/prettify.css" type="text/css"/><script type="text/javascript" src="../.resources/prettify.js"></script></head><body onload="window['PR_TAB_WIDTH']=4;prettyPrint()"><div class="breadcrumb" id="breadcrumb"><span class="info"><a href="../.sessions.html" class="el_session">Sessions</a></span><a href="../index.html" class="el_report">sevntu-checks</a> &gt; <a href="index.source.html" class="el_package">com.github.sevntu.checkstyle.checks.coding</a> &gt; <span class="el_source">UselessSuperCtorCallCheck.java</span></div><h1>UselessSuperCtorCallCheck.java</h1><pre class="source lang-java linenums">////////////////////////////////////////////////////////////////////////////////
+// checkstyle: Checks Java source code for adherence to a set of rules.
+// Copyright (C) 2001-2019 the original author or authors.
+//
+// This library is free software; you can redistribute it and/or
+// modify it under the terms of the GNU Lesser General Public
+// License as published by the Free Software Foundation; either
+// version 2.1 of the License, or (at your option) any later version.
+//
+// This library is distributed in the hope that it will be useful,
+// but WITHOUT ANY WARRANTY; without even the implied warranty of
+// MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the GNU
+// Lesser General Public License for more details.
+//
+// You should have received a copy of the GNU Lesser General Public
+// License along with this library; if not, write to the Free Software
+// Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA
+////////////////////////////////////////////////////////////////////////////////
+
+package com.github.sevntu.checkstyle.checks.coding;
+
+import com.puppycrawl.tools.checkstyle.api.AbstractCheck;
+import com.puppycrawl.tools.checkstyle.api.DetailAST;
+import com.puppycrawl.tools.checkstyle.api.TokenTypes;
+
+/**
+ * &lt;p&gt;
+ * Checks for useless &quot;super()&quot; calls in ctors.
+ * &lt;/p&gt;
+ * &lt;p&gt;
+ * &quot;super()&quot; call could be considered by Check as &quot;useless&quot; in two cases:
+ * &lt;/p&gt;
+ * &lt;p&gt;
+ * Case 1. no-argument &quot;super()&quot; is called from class ctor if class is not derived, for example:
+ * &lt;/p&gt;
+ * &lt;pre&gt;
+ * &lt;code&gt;
+ * class Dummy {
+ *     Dummy() {
+ *             super();
+ *     }
+ * }
+ * &lt;/code&gt;
+ * &lt;/pre&gt;
+ * &quot;super()&quot; call is useless because class &quot;Dummy&quot; is not derived.
+ * &lt;p&gt;
+ * Case 2. no-argument &quot;super()&quot; is called without parameters from class ctor if class is
+ * derived, for example:
+ * &lt;/p&gt;
+ * &lt;pre&gt;
+ * &lt;code&gt;
+ * class Derived extends Base {
+ *     Derived() {
+ *             super();
+ *     }
+ * }
+ * &lt;/code&gt;
+ * &lt;/pre&gt;
+ * Java compiler automatically inserts a call to the no-args constructor of the superclass,
+ * so there is no need to call super ctor explicitly. Check has options &quot;allowCallToNoArgsSuperCtor&quot;
+ * and &quot;allowCallToNoArgsSuperCtorIfMultiplePublicCtor&quot; to adjust check behavior for such cases(
+ * see Check`s options description for details).
+ *
+ * &lt;p&gt;
+ * Check has following options:
+ * &lt;/p&gt;
+ * &lt;p&gt;
+ * &quot;allowCallToNoArgsSuperCtor&quot; - if this option set to true, Check will not generate
+ * violations when &quot;super()&quot; called inside derived class. This option defaults to &quot;false&quot;.
+ * If for example this option set to &quot;true&quot;, then Check will not generate violation for
+ * cases like following:
+ * &lt;/p&gt;
+ * &lt;pre&gt;
+ * &lt;code&gt;
+ * class Base {
+ *     public Base() {
+ *     }
+ * }
+ *
+ * class Derived extends Base {
+ *     public Derived() {
+ *         super();
+ *     }
+ * }
+ * &lt;/code&gt;
+ * &lt;/pre&gt;
+ *
+ * &lt;p&gt;
+ * &quot;allowCallToNoArgsSuperCtorIfMultiplePublicCtor&quot; - if this option set to &quot;true&quot;, then
+ * Check will not generate violation when &quot;super()&quot; called inside class ctor when class
+ * has multiple public ctors(however, setting this option to &quot;true&quot; will not prevent Check
+ * from logging violation if class does not extend anything). This option defaults to &quot;false&quot;.
+ * This option may be useful for cases in which class`s ctors just forward its arguments to
+ * super ctors, thus removing &quot;super()&quot; in this case will make default ctors look not like
+ * others. For example:
+ * &lt;/p&gt;
+ * &lt;pre&gt;
+ * &lt;code&gt;
+ * class Base {
+ *     public Base() {
+ *     }
+ *
+ *     public Base(int i) {
+ *     }
+ * }
+ *
+ * class Derived extends Base {
+ *     public Derived() {
+ *         super(); // this &quot;super()&quot; will not be considered useless if option is set to true,
+ *                  // because &quot;Derived&quot; has multiple public ctors.
+ *     }
+ *
+ *     public Derived(int i) {
+ *         super(i); // this &quot;super()&quot; will not be considered useless if option is set to true,
+ *                   // because &quot;Derived&quot; has multiple public ctors.
+ *     }
+ * }
+ *
+ * class NotDerived {
+ *     public NotDerived() {
+ *         super(); // this &quot;super()&quot; will be considered useless regardless of option value,
+ *                  // because &quot;NotDerived&quot; does not extend anything.
+ *     }
+ *     public NotDerived(int i) {
+ *         super(); // this &quot;super()&quot; will be considered useless regardless of option value,
+ *                  // because &quot;NotDerived&quot; does not extend anything.
+ *     }
+ * }
+ * &lt;/code&gt;
+ * &lt;/pre&gt;
+ *
+ * &lt;p&gt;
+ * Checkstyle configuration example with options &quot;allowCallToNoArgsSuperCtor&quot; and
+ * &quot;allowCallToNoArgsSuperCtorIfMultiplePublicCtor&quot; set to true.
+ * &lt;/p&gt;
+ * &lt;pre&gt;
+ *   &amp;lt;module name=&quot;UselessSuperCtorCallCheck&quot;&amp;gt;
+ *     &amp;lt;property name=&quot;allowCallToNoArgsSuperCtor&quot; value=&quot;true&quot;/&amp;gt;
+ *     &amp;lt;property name=&quot;allowCallToNoArgsSuperCtorIfMultiplePublicCtor&quot; value=&quot;true&quot;/&amp;gt;
+ *   &amp;lt;/module&amp;gt;
+ * &lt;/pre&gt;
+ *
+ * @author &lt;a href=&quot;mailto:zuy_alexey@mail.ru&quot;&gt;Zuy Alexey&lt;/a&gt;
+ * @since 1.13.0
+ */
+<span class="fc" id="L146">public class UselessSuperCtorCallCheck extends AbstractCheck {</span>
+
+    /**
+     * Violation message key.
+     */
+    public static final String MSG_IN_NOT_DERIVED_CLASS =
+            &quot;useless.super.ctor.call.in.not.derived.class&quot;;
+
+    /**
+     * Violation message key.
+     */
+    public static final String MSG_WITHOUT_ARGS =
+            &quot;useless.super.ctor.call.without.args&quot;;
+
+    /**
+     * Used to allow calls to no-arguments super constructor from derived class.
+     * By default check will log this case.
+     */
+    private boolean allowCallToNoArgsSuperCtor;
+
+    /**
+     * Used to allow calls to no-arguments super constructor from derived class
+     * if it has multiple public constructors.
+     */
+    private boolean allowCallToNoArgsSuperCtorIfMultiplePublicCtor;
+
+    /**
+     * Sets flag to allowCallToNoArgsSuperCtor.
+     * @param aAllowCallToNoArgsSuperCtor
+     *        if true, check will allow super() calls without arguments
+     */
+    public void setAllowCallToNoArgsSuperCtor(boolean aAllowCallToNoArgsSuperCtor) {
+<span class="fc" id="L178">        allowCallToNoArgsSuperCtor = aAllowCallToNoArgsSuperCtor;</span>
+<span class="fc" id="L179">    }</span>
+
+    /**
+     * Sets flag to allowCallToNoArgsSuperCtorIfMultiplePublicCtor.
+     * @param aAllowCall
+     *        if true, check will allow super() calls without arguments if class
+     *        has multiple public constructors
+     */
+    public void setAllowCallToNoArgsSuperCtorIfMultiplePublicCtor(boolean aAllowCall) {
+<span class="fc" id="L188">        allowCallToNoArgsSuperCtorIfMultiplePublicCtor = aAllowCall;</span>
+<span class="fc" id="L189">    }</span>
+
+    @Override
+    public int[] getDefaultTokens() {
+<span class="fc" id="L193">        return new int[] {</span>
+<span class="fc" id="L194">            TokenTypes.SUPER_CTOR_CALL,</span>
+        };
+    }
+
+    @Override
+    public int[] getAcceptableTokens() {
+<span class="fc" id="L200">        return getDefaultTokens();</span>
+    }
+
+    @Override
+    public int[] getRequiredTokens() {
+<span class="fc" id="L205">        return getDefaultTokens();</span>
+    }
+
+    @Override
+    public void visitToken(DetailAST aSuperCallNode) {
+<span class="fc bfc" id="L210" title="All 2 branches covered.">        if (getSuperCallArgsCount(aSuperCallNode) == 0) {</span>
+<span class="fc" id="L211">            final DetailAST classDefNode = getClassDefinitionNode(aSuperCallNode);</span>
+<span class="fc" id="L212">            final String className = getClassName(classDefNode);</span>
+
+<span class="fc bfc" id="L214" title="All 2 branches covered.">            if (isClassDerived(classDefNode)) {</span>
+<span class="fc bfc" id="L215" title="All 4 branches covered.">                if (!allowCallToNoArgsSuperCtor &amp;&amp; (!allowCallToNoArgsSuperCtorIfMultiplePublicCtor</span>
+<span class="fc bfc" id="L216" title="All 2 branches covered.">                        || getClassPublicCtorCount(classDefNode) &lt;= 1)) {</span>
+<span class="fc" id="L217">                    log(aSuperCallNode, MSG_WITHOUT_ARGS, className);</span>
+                }
+<span class="fc" id="L219">            }</span>
+            else {
+<span class="fc" id="L221">                log(aSuperCallNode, MSG_IN_NOT_DERIVED_CLASS, className);</span>
+            }
+        }
+<span class="fc" id="L224">    }</span>
+
+    /**
+     * Returns class name for given class definition node.
+     * @param aClassDefNode
+     *          a class definition node(TokenTypes.CLASS_DEF)
+     * @return class name for given class definition
+     */
+    private static String getClassName(DetailAST aClassDefNode) {
+<span class="fc" id="L233">        return aClassDefNode.findFirstToken(TokenTypes.IDENT).getText();</span>
+    }
+
+    /**
+     * Returns arguments count for super ctor call.
+     * @param aMethodCallNode
+     *        a super ctor call node(TokenTypes.SUPER_CTOR_CALL)
+     * @return arguments count for super ctor call
+     */
+    private static int getSuperCallArgsCount(DetailAST aMethodCallNode) {
+<span class="fc" id="L243">        final DetailAST argsListNode = aMethodCallNode.findFirstToken(TokenTypes.ELIST);</span>
+
+<span class="fc" id="L245">        return argsListNode.getChildCount();</span>
+    }
+
+    /**
+     * Returns class definition node for class, which contains given AST node.
+     * @param aNode
+     *        AST node inside class
+     * @return class definition node
+     */
+    private static DetailAST getClassDefinitionNode(DetailAST aNode) {
+<span class="fc" id="L255">        DetailAST result = aNode;</span>
+
+<span class="fc bfc" id="L257" title="All 2 branches covered.">        while (result.getType() != TokenTypes.CLASS_DEF) {</span>
+<span class="fc" id="L258">            result = result.getParent();</span>
+        }
+
+<span class="fc" id="L261">        return result;</span>
+    }
+
+    /**
+     * Calculates public constructor count for given class.
+     * @param aClassDefNode
+     *          a class definition node(TokenTypes.CLASS_DEF)
+     * @return public constructor count for given class
+     */
+    private static int getClassPublicCtorCount(DetailAST aClassDefNode) {
+<span class="fc" id="L271">        int publicCtorCount = 0;</span>
+<span class="fc" id="L272">        DetailAST classMemberNode = aClassDefNode.findFirstToken(TokenTypes.OBJBLOCK)</span>
+<span class="fc" id="L273">                .getFirstChild();</span>
+
+<span class="fc bfc" id="L275" title="All 2 branches covered.">        while (classMemberNode != null) {</span>
+<span class="fc bfc" id="L276" title="All 4 branches covered.">            if (classMemberNode.getType() == TokenTypes.CTOR_DEF &amp;&amp; isCtorPublic(classMemberNode)) {</span>
+<span class="fc" id="L277">                ++publicCtorCount;</span>
+            }
+
+<span class="fc" id="L280">            classMemberNode = classMemberNode.getNextSibling();</span>
+        }
+
+<span class="fc" id="L283">        return publicCtorCount;</span>
+    }
+
+    /**
+     * Checks whether given ctor is public.
+     * @param aCtorDefNode
+     *          a ctor definition node(TokenTypes.CTOR_DEF)
+     * @return true, if given ctor is public
+     */
+    private static boolean isCtorPublic(DetailAST aCtorDefNode) {
+<span class="fc bfc" id="L293" title="All 2 branches covered.">        return aCtorDefNode</span>
+<span class="fc" id="L294">                .findFirstToken(TokenTypes.MODIFIERS)</span>
+<span class="fc" id="L295">                .findFirstToken(TokenTypes.LITERAL_PUBLIC) != null;</span>
+    }
+
+    /**
+     * Checks whether this class is derived from other class.
+     * @param aClassDefNode
+     *        class definition node
+     * @return true, if this class extends anything
+     */
+    private static boolean isClassDerived(DetailAST aClassDefNode) {
+<span class="fc bfc" id="L305" title="All 2 branches covered.">        return aClassDefNode.findFirstToken(TokenTypes.EXTENDS_CLAUSE) != null;</span>
+    }
+
+}
+</pre><div class="footer"><span class="right">Created with <a href="http://www.eclemma.org/jacoco">JaCoCo</a> 0.7.1.201405082137</span></div></body></html>

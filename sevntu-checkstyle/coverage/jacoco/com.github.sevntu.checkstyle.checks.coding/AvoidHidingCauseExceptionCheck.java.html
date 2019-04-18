@@ -1,0 +1,253 @@
+<?xml version="1.0" encoding="UTF-8"?><!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Strict//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-strict.dtd"><html xmlns="http://www.w3.org/1999/xhtml" lang="en"><head><meta http-equiv="Content-Type" content="text/html;charset=UTF-8"/><link rel="stylesheet" href="../.resources/report.css" type="text/css"/><link rel="shortcut icon" href="../.resources/report.gif" type="image/gif"/><title>AvoidHidingCauseExceptionCheck.java</title><link rel="stylesheet" href="../.resources/prettify.css" type="text/css"/><script type="text/javascript" src="../.resources/prettify.js"></script></head><body onload="window['PR_TAB_WIDTH']=4;prettyPrint()"><div class="breadcrumb" id="breadcrumb"><span class="info"><a href="../.sessions.html" class="el_session">Sessions</a></span><a href="../index.html" class="el_report">sevntu-checks</a> &gt; <a href="index.source.html" class="el_package">com.github.sevntu.checkstyle.checks.coding</a> &gt; <span class="el_source">AvoidHidingCauseExceptionCheck.java</span></div><h1>AvoidHidingCauseExceptionCheck.java</h1><pre class="source lang-java linenums">////////////////////////////////////////////////////////////////////////////////
+// checkstyle: Checks Java source code for adherence to a set of rules.
+// Copyright (C) 2001-2019 the original author or authors.
+//
+// This library is free software; you can redistribute it and/or
+// modify it under the terms of the GNU Lesser General Public
+// License as published by the Free Software Foundation; either
+// version 2.1 of the License, or (at your option) any later version.
+//
+// This library is distributed in the hope that it will be useful,
+// but WITHOUT ANY WARRANTY; without even the implied warranty of
+// MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the GNU
+// Lesser General Public License for more details.
+//
+// You should have received a copy of the GNU Lesser General Public
+// License along with this library; if not, write to the Free Software
+// Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA
+////////////////////////////////////////////////////////////////////////////////
+
+package com.github.sevntu.checkstyle.checks.coding;
+
+import java.util.LinkedList;
+import java.util.List;
+
+import com.puppycrawl.tools.checkstyle.api.AbstractCheck;
+import com.puppycrawl.tools.checkstyle.api.DetailAST;
+import com.puppycrawl.tools.checkstyle.api.TokenTypes;
+
+/**
+ * &lt;p&gt;This check prevents new exception throwing inside try/catch
+ * blocks without providing current exception cause.
+ * New exception should propagate up to a higher-level handler with exact
+ * cause to provide a full stack trace for the problem.&lt;/p&gt;
+ * &lt;p&gt;
+ * Rationale: When handling exceptions using try/catch blocks junior developers
+ * may lose the original/cause exception object and information associated
+ * with it.
+ * &lt;/p&gt;
+ * Examples:
+ * &lt;br&gt; &lt;br&gt;
+ * 1. Cause exception will be lost because current catch block
+ * contains another exception throwing.
+ *      &lt;pre&gt;
+ *       public void foo() {
+ *          RuntimeException r;
+ *         catch (java.lang.Exception e) {
+ *           //your code
+ *           throw r;
+ *         }
+ *       }&lt;/pre&gt;
+ * 2. Cause exception will be lost because current catch block
+ * doesn`t contains another exception throwing.
+ * &lt;pre&gt;
+ *      catch (IllegalStateException e) {
+ *        //your code
+ *        throw new RuntimeException();
+ *      }
+ *      catch (IllegalStateException e) {
+ *        //your code
+ *        throw new RuntimeException(&quot;Runtime Exception!&quot;);
+ *      }
+ * &lt;/pre&gt;
+ * @author &lt;a href=&quot;mailto:Daniil.Yaroslavtsev@gmail.com&quot;&gt; Daniil
+ *         Yaroslavtsev&lt;/a&gt;
+ * @author &lt;a href=&quot;mailto:IliaDubinin91@gmail.com&quot;&gt;Ilja Dubinin&lt;/a&gt;
+ * @since 1.8.0
+ */
+<span class="fc" id="L68">public class AvoidHidingCauseExceptionCheck extends AbstractCheck {</span>
+
+    /**
+     * A key is pointing to the warning message text in &quot;messages.properties&quot;
+     * file.
+     */
+    public static final String MSG_KEY = &quot;avoid.hiding.cause.exception&quot;;
+
+    @Override
+    public int[] getDefaultTokens() {
+<span class="fc" id="L78">        return new int[] {</span>
+<span class="fc" id="L79">            TokenTypes.LITERAL_CATCH,</span>
+        };
+    }
+
+    @Override
+    public int[] getAcceptableTokens() {
+<span class="fc" id="L85">        return getDefaultTokens();</span>
+    }
+
+    @Override
+    public int[] getRequiredTokens() {
+<span class="fc" id="L90">        return getDefaultTokens();</span>
+    }
+
+    @Override
+    public void visitToken(DetailAST detailAST) {
+<span class="fc" id="L95">        final String originExcName = detailAST</span>
+<span class="fc" id="L96">                .findFirstToken(TokenTypes.PARAMETER_DEF).getLastChild()</span>
+<span class="fc" id="L97">                .getText();</span>
+
+<span class="fc" id="L99">        final List&lt;DetailAST&gt; throwList = makeThrowList(detailAST);</span>
+
+<span class="fc" id="L101">        final List&lt;String&gt; wrapExcNames = new LinkedList&lt;&gt;();</span>
+<span class="fc" id="L102">        wrapExcNames.add(originExcName);</span>
+<span class="fc" id="L103">        wrapExcNames.addAll(makeExceptionsList(detailAST, detailAST,</span>
+<span class="fc" id="L104">                            originExcName));</span>
+
+<span class="fc bfc" id="L106" title="All 2 branches covered.">        for (DetailAST throwAST : throwList) {</span>
+<span class="fc" id="L107">            final List&lt;DetailAST&gt; throwParamNamesList = new LinkedList&lt;&gt;();</span>
+<span class="fc" id="L108">            buildThrowParamNamesList(throwAST, throwParamNamesList);</span>
+<span class="fc bfc" id="L109" title="All 2 branches covered.">            if (!isContainsCaughtExc(throwParamNamesList, wrapExcNames)) {</span>
+<span class="fc" id="L110">                log(throwAST, MSG_KEY, originExcName);</span>
+            }
+        }
+<span class="fc" id="L113">    }</span>
+
+    /**
+     * Returns true when aThrowParamNamesList contains caught exception.
+     * @param throwParamNamesList List of throw parameter names.
+     * @param wrapExcNames List of caught exception names.
+     * @return true when aThrowParamNamesList contains caught exception
+     */
+    private static boolean isContainsCaughtExc(List&lt;DetailAST&gt; throwParamNamesList,
+                                    List&lt;String&gt; wrapExcNames) {
+<span class="fc" id="L123">        boolean result = false;</span>
+<span class="fc bfc" id="L124" title="All 2 branches covered.">        for (DetailAST currentNode : throwParamNamesList) {</span>
+<span class="fc bfc" id="L125" title="All 2 branches covered.">            if (currentNode.getParent().getType() != TokenTypes.DOT</span>
+<span class="fc bfc" id="L126" title="All 2 branches covered.">                    &amp;&amp; wrapExcNames.contains(currentNode.getText())) {</span>
+<span class="fc" id="L127">                result = true;</span>
+<span class="fc" id="L128">                break;</span>
+            }
+        }
+<span class="fc" id="L131">        return result;</span>
+    }
+
+    /**
+     * Returns a List of&lt;code&gt;DetailAST&lt;/code&gt; that contains the names of
+     * parameters  for current &quot;throw&quot; keyword.
+     * @param startNode The start node for exception name searching.
+     * @param paramNamesAST The list, that will be contain names of the
+     *     parameters
+     * @return A null-safe list of tokens (&lt;code&gt;DetailAST&lt;/code&gt;) contains the
+     *     thrown exception name if it was found or null otherwise.
+     */
+    private List&lt;DetailAST&gt; buildThrowParamNamesList(DetailAST startNode,
+                            List&lt;DetailAST&gt; paramNamesAST) {
+<span class="fc bfc" id="L145" title="All 2 branches covered.">        for (DetailAST currentNode : getChildNodes(startNode)) {</span>
+<span class="fc bfc" id="L146" title="All 2 branches covered.">            if (currentNode.getType() == TokenTypes.IDENT) {</span>
+<span class="fc" id="L147">                paramNamesAST.add(currentNode);</span>
+            }
+
+<span class="fc bfc" id="L150" title="All 2 branches covered.">            if (currentNode.getType() != TokenTypes.PARAMETER_DEF</span>
+<span class="fc bfc" id="L151" title="All 2 branches covered.">                    &amp;&amp; currentNode.getType() != TokenTypes.LITERAL_TRY</span>
+<span class="fc bfc" id="L152" title="All 2 branches covered.">                    &amp;&amp; currentNode.getNumberOfChildren() &gt; 0) {</span>
+<span class="fc" id="L153">                buildThrowParamNamesList(currentNode, paramNamesAST);</span>
+            }
+        }
+<span class="fc" id="L156">        return paramNamesAST;</span>
+    }
+
+    /**
+     * Recursive method which searches for the &lt;code&gt;LITERAL_THROW&lt;/code&gt;
+     * DetailASTs all levels below on the current &lt;code&gt;aParentAST&lt;/code&gt; node
+     * without entering into nested try/catch blocks.
+     * @param parentAST A start node for &quot;throw&quot; keyword &lt;code&gt;DetailASTs
+     * &lt;/code&gt; searching.
+     * @return null-safe list of &lt;code&gt;LITERAL_THROW&lt;/code&gt; literals
+     */
+    private List&lt;DetailAST&gt; makeThrowList(DetailAST parentAST) {
+<span class="fc" id="L168">        final List&lt;DetailAST&gt; throwList = new LinkedList&lt;&gt;();</span>
+<span class="fc bfc" id="L169" title="All 2 branches covered.">        for (DetailAST currentNode : getChildNodes(parentAST)) {</span>
+<span class="fc bfc" id="L170" title="All 2 branches covered.">            if (currentNode.getType() == TokenTypes.LITERAL_THROW) {</span>
+<span class="fc" id="L171">                throwList.add(currentNode);</span>
+            }
+
+<span class="fc bfc" id="L174" title="All 2 branches covered.">            if (currentNode.getType() != TokenTypes.PARAMETER_DEF</span>
+<span class="fc bfc" id="L175" title="All 2 branches covered.">                    &amp;&amp; currentNode.getType() != TokenTypes.LITERAL_THROW</span>
+<span class="fc bfc" id="L176" title="All 2 branches covered.">                    &amp;&amp; currentNode.getType() != TokenTypes.LITERAL_TRY</span>
+<span class="fc bfc" id="L177" title="All 2 branches covered.">                    &amp;&amp; currentNode.getNumberOfChildren() &gt; 0) {</span>
+<span class="fc" id="L178">                throwList.addAll(makeThrowList(currentNode));</span>
+            }
+        }
+<span class="fc" id="L181">        return throwList;</span>
+    }
+
+    /**
+     * Searches for all exceptions that wraps the original exception
+     * object (only in current &quot;catch&quot; block).
+     * @param currentCatchAST A LITERAL_CATCH node of the
+     *     current &quot;catch&quot; block.
+     * @param parentAST Current parent node to start search.
+     * @param currentExcName The name of exception handled by
+     *     current &quot;catch&quot; block.
+     * @return List contains exceptions that wraps the original
+     *     exception object.
+     */
+    private List&lt;String&gt; makeExceptionsList(DetailAST currentCatchAST,
+            DetailAST parentAST, String currentExcName) {
+<span class="fc" id="L197">        final List&lt;String&gt; wrapExcNames = new LinkedList&lt;&gt;();</span>
+
+<span class="fc bfc" id="L199" title="All 2 branches covered.">        for (DetailAST currentNode : getChildNodes(parentAST)) {</span>
+<span class="fc bfc" id="L200" title="All 2 branches covered.">            if (currentNode.getType() == TokenTypes.IDENT</span>
+<span class="fc bfc" id="L201" title="All 2 branches covered.">                    &amp;&amp; currentNode.getText().equals(currentExcName)</span>
+<span class="fc bfc" id="L202" title="All 2 branches covered.">                    &amp;&amp; currentNode.getParent().getType() != TokenTypes.DOT) {</span>
+<span class="fc" id="L203">                DetailAST temp = currentNode;</span>
+
+<span class="fc bfc" id="L205" title="All 2 branches covered.">                while (!temp.equals(currentCatchAST)</span>
+<span class="fc bfc" id="L206" title="All 2 branches covered.">                        &amp;&amp; temp.getType() != TokenTypes.ASSIGN) {</span>
+<span class="fc" id="L207">                    temp = temp.getParent();</span>
+                }
+
+<span class="fc bfc" id="L210" title="All 2 branches covered.">                if (temp.getType() == TokenTypes.ASSIGN) {</span>
+<span class="fc" id="L211">                    DetailAST convertedExc = null;</span>
+<span class="fc bfc" id="L212" title="All 2 branches covered.">                    if (temp.getParent().getType() == TokenTypes.VARIABLE_DEF) {</span>
+<span class="fc" id="L213">                        convertedExc = temp.getParent().findFirstToken(TokenTypes.IDENT);</span>
+<span class="fc" id="L214">                    }</span>
+                    else {
+<span class="fc" id="L216">                        convertedExc = temp.findFirstToken(TokenTypes.IDENT);</span>
+                    }
+<span class="fc bfc" id="L218" title="All 2 branches covered.">                    if (convertedExc != null) {</span>
+<span class="fc" id="L219">                        wrapExcNames.add(convertedExc.getText());</span>
+                    }
+                }
+            }
+
+<span class="fc bfc" id="L224" title="All 2 branches covered.">            if (currentNode.getType() != TokenTypes.PARAMETER_DEF</span>
+<span class="fc bfc" id="L225" title="All 2 branches covered.">                    &amp;&amp; currentNode.getNumberOfChildren() &gt; 0) {</span>
+<span class="fc" id="L226">                wrapExcNames.addAll(makeExceptionsList(currentCatchAST,</span>
+<span class="fc" id="L227">                        currentNode, currentExcName));</span>
+            }
+        }
+<span class="fc" id="L230">        return wrapExcNames;</span>
+    }
+
+    /**
+     * Gets all the children one level below on the current parent node.
+     * @param node Current parent node.
+     * @return List of children one level below on the current
+     *         parent node (aNode).
+     */
+    private static List&lt;DetailAST&gt; getChildNodes(DetailAST node) {
+<span class="fc" id="L240">        final List&lt;DetailAST&gt; result = new LinkedList&lt;&gt;();</span>
+
+<span class="fc" id="L242">        DetailAST currNode = node.getFirstChild();</span>
+
+<span class="fc bfc" id="L244" title="All 2 branches covered.">        while (currNode != null) {</span>
+<span class="fc" id="L245">            result.add(currNode);</span>
+<span class="fc" id="L246">            currNode = currNode.getNextSibling();</span>
+        }
+
+<span class="fc" id="L249">        return result;</span>
+    }
+
+}
+</pre><div class="footer"><span class="right">Created with <a href="http://www.eclemma.org/jacoco">JaCoCo</a> 0.7.1.201405082137</span></div></body></html>

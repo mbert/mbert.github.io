@@ -1,0 +1,172 @@
+<?xml version="1.0" encoding="UTF-8"?><!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Strict//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-strict.dtd"><html xmlns="http://www.w3.org/1999/xhtml" lang="en"><head><meta http-equiv="Content-Type" content="text/html;charset=UTF-8"/><link rel="stylesheet" href="../.resources/report.css" type="text/css"/><link rel="shortcut icon" href="../.resources/report.gif" type="image/gif"/><title>AvoidConstantAsFirstOperandInConditionCheck.java</title><link rel="stylesheet" href="../.resources/prettify.css" type="text/css"/><script type="text/javascript" src="../.resources/prettify.js"></script></head><body onload="window['PR_TAB_WIDTH']=4;prettyPrint()"><div class="breadcrumb" id="breadcrumb"><span class="info"><a href="../.sessions.html" class="el_session">Sessions</a></span><a href="../index.html" class="el_report">sevntu-checks</a> &gt; <a href="index.source.html" class="el_package">com.github.sevntu.checkstyle.checks.coding</a> &gt; <span class="el_source">AvoidConstantAsFirstOperandInConditionCheck.java</span></div><h1>AvoidConstantAsFirstOperandInConditionCheck.java</h1><pre class="source lang-java linenums">////////////////////////////////////////////////////////////////////////////////
+// checkstyle: Checks Java source code for adherence to a set of rules.
+// Copyright (C) 2001-2019 the original author or authors.
+//
+// This library is free software; you can redistribute it and/or
+// modify it under the terms of the GNU Lesser General Public
+// License as published by the Free Software Foundation; either
+// version 2.1 of the License, or (at your option) any later version.
+//
+// This library is distributed in the hope that it will be useful,
+// but WITHOUT ANY WARRANTY; without even the implied warranty of
+// MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the GNU
+// Lesser General Public License for more details.
+//
+// You should have received a copy of the GNU Lesser General Public
+// License along with this library; if not, write to the Free Software
+// Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA
+////////////////////////////////////////////////////////////////////////////////
+
+package com.github.sevntu.checkstyle.checks.coding;
+
+import java.util.Arrays;
+
+import com.puppycrawl.tools.checkstyle.api.AbstractCheck;
+import com.puppycrawl.tools.checkstyle.api.DetailAST;
+import com.puppycrawl.tools.checkstyle.api.TokenTypes;
+import com.puppycrawl.tools.checkstyle.utils.TokenUtil;
+
+/**
+ * Checks that constants do not appear in the first operand of any condition.
+ *
+ * &lt;p&gt;
+ * If comparing values, C(C++) developers prefer to put the constant first in the equality check,
+ * to prevent situations of assignment rather than equality checking. It is easy to write &quot;=&quot;
+ * instead of &quot;==&quot;, and no compile error will be produced but condition will work in a different
+ * way then intended. However, in Java it is impossible to use assignment inside the
+ * &lt;code&gt;if&lt;/code&gt; condition, so that habit becomes unnecessary and does damage to the readability
+ * of the code.
+ * &lt;/p&gt;
+ *
+ * &lt;p&gt;
+ * This check was extended to include all equality checks like &quot;&amp;gt;&quot;, &quot;&amp;gt;=&quot;, &quot;&amp;lt;&quot;, &quot;&amp;lt;=&quot;
+ * for users who prefer constants always be on the right-hand side for any condition.
+ * &lt;/p&gt;
+ *
+ * &lt;p&gt;
+ * Example:
+ * &lt;code&gt;if (null == variable)&lt;/code&gt;
+ * rather than
+ * &lt;code&gt;if (variable == null)&lt;/code&gt;
+ * because if you forget one (typo mistake) of the equal sign, you end up with
+ * &lt;code&gt;if (variable = null)&lt;/code&gt;
+ * which assigns null to variable and IF always evaluate to true.
+ * &lt;/p&gt;
+ *
+ * @author Sergey Burtsev
+ * @since 1.9.0
+ */
+<span class="fc" id="L59">public class AvoidConstantAsFirstOperandInConditionCheck extends AbstractCheck {</span>
+
+    /**
+     * A key is pointing to the warning message text in &quot;messages.properties&quot;
+     * file.
+     */
+    public static final String MSG_KEY = &quot;avoid.constant.as.first.operand.in.condition&quot;;
+
+    /**
+     * Field is array of default target constant types.
+     */
+<span class="fc" id="L70">    private int[] targetConstantTypes = new int[] {</span>
+<span class="fc" id="L71">        TokenTypes.LITERAL_TRUE,</span>
+<span class="fc" id="L72">        TokenTypes.LITERAL_FALSE,</span>
+<span class="fc" id="L73">        TokenTypes.LITERAL_NULL,</span>
+<span class="fc" id="L74">        TokenTypes.NUM_INT,</span>
+<span class="fc" id="L75">        TokenTypes.NUM_FLOAT,</span>
+<span class="fc" id="L76">        TokenTypes.NUM_LONG,</span>
+<span class="fc" id="L77">        TokenTypes.NUM_DOUBLE,</span>
+    };
+
+    /**
+     * Set target constant types.
+     *
+     * @param targets target constant types
+     */
+    public void setTargetConstantTypes(String... targets) {
+<span class="fc bfc" id="L86" title="All 2 branches covered.">        if (targets != null) {</span>
+<span class="fc" id="L87">            targetConstantTypes = new int[targets.length];</span>
+<span class="fc bfc" id="L88" title="All 2 branches covered.">            for (int i = 0; i &lt; targets.length; i++) {</span>
+<span class="fc" id="L89">                targetConstantTypes[i] = TokenUtil.getTokenId(targets[i]);</span>
+            }
+<span class="fc" id="L91">            Arrays.sort(targetConstantTypes);</span>
+        }
+<span class="fc" id="L93">    }</span>
+
+    @Override
+    public int[] getDefaultTokens() {
+<span class="fc" id="L97">        return new int[] {</span>
+<span class="fc" id="L98">            TokenTypes.EQUAL,</span>
+<span class="fc" id="L99">            TokenTypes.NOT_EQUAL,</span>
+<span class="fc" id="L100">            TokenTypes.LT,</span>
+<span class="fc" id="L101">            TokenTypes.LE,</span>
+<span class="fc" id="L102">            TokenTypes.GT,</span>
+<span class="fc" id="L103">            TokenTypes.GE,</span>
+        };
+    }
+
+    @Override
+    public int[] getAcceptableTokens() {
+<span class="fc" id="L109">        return getDefaultTokens();</span>
+    }
+
+    @Override
+    public int[] getRequiredTokens() {
+<span class="fc" id="L114">        return getDefaultTokens();</span>
+    }
+
+    @Override
+    public void visitToken(DetailAST detailAST) {
+<span class="fc bfc" id="L119" title="All 2 branches covered.">        if (isRefactoringRequired(detailAST)) {</span>
+<span class="fc" id="L120">            log(detailAST, MSG_KEY,</span>
+<span class="fc" id="L121">                    detailAST.getText());</span>
+        }
+<span class="fc" id="L123">    }</span>
+
+    /**
+     * Return true if current expression part required refactoring.
+     *
+     * @param logicNode Current logic operator node
+     * @return Boolean variable
+     */
+    private boolean isRefactoringRequired(DetailAST logicNode) {
+<span class="fc" id="L132">        final DetailAST[] children = getBothChildren(logicNode);</span>
+<span class="fc" id="L133">        final DetailAST firstOperand = children[0];</span>
+<span class="fc" id="L134">        final DetailAST secondOperand = children[1];</span>
+
+<span class="fc" id="L136">        final int constantType = firstOperand.getType();</span>
+
+<span class="fc bfc" id="L138" title="All 2 branches covered.">        return isTargetConstantType(constantType)</span>
+<span class="fc bfc" id="L139" title="All 2 branches covered.">                &amp;&amp; secondOperand.getType() != firstOperand.getType();</span>
+    }
+
+    /**
+     * Return both operators children.
+     *
+     * @param logicNode Current logic operator node
+     * @return Array with children
+     */
+    private static DetailAST[] getBothChildren(DetailAST logicNode) {
+<span class="fc" id="L149">        final DetailAST[] children = new DetailAST[2];</span>
+<span class="fc" id="L150">        int index = 0;</span>
+<span class="fc bfc" id="L151" title="All 2 branches covered.">        for (DetailAST child = logicNode.getFirstChild(); child != null; child = child</span>
+<span class="fc" id="L152">                .getNextSibling()) {</span>
+<span class="fc bfc" id="L153" title="All 4 branches covered.">            if (child.getType() != TokenTypes.LPAREN &amp;&amp; child.getType() != TokenTypes.RPAREN) {</span>
+<span class="fc" id="L154">                children[index++] = child;</span>
+            }
+        }
+
+<span class="fc" id="L158">        return children;</span>
+    }
+
+    /**
+     * Return true if isTargetConstantType contains aTargetType.
+     *
+     * @param targetType - type of current constant
+     * @return boolean
+     */
+    private boolean isTargetConstantType(int targetType) {
+<span class="fc bfc" id="L168" title="All 2 branches covered.">        return Arrays.binarySearch(targetConstantTypes, targetType) &gt; -1;</span>
+    }
+
+}
+</pre><div class="footer"><span class="right">Created with <a href="http://www.eclemma.org/jacoco">JaCoCo</a> 0.7.1.201405082137</span></div></body></html>

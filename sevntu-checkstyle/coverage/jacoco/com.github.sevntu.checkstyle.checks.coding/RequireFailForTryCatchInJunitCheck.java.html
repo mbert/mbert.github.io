@@ -1,0 +1,250 @@
+<?xml version="1.0" encoding="UTF-8"?><!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Strict//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-strict.dtd"><html xmlns="http://www.w3.org/1999/xhtml" lang="en"><head><meta http-equiv="Content-Type" content="text/html;charset=UTF-8"/><link rel="stylesheet" href="../.resources/report.css" type="text/css"/><link rel="shortcut icon" href="../.resources/report.gif" type="image/gif"/><title>RequireFailForTryCatchInJunitCheck.java</title><link rel="stylesheet" href="../.resources/prettify.css" type="text/css"/><script type="text/javascript" src="../.resources/prettify.js"></script></head><body onload="window['PR_TAB_WIDTH']=4;prettyPrint()"><div class="breadcrumb" id="breadcrumb"><span class="info"><a href="../.sessions.html" class="el_session">Sessions</a></span><a href="../index.html" class="el_report">sevntu-checks</a> &gt; <a href="index.source.html" class="el_package">com.github.sevntu.checkstyle.checks.coding</a> &gt; <span class="el_source">RequireFailForTryCatchInJunitCheck.java</span></div><h1>RequireFailForTryCatchInJunitCheck.java</h1><pre class="source lang-java linenums">////////////////////////////////////////////////////////////////////////////////
+// checkstyle: Checks Java source code for adherence to a set of rules.
+// Copyright (C) 2001-2019 the original author or authors.
+//
+// This library is free software; you can redistribute it and/or
+// modify it under the terms of the GNU Lesser General Public
+// License as published by the Free Software Foundation; either
+// version 2.1 of the License, or (at your option) any later version.
+//
+// This library is distributed in the hope that it will be useful,
+// but WITHOUT ANY WARRANTY; without even the implied warranty of
+// MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the GNU
+// Lesser General Public License for more details.
+//
+// You should have received a copy of the GNU Lesser General Public
+// License along with this library; if not, write to the Free Software
+// Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA
+////////////////////////////////////////////////////////////////////////////////
+
+package com.github.sevntu.checkstyle.checks.coding;
+
+import com.github.sevntu.checkstyle.SevntuUtil;
+import com.puppycrawl.tools.checkstyle.api.AbstractCheck;
+import com.puppycrawl.tools.checkstyle.api.DetailAST;
+import com.puppycrawl.tools.checkstyle.api.FullIdent;
+import com.puppycrawl.tools.checkstyle.api.TokenTypes;
+import com.puppycrawl.tools.checkstyle.utils.AnnotationUtil;
+
+/**
+ * &lt;p&gt;
+ * Checks if a try/catch block has a junit fail assertion inside the try for a junit method.
+ * &lt;/p&gt;
+ * &lt;p&gt;
+ * Rationale: Tests should not complete the try block naturally if they are expecting a failure.
+ * If the try completes normally the test will pass successfully and skip over any assertions in
+ * the catch block.
+ * If tests are not expecting exceptions, then they should remove the catch block and propagate
+ * the exception to the junit caller which will display the full exception to the user.
+ * &lt;/p&gt;
+ * &lt;p&gt;
+ * A junit test method is identified by the annotations placed on it. It is only considered a junit
+ * method if it contains the annotation 'org.junit.Test'. This check doesn't examine methods called
+ * by a test method. It must contain the annotation. Failures are identified by the
+ * method call to the method 'org.junit.Assert.fail'.
+ * &lt;/p&gt;
+ * &lt;p&gt;
+ * An example of how to configure the check is:
+ * &lt;/p&gt;
+ * &lt;pre&gt;
+ * &amp;lt;module name=&quot;RequireFailForTryCatchInJunitCheck&quot;/&amp;gt;
+ * &lt;/pre&gt;
+ * &lt;p&gt;
+ * which will cause a violation in the example below:
+ * &lt;/p&gt;
+ * &lt;pre&gt;
+ *   &amp;#064;Test
+ *   public void testMyCase() {
+ *     try { // violation here as try block has no 'Assert.fail()'.
+ *       verifySomeResult();
+ *     }
+ *     catch (IllegalArgumentException ex) {
+ *       assertEquals(&quot;expected exception message&quot;,
+ *           &quot;Some message that is expected&quot;, ex.getMessage());
+ *     }
+ *   }
+ * &lt;/pre&gt;
+ * @author Richard Veach
+ * @since 1.25.0
+ */
+<span class="fc" id="L70">public class RequireFailForTryCatchInJunitCheck extends AbstractCheck {</span>
+
+    /**
+     * Violation message key.
+     */
+    public static final String MSG_KEY = &quot;require.fail&quot;;
+
+    /**
+     * Fully qualified junit test annotation.
+     */
+    private static final String FQ_JUNIT_TEST = &quot;org.junit.Test&quot;;
+    /**
+     * JUnit's fail assertion method name.
+     */
+    private static final String FAIL = &quot;fail&quot;;
+
+    /**
+     * {@code true} if the junit test is imported.
+     */
+    private boolean importTest;
+    /**
+     * {@code true} if the junit assert is imported.
+     */
+    private boolean importAssert;
+    /**
+     * {@code true} if the junit fail assertion method is statically imported.
+     */
+    private boolean importStaticFail;
+
+    @Override
+    public int[] getDefaultTokens() {
+<span class="fc" id="L101">        return getRequiredTokens();</span>
+    }
+
+    @Override
+    public int[] getAcceptableTokens() {
+<span class="fc" id="L106">        return getRequiredTokens();</span>
+    }
+
+    @Override
+    public int[] getRequiredTokens() {
+<span class="fc" id="L111">        return new int[] {</span>
+<span class="fc" id="L112">            TokenTypes.IMPORT,</span>
+<span class="fc" id="L113">            TokenTypes.STATIC_IMPORT,</span>
+<span class="fc" id="L114">            TokenTypes.LITERAL_TRY,</span>
+        };
+    }
+
+    @Override
+    public void beginTree(DetailAST rootAST) {
+<span class="fc" id="L120">        importTest = false;</span>
+<span class="fc" id="L121">        importAssert = false;</span>
+<span class="fc" id="L122">        importStaticFail = false;</span>
+<span class="fc" id="L123">    }</span>
+
+    @Override
+    public void visitToken(DetailAST ast) {
+<span class="fc bfc" id="L127" title="All 4 branches covered.">        switch (ast.getType()) {</span>
+            case TokenTypes.IMPORT:
+<span class="pc bpc" id="L129" title="1 of 2 branches missed.">                final String imprt = getImportText(ast);</span>
+
+<span class="fc bfc" id="L131" title="All 2 branches covered.">                if (FQ_JUNIT_TEST.equals(imprt)) {</span>
+<span class="fc" id="L132">                    importTest = true;</span>
+                }
+<span class="fc bfc" id="L134" title="All 2 branches covered.">                if (&quot;org.junit.Assert&quot;.equals(imprt)) {</span>
+<span class="fc" id="L135">                    importAssert = true;</span>
+                }
+<span class="fc" id="L137">                break;</span>
+            case TokenTypes.STATIC_IMPORT:
+<span class="pc bpc" id="L139" title="1 of 2 branches missed.">                final String staticImprt = getImportText(ast);</span>
+
+<span class="fc bfc" id="L141" title="All 2 branches covered.">                if (&quot;org.junit.Assert.fail&quot;.equals(staticImprt)) {</span>
+<span class="fc" id="L142">                    importStaticFail = true;</span>
+                }
+<span class="fc" id="L144">                break;</span>
+            case TokenTypes.LITERAL_TRY:
+<span class="pc bpc" id="L146" title="1 of 2 branches missed.">                examineTry(ast);</span>
+<span class="fc" id="L147">                break;</span>
+            default:
+<span class="pc bpc" id="L149" title="1 of 2 branches missed.">                SevntuUtil.reportInvalidToken(ast.getType());</span>
+                break;
+        }
+<span class="fc" id="L152">    }</span>
+
+    /**
+     * Examines the try block for violations.
+     * @param ast The try block to examine.
+     */
+    private void examineTry(DetailAST ast) {
+<span class="fc" id="L159">        final DetailAST method = getMethod(ast);</span>
+
+<span class="fc bfc" id="L161" title="All 2 branches covered.">        if (isTestMethod(method)</span>
+<span class="fc bfc" id="L162" title="All 2 branches covered.">                &amp;&amp; ast.findFirstToken(TokenTypes.LITERAL_CATCH) != null) {</span>
+<span class="fc" id="L163">            final DetailAST last = ast.findFirstToken(TokenTypes.SLIST).getLastChild()</span>
+<span class="fc" id="L164">                    .getPreviousSibling();</span>
+
+<span class="fc bfc" id="L166" title="All 2 branches covered.">            if (last == null</span>
+<span class="fc bfc" id="L167" title="All 2 branches covered.">                    || last.getType() != TokenTypes.SEMI</span>
+<span class="fc bfc" id="L168" title="All 2 branches covered.">                    || !isValidFail(last.getPreviousSibling())) {</span>
+<span class="fc" id="L169">                log(ast, MSG_KEY);</span>
+            }
+        }
+<span class="fc" id="L172">    }</span>
+
+    /**
+     * Checks if the given method is a test method, defined by the junit annotation Test.
+     * @param method the method AST to examine.
+     * @return {@code true} if the method is a test method.
+     */
+    private boolean isTestMethod(DetailAST method) {
+<span class="fc bfc" id="L180" title="All 2 branches covered.">        return method != null</span>
+<span class="fc bfc" id="L181" title="All 4 branches covered.">            &amp;&amp; (importTest &amp;&amp; AnnotationUtil.containsAnnotation(method, &quot;Test&quot;)</span>
+<span class="fc bfc" id="L182" title="All 2 branches covered.">                    || AnnotationUtil.containsAnnotation(method, FQ_JUNIT_TEST));</span>
+    }
+
+    /**
+     * Checks if the expression is an junit fail assertion.
+     * @param expression The expression to examine.
+     * @return {@code true} if the expression is a valid junit fail assertion.
+     */
+    private boolean isValidFail(DetailAST expression) {
+<span class="fc" id="L191">        boolean result = false;</span>
+
+<span class="fc bfc" id="L193" title="All 2 branches covered.">        if (expression.getFirstChild().getType() == TokenTypes.METHOD_CALL) {</span>
+<span class="fc" id="L194">            final DetailAST ident = expression.getFirstChild().getFirstChild();</span>
+
+<span class="fc bfc" id="L196" title="All 4 branches covered.">            if (importAssert &amp;&amp; ident.getType() == TokenTypes.DOT) {</span>
+<span class="fc" id="L197">                final DetailAST firstChild = ident.getFirstChild();</span>
+
+<span class="fc bfc" id="L199" title="All 2 branches covered.">                result = &quot;Assert&quot;.equals(firstChild.getText())</span>
+<span class="fc bfc" id="L200" title="All 2 branches covered.">                        &amp;&amp; FAIL.equals(firstChild.getNextSibling().getText());</span>
+<span class="fc" id="L201">            }</span>
+<span class="fc bfc" id="L202" title="All 2 branches covered.">            else if (importStaticFail) {</span>
+<span class="fc" id="L203">                result = FAIL.equals(ident.getText());</span>
+            }
+        }
+
+<span class="fc" id="L207">        return result;</span>
+    }
+
+    /**
+     * Retrieves the method definition AST parent from the specified node, as long as it doesn't
+     * contain a lambda.
+     * @param node The node to examine.
+     * @return The parent method definition.
+     */
+    private static DetailAST getMethod(DetailAST node) {
+<span class="fc" id="L217">        DetailAST result = null;</span>
+
+<span class="fc bfc" id="L219" title="All 2 branches covered.">        for (DetailAST token = node.getParent(); token != null; token = token.getParent()) {</span>
+<span class="fc" id="L220">            final int type = token.getType();</span>
+<span class="fc bfc" id="L221" title="All 2 branches covered.">            if (type == TokenTypes.METHOD_DEF) {</span>
+<span class="fc" id="L222">                result = token;</span>
+            }
+<span class="fc bfc" id="L224" title="All 4 branches covered.">            if (type == TokenTypes.METHOD_DEF || type == TokenTypes.LAMBDA) {</span>
+<span class="fc" id="L225">                break;</span>
+            }
+        }
+
+<span class="fc" id="L229">        return result;</span>
+    }
+
+    /**
+     * Returns import text.
+     *
+     * @param ast ast node that represents import
+     * @return String that represents importing class
+     */
+    private static String getImportText(DetailAST ast) {
+        final FullIdent imp;
+<span class="fc bfc" id="L240" title="All 2 branches covered.">        if (ast.getType() == TokenTypes.IMPORT) {</span>
+<span class="fc" id="L241">            imp = FullIdent.createFullIdentBelow(ast);</span>
+<span class="fc" id="L242">        }</span>
+        else {
+<span class="fc" id="L244">            imp = FullIdent.createFullIdent(ast.getFirstChild().getNextSibling());</span>
+        }
+<span class="fc" id="L246">        return imp.getText();</span>
+    }
+
+}
+</pre><div class="footer"><span class="right">Created with <a href="http://www.eclemma.org/jacoco">JaCoCo</a> 0.7.1.201405082137</span></div></body></html>

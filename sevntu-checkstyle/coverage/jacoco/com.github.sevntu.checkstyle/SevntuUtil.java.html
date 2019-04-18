@@ -1,0 +1,80 @@
+<?xml version="1.0" encoding="UTF-8"?><!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Strict//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-strict.dtd"><html xmlns="http://www.w3.org/1999/xhtml" lang="en"><head><meta http-equiv="Content-Type" content="text/html;charset=UTF-8"/><link rel="stylesheet" href="../.resources/report.css" type="text/css"/><link rel="shortcut icon" href="../.resources/report.gif" type="image/gif"/><title>SevntuUtil.java</title><link rel="stylesheet" href="../.resources/prettify.css" type="text/css"/><script type="text/javascript" src="../.resources/prettify.js"></script></head><body onload="window['PR_TAB_WIDTH']=4;prettyPrint()"><div class="breadcrumb" id="breadcrumb"><span class="info"><a href="../.sessions.html" class="el_session">Sessions</a></span><a href="../index.html" class="el_report">sevntu-checks</a> &gt; <a href="index.source.html" class="el_package">com.github.sevntu.checkstyle</a> &gt; <span class="el_source">SevntuUtil.java</span></div><h1>SevntuUtil.java</h1><pre class="source lang-java linenums">////////////////////////////////////////////////////////////////////////////////
+// checkstyle: Checks Java source code for adherence to a set of rules.
+// Copyright (C) 2001-2019 the original author or authors.
+//
+// This library is free software; you can redistribute it and/or
+// modify it under the terms of the GNU Lesser General Public
+// License as published by the Free Software Foundation; either
+// version 2.1 of the License, or (at your option) any later version.
+//
+// This library is distributed in the hope that it will be useful,
+// but WITHOUT ANY WARRANTY; without even the implied warranty of
+// MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the GNU
+// Lesser General Public License for more details.
+//
+// You should have received a copy of the GNU Lesser General Public
+// License along with this library; if not, write to the Free Software
+// Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA
+////////////////////////////////////////////////////////////////////////////////
+
+package com.github.sevntu.checkstyle;
+
+import com.puppycrawl.tools.checkstyle.api.AbstractCheck;
+import com.puppycrawl.tools.checkstyle.api.DetailAST;
+import com.puppycrawl.tools.checkstyle.utils.TokenUtil;
+
+/**
+ * Simple utility class for all sevntu checks.
+ *
+ * @author Damian Szczepanik
+ */
+public final class SevntuUtil {
+
+    /** Prevent instances. */
+<span class="fc" id="L34">    private SevntuUtil() {</span>
+<span class="fc" id="L35">    }</span>
+
+    /**
+     * Reports passed token as unsupported by throwing {@link IllegalArgumentException} exception.
+     * This utility method if used to mark that token passed to
+     * {@link AbstractCheck#visitToken(com.puppycrawl.tools.checkstyle.api.DetailAST)} is not
+     * supported by this method.
+     * @param token
+     *        token/type that is not supported
+     * @throws IllegalArgumentException
+     *         always
+     */
+    public static void reportInvalidToken(int token) {
+<span class="fc" id="L48">        throw new IllegalArgumentException(&quot;Found unsupported token: &quot;</span>
+<span class="fc" id="L49">                + TokenUtil.getTokenName(token));</span>
+    }
+
+    /**
+     * Gets the next node of a syntactical tree (child of a current node or sibling of a current
+     * node, or sibling of a parent of a current node).
+     *
+     * @param node
+     *            Current node in considering
+     * @param subTreeRoot
+     *            The root node of the subtree. Can be a top level root node
+     * @return Current node after bypassing, if current node reached the root of a subtree
+     *     method returns null
+     */
+    public static DetailAST getNextSubTreeNode(DetailAST node, DetailAST subTreeRoot) {
+<span class="fc" id="L64">        DetailAST toVisitAst = node.getFirstChild();</span>
+<span class="fc" id="L65">        DetailAST currentNode = node;</span>
+
+<span class="fc bfc" id="L67" title="All 2 branches covered.">        while (toVisitAst == null) {</span>
+<span class="fc" id="L68">            toVisitAst = currentNode.getNextSibling();</span>
+<span class="fc bfc" id="L69" title="All 2 branches covered.">            if (toVisitAst == null) {</span>
+<span class="fc bfc" id="L70" title="All 2 branches covered.">                if (currentNode.getParent().equals(subTreeRoot)) {</span>
+<span class="fc" id="L71">                    break;</span>
+                }
+<span class="fc" id="L73">                currentNode = currentNode.getParent();</span>
+            }
+        }
+<span class="fc" id="L76">        return toVisitAst;</span>
+    }
+
+}
+</pre><div class="footer"><span class="right">Created with <a href="http://www.eclemma.org/jacoco">JaCoCo</a> 0.7.1.201405082137</span></div></body></html>

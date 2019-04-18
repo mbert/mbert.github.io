@@ -1,0 +1,433 @@
+<?xml version="1.0" encoding="UTF-8"?><!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Strict//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-strict.dtd"><html xmlns="http://www.w3.org/1999/xhtml" lang="en"><head><meta http-equiv="Content-Type" content="text/html;charset=UTF-8"/><link rel="stylesheet" href="../.resources/report.css" type="text/css"/><link rel="shortcut icon" href="../.resources/report.gif" type="image/gif"/><title>CheckstyleTestMakeupCheck.java</title><link rel="stylesheet" href="../.resources/prettify.css" type="text/css"/><script type="text/javascript" src="../.resources/prettify.js"></script></head><body onload="window['PR_TAB_WIDTH']=4;prettyPrint()"><div class="breadcrumb" id="breadcrumb"><span class="info"><a href="../.sessions.html" class="el_session">Sessions</a></span><a href="../index.html" class="el_report">sevntu-checks</a> &gt; <a href="index.source.html" class="el_package">com.github.sevntu.checkstyle.checks.design</a> &gt; <span class="el_source">CheckstyleTestMakeupCheck.java</span></div><h1>CheckstyleTestMakeupCheck.java</h1><pre class="source lang-java linenums">////////////////////////////////////////////////////////////////////////////////
+// checkstyle: Checks Java source code for adherence to a set of rules.
+// Copyright (C) 2001-2019 the original author or authors.
+//
+// This library is free software; you can redistribute it and/or
+// modify it under the terms of the GNU Lesser General Public
+// License as published by the Free Software Foundation; either
+// version 2.1 of the License, or (at your option) any later version.
+//
+// This library is distributed in the hope that it will be useful,
+// but WITHOUT ANY WARRANTY; without even the implied warranty of
+// MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the GNU
+// Lesser General Public License for more details.
+//
+// You should have received a copy of the GNU Lesser General Public
+// License along with this library; if not, write to the Free Software
+// Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA
+////////////////////////////////////////////////////////////////////////////////
+
+package com.github.sevntu.checkstyle.checks.design;
+
+import java.io.File;
+import java.util.HashMap;
+import java.util.HashSet;
+import java.util.Map;
+import java.util.Set;
+import java.util.regex.Pattern;
+
+import com.github.sevntu.checkstyle.SevntuUtil;
+import com.puppycrawl.tools.checkstyle.DefaultConfiguration;
+import com.puppycrawl.tools.checkstyle.api.AbstractCheck;
+import com.puppycrawl.tools.checkstyle.api.Configuration;
+import com.puppycrawl.tools.checkstyle.api.DetailAST;
+import com.puppycrawl.tools.checkstyle.api.TokenTypes;
+import com.puppycrawl.tools.checkstyle.utils.AnnotationUtil;
+import com.puppycrawl.tools.checkstyle.utils.ScopeUtil;
+
+/**
+ * &lt;p&gt;
+ * Custom check to ensure Checkstyle tests are designed correctly.
+ * &lt;/p&gt;
+ *
+ * &lt;p&gt;Rationale: This check was made to ensure tests follow a specific design implementation
+ * so 3rd party utilities like the regression utility can parse the tests for information
+ * used in creating regression reports.
+ *
+ * &lt;p&gt;
+ * Check have following options:
+ * &lt;/p&gt;
+ * &lt;ul&gt;
+ * &lt;li&gt;
+ * createMethodRegexp - Regular expression for matching a create configuration method by name. This
+ * is the name of the method that starts creating a custom module configuration to be used for
+ * verifying results for regression purposes.
+ * Default value is {@code create(Root|Module)Config|getModuleConfig}.&lt;/li&gt;
+ *
+ * &lt;li&gt;
+ * verifyMethodRegexp - Regular expression for matching a verify method by name. This is the name
+ * of the method that verifies the execution results of the custom configuration created for
+ * regression. As such, it should accept the custom configuration as a parameter.
+ * Default value is {@code verify(Warns|Suppressed)?}.&lt;/li&gt;
+ * &lt;/ul&gt;
+ *
+ * &lt;p&gt;
+ * To configure the check to report incorrectly made checkstyle tests:
+ * &lt;/p&gt;
+ *
+ * &lt;pre&gt;
+ * &amp;lt;module name=&amp;quot;CheckstyleTestMakeup&amp;quot;/&amp;gt;
+ * &lt;/pre&gt;
+ *
+ * @author Richard Veach
+ * @since 1.25.0
+ */
+<span class="fc" id="L75">public class CheckstyleTestMakeupCheck extends AbstractCheck {</span>
+
+    /** Violations message. */
+    public static final String MSG_KEY_CONFIG_NOT_ASSIGNED = &quot;tester.config.not.assigned&quot;;
+    /** Violations message. */
+    public static final String MSG_KEY_CONFIG_NOT_ASSIGNED_WITH = &quot;tester.config.not.assigned.with&quot;;
+    /** Violations message. */
+    public static final String MSG_KEY_CONFIG_NOT_ASSIGNED_PROPERLY =
+            &quot;tester.config.not.assigned.properly&quot;;
+    /** Violations message. */
+    public static final String MSG_KEY_UNKNOWN_PROPERTY = &quot;tester.unknown.property&quot;;
+    /** Violations message. */
+    public static final String MSG_KEY_CONFIG_NOT_FOUND = &quot;tester.config.not.found&quot;;
+
+    /** Name of 'getPath' method. */
+    private static final String METHOD_GET_PATH = &quot;getPath&quot;;
+
+    /** AST of method that is currently being examined. */
+    private DetailAST methodAst;
+    /** List of variable names that reference a file. */
+<span class="fc" id="L95">    private final Set&lt;String&gt; fileVariableNames = new HashSet&lt;&gt;();</span>
+    /** List of variable names that reference a configuration. */
+<span class="fc" id="L97">    private final Set&lt;String&gt; checkConfigNames = new HashSet&lt;&gt;();</span>
+    /** {@code true} if the 'verify' method was found in the method. */
+    private boolean foundVerify;
+
+    /** List of violations generated for a method. */
+<span class="fc" id="L102">    private final Map&lt;DetailAST, String&gt; violations = new HashMap&lt;&gt;();</span>
+
+    /** Regular expression for matching a create method by name. */
+<span class="fc" id="L105">    private Pattern createMethodRegexp = Pattern</span>
+<span class="fc" id="L106">            .compile(&quot;create(Root|Module)Config|getModuleConfig&quot;);</span>
+
+    /** Regular expression for matching a verify method by name. */
+<span class="fc" id="L109">    private Pattern verifyMethodRegexp = Pattern.compile(&quot;verify(Warns|Suppressed)?&quot;);</span>
+
+    /**
+     * Setter for {@link #createMethodRegexp}.
+     * @param createMethodRegexp The value to set.
+     */
+    public void setCreateMethodRegexp(Pattern createMethodRegexp) {
+<span class="fc" id="L116">        this.createMethodRegexp = createMethodRegexp;</span>
+<span class="fc" id="L117">    }</span>
+
+    /**
+     * Setter for {@link #verifyMethodRegexp}.
+     * @param verifyMethodRegexp The value to set.
+     */
+    public void setVerifyMethodRegexp(Pattern verifyMethodRegexp) {
+<span class="fc" id="L124">        this.verifyMethodRegexp = verifyMethodRegexp;</span>
+<span class="fc" id="L125">    }</span>
+
+    @Override
+    public int[] getDefaultTokens() {
+<span class="fc" id="L129">        return new int[] {</span>
+<span class="fc" id="L130">            TokenTypes.METHOD_DEF,</span>
+<span class="fc" id="L131">            TokenTypes.VARIABLE_DEF,</span>
+<span class="fc" id="L132">            TokenTypes.METHOD_CALL,</span>
+        };
+    }
+
+    @Override
+    public int[] getAcceptableTokens() {
+<span class="fc" id="L138">        return getDefaultTokens();</span>
+    }
+
+    @Override
+    public int[] getRequiredTokens() {
+<span class="fc" id="L143">        return getDefaultTokens();</span>
+    }
+
+    @Override
+    public void beginTree(DetailAST rootAST) {
+<span class="fc" id="L148">        resetInternalFields();</span>
+<span class="fc" id="L149">    }</span>
+
+    @Override
+    public void visitToken(DetailAST ast) {
+<span class="fc bfc" id="L153" title="All 4 branches covered.">        switch (ast.getType()) {</span>
+            case TokenTypes.METHOD_DEF:
+<span class="pc bpc" id="L155" title="1 of 2 branches missed.">                checkMethod(ast);</span>
+<span class="fc" id="L156">                break;</span>
+            case TokenTypes.VARIABLE_DEF:
+<span class="pc bpc" id="L158" title="1 of 2 branches missed.">                checkVariable(ast);</span>
+<span class="fc" id="L159">                break;</span>
+            case TokenTypes.METHOD_CALL:
+<span class="pc bpc" id="L161" title="1 of 2 branches missed.">                checkMethodCall(ast);</span>
+<span class="fc" id="L162">                break;</span>
+            default:
+<span class="pc bpc" id="L164" title="1 of 2 branches missed.">                SevntuUtil.reportInvalidToken(ast.getType());</span>
+                break;
+        }
+<span class="fc" id="L167">    }</span>
+
+    /**
+     * Examines the method to see if it is part of a Test.
+     * @param ast The method to examine.
+     */
+    private void checkMethod(DetailAST ast) {
+<span class="fc bfc" id="L174" title="All 4 branches covered.">        if (methodAst == null &amp;&amp; AnnotationUtil.containsAnnotation(ast, &quot;Test&quot;)</span>
+<span class="fc bfc" id="L175" title="All 2 branches covered.">                || AnnotationUtil.containsAnnotation(ast, &quot;org.junit.Test&quot;)) {</span>
+<span class="fc" id="L176">            methodAst = ast;</span>
+        }
+<span class="fc" id="L178">    }</span>
+
+    /**
+     * Examines the variable declaration to see if it is a specific variable type to track.
+     * Variables of type {@link Configuration} or {@link  DefaultConfiguration} need to be assigned
+     * a {@code null}, createModuleConfig, or createRootConfig and is tracked for future purposes.
+     * Variables of type {@link File} with the modifier {@code final} are tracked for future
+     * purposes.
+     * @param ast The variable to examine.
+     */
+    private void checkVariable(DetailAST ast) {
+<span class="fc bfc" id="L189" title="All 4 branches covered.">        if (methodAst != null &amp;&amp; ScopeUtil.isLocalVariableDef(ast)) {</span>
+<span class="fc" id="L190">            final DetailAST type = ast.findFirstToken(TokenTypes.TYPE).findFirstToken(</span>
+<span class="fc" id="L191">                    TokenTypes.IDENT);</span>
+
+<span class="fc bfc" id="L193" title="All 2 branches covered.">            if (type != null) {</span>
+<span class="fc" id="L194">                final String typeText = type.getText();</span>
+
+<span class="fc bfc" id="L196" title="All 4 branches covered.">                if (&quot;DefaultConfiguration&quot;.equals(typeText) || &quot;Configuration&quot;.equals(typeText)) {</span>
+<span class="fc" id="L197">                    checkConfigurationVariable(ast);</span>
+<span class="fc" id="L198">                }</span>
+<span class="fc bfc" id="L199" title="All 2 branches covered.">                else if (&quot;File&quot;.equals(typeText)</span>
+<span class="fc bfc" id="L200" title="All 2 branches covered.">                        &amp;&amp; ast.findFirstToken(TokenTypes.MODIFIERS)</span>
+<span class="fc" id="L201">                                .findFirstToken(TokenTypes.FINAL) != null) {</span>
+<span class="fc" id="L202">                    fileVariableNames.add(ast.findFirstToken(TokenTypes.IDENT).getText());</span>
+                }
+            }
+        }
+<span class="fc" id="L206">    }</span>
+
+    /**
+     * Examines the configuration variable to see if it is defined as described in
+     * {@link #checkVariable(DetailAST)}.
+     * @param ast The variable to examine.
+     */
+    private void checkConfigurationVariable(DetailAST ast) {
+<span class="fc" id="L214">        checkConfigNames.add(ast.findFirstToken(TokenTypes.IDENT).getText());</span>
+<span class="fc" id="L215">        final DetailAST assignment = ast.findFirstToken(TokenTypes.ASSIGN);</span>
+
+<span class="fc bfc" id="L217" title="All 2 branches covered.">        if (assignment == null) {</span>
+<span class="fc" id="L218">            violations.put(ast, MSG_KEY_CONFIG_NOT_ASSIGNED);</span>
+<span class="fc" id="L219">        }</span>
+<span class="fc bfc" id="L220" title="All 2 branches covered.">        else if (assignment.getFirstChild().getFirstChild().getType() == TokenTypes.METHOD_CALL) {</span>
+<span class="fc" id="L221">            final DetailAST assignmentMethod = assignment.getFirstChild()</span>
+<span class="fc" id="L222">                    .getFirstChild().findFirstToken(TokenTypes.IDENT);</span>
+
+<span class="fc bfc" id="L224" title="All 2 branches covered.">            if (assignmentMethod != null</span>
+<span class="fc bfc" id="L225" title="All 2 branches covered.">                    &amp;&amp; !createMethodRegexp.matcher(assignmentMethod.getText()).matches()) {</span>
+<span class="fc" id="L226">                violations.put(assignment, MSG_KEY_CONFIG_NOT_ASSIGNED_WITH);</span>
+            }
+<span class="fc" id="L228">        }</span>
+<span class="fc bfc" id="L229" title="All 2 branches covered.">        else if (assignment.getFirstChild().getFirstChild().getType() != TokenTypes.LITERAL_NULL) {</span>
+<span class="fc" id="L230">            violations.put(ast, MSG_KEY_CONFIG_NOT_ASSIGNED_PROPERLY);</span>
+        }
+<span class="fc" id="L232">    }</span>
+
+    /**
+     * Examines the method call and verify it is defined correctly.
+     * addAttribute method which is called by one of the configurations found earlier, must have
+     * all it's parameters be acceptable to {@link #isValidMethodCallExpression(DetailAST)}.
+     * Any method that matches {@link #verifyMethodRegexp} are tracked for future purposes.
+     * @param ast The method call to examine.
+     */
+    private void checkMethodCall(DetailAST ast) {
+<span class="fc bfc" id="L242" title="All 2 branches covered.">        if (methodAst != null) {</span>
+<span class="fc" id="L243">            final DetailAST firstChild = ast.getFirstChild();</span>
+<span class="fc" id="L244">            final String methodCallName = getMethodCallName(firstChild);</span>
+<span class="fc" id="L245">            final String methodCallerName = getMethodCallerName(firstChild);</span>
+
+<span class="fc bfc" id="L247" title="All 2 branches covered.">            if (&quot;addAttribute&quot;.equals(methodCallName)</span>
+<span class="fc bfc" id="L248" title="All 2 branches covered.">                    &amp;&amp; checkConfigNames.contains(methodCallerName)) {</span>
+<span class="fc" id="L249">                final DetailAST elist = ast.findFirstToken(TokenTypes.ELIST);</span>
+
+<span class="fc bfc" id="L251" title="All 2 branches covered.">                for (DetailAST expression = elist.getFirstChild(); expression != null;</span>
+<span class="fc" id="L252">                        expression = expression.getNextSibling()) {</span>
+<span class="fc bfc" id="L253" title="All 2 branches covered.">                    if (expression.getType() == TokenTypes.EXPR</span>
+<span class="fc bfc" id="L254" title="All 2 branches covered.">                            &amp;&amp; !isValidMethodCallExpression(expression.getFirstChild())) {</span>
+<span class="fc" id="L255">                        violations.put(expression, MSG_KEY_UNKNOWN_PROPERTY);</span>
+                    }
+                }
+<span class="fc" id="L258">            }</span>
+<span class="fc bfc" id="L259" title="All 2 branches covered.">            else if (methodCallerName.equals(methodCallName)</span>
+<span class="fc bfc" id="L260" title="All 2 branches covered.">                    &amp;&amp; ast.getParent().getParent().getType() != TokenTypes.METHOD_CALL</span>
+<span class="fc bfc" id="L261" title="All 2 branches covered.">                    &amp;&amp; verifyMethodRegexp.matcher(methodCallName).matches()) {</span>
+<span class="fc" id="L262">                foundVerify = true;</span>
+            }
+        }
+<span class="fc" id="L265">    }</span>
+
+    /**
+     * Retrieves the name of the method being called.
+     * @param ast The method call token to examine.
+     * @return The name of the method.
+     */
+    private String getMethodCallName(DetailAST ast) {
+        final String result;
+<span class="fc bfc" id="L274" title="All 2 branches covered.">        if (ast.getType() == TokenTypes.DOT) {</span>
+<span class="fc" id="L275">            result = getMethodCallName(ast.getFirstChild().getNextSibling());</span>
+<span class="fc" id="L276">        }</span>
+        else {
+<span class="fc" id="L278">            result = ast.getText();</span>
+        }
+<span class="fc" id="L280">        return result;</span>
+    }
+
+    /**
+     * Retrieves the name of the variable calling the method.
+     * @param ast The method call token to examine.
+     * @return The name of who is calling the method.
+     */
+    private String getMethodCallerName(DetailAST ast) {
+        final String result;
+<span class="fc bfc" id="L290" title="All 2 branches covered.">        if (ast.getType() == TokenTypes.DOT) {</span>
+<span class="fc" id="L291">            result = getMethodCallName(ast.getFirstChild());</span>
+<span class="fc" id="L292">        }</span>
+        else {
+<span class="fc" id="L294">            result = ast.getText();</span>
+        }
+<span class="fc" id="L296">        return result;</span>
+    }
+
+    /**
+     * Identifies if the parameter of the method call is valid.
+     * Plain string literal is allowed.
+     * Adding multiple string literals is allowed because of line length limits.
+     * Plain {@code null} is allowed due to backward compatibility.
+     * Method calls are allowed only if they are any form of getPath, converting an enum to a
+     * string, or retrieving the path of a final {@link File} variable.
+     * @param expression The expression to examine.
+     * @return {@code true} if the method call is defined correctly.
+     */
+    private boolean isValidMethodCallExpression(DetailAST expression) {
+<span class="fc" id="L310">        boolean result = false;</span>
+<span class="fc" id="L311">        final DetailAST firstChild = expression.getFirstChild();</span>
+
+<span class="fc bfc" id="L313" title="All 5 branches covered.">        switch (expression.getType()) {</span>
+            case TokenTypes.STRING_LITERAL:
+<span class="pc bpc" id="L315" title="1 of 2 branches missed.">                result = true;</span>
+<span class="fc" id="L316">                break;</span>
+            case TokenTypes.METHOD_CALL:
+<span class="pc bpc" id="L318" title="1 of 2 branches missed.">                result = isValidMethodCallExpressionMethodCall(firstChild);</span>
+<span class="fc" id="L319">                break;</span>
+            case TokenTypes.PLUS:
+<span class="pc bpc" id="L321" title="1 of 4 branches missed.">                result = isValidMethodCallExpression(firstChild)</span>
+<span class="fc bfc" id="L322" title="All 2 branches covered.">                        &amp;&amp; isValidMethodCallExpression(firstChild.getNextSibling());</span>
+<span class="fc" id="L323">                break;</span>
+            case TokenTypes.LITERAL_NULL:
+<span class="pc bpc" id="L325" title="1 of 2 branches missed.">                result = true;</span>
+<span class="fc" id="L326">                break;</span>
+            default:
+                break;
+        }
+
+<span class="fc bfc" id="L331" title="All 2 branches covered.">        return result;</span>
+    }
+
+    /**
+     * Identifies if the inner method call of a method call is valid as defined in
+     * {@link #isValidMethodCallExpression(DetailAST)}.
+     * @param firstChild The first child of the method call.
+     * @return {@code true} if the method call is defined correctly.
+     */
+    private boolean isValidMethodCallExpressionMethodCall(DetailAST firstChild) {
+<span class="fc" id="L341">        boolean result = false;</span>
+
+<span class="fc bfc" id="L343" title="All 2 branches covered.">        if (firstChild.getType() == TokenTypes.DOT) {</span>
+<span class="fc bfc" id="L344" title="All 2 branches covered.">            if (firstChild.getFirstChild().getType() == TokenTypes.DOT) {</span>
+<span class="fc" id="L345">                result = isEnumerationCall(firstChild);</span>
+<span class="fc" id="L346">            }</span>
+<span class="fc bfc" id="L347" title="All 2 branches covered.">            else if (isFileVariable(firstChild.getFirstChild())) {</span>
+<span class="fc" id="L348">                result = true;</span>
+            }
+<span class="fc" id="L350">        }</span>
+        else {
+<span class="fc" id="L352">            final String methodName = firstChild.getText();</span>
+
+<span class="fc bfc" id="L354" title="All 2 branches covered.">            if (isMethodGetPath(methodName)) {</span>
+<span class="fc" id="L355">                result = true;</span>
+            }
+        }
+
+<span class="fc" id="L359">        return result;</span>
+    }
+
+    /**
+     * Checks if the method call is calling toString, getName, or name on an enumeration.
+     * @param ast The AST to examine.
+     * @return {@code true} if the method call is on a enumeration.
+     */
+    private static boolean isEnumerationCall(DetailAST ast) {
+<span class="fc" id="L368">        boolean result = false;</span>
+<span class="fc" id="L369">        final DetailAST firstChild = ast.getFirstChild();</span>
+<span class="fc" id="L370">        final DetailAST methodCalled = firstChild.getNextSibling();</span>
+<span class="fc" id="L371">        final DetailAST parameters = ast.getNextSibling();</span>
+
+<span class="fc bfc" id="L373" title="All 2 branches covered.">        if (firstChild.getFirstChild().getType() == TokenTypes.IDENT</span>
+<span class="fc bfc" id="L374" title="All 2 branches covered.">                &amp;&amp; (&quot;toString&quot;.equals(methodCalled.getText())</span>
+<span class="fc bfc" id="L375" title="All 2 branches covered.">                        || &quot;getName&quot;.equals(methodCalled.getText())</span>
+<span class="fc bfc" id="L376" title="All 2 branches covered.">                        || &quot;name&quot;.equals(methodCalled.getText()))</span>
+<span class="fc bfc" id="L377" title="All 2 branches covered.">                &amp;&amp; parameters.getChildCount() == 0) {</span>
+<span class="fc" id="L378">            result = true;</span>
+        }
+
+<span class="fc" id="L381">        return result;</span>
+    }
+
+    /**
+     * Checks if the method call is 'getPath' on a {@link File} variable.
+     * @param firstChild The AST to examine.
+     * @return {@code true} if the method call is on a file variable.
+     */
+    private boolean isFileVariable(DetailAST firstChild) {
+<span class="fc bfc" id="L390" title="All 2 branches covered.">        return METHOD_GET_PATH.equals(firstChild.getNextSibling().getText())</span>
+<span class="fc bfc" id="L391" title="All 2 branches covered.">                &amp;&amp; fileVariableNames.contains(firstChild.getText());</span>
+    }
+
+    /**
+     * Checks if the method name is a form of 'getPath'.
+     * @param methodName The name to examine.
+     * @return {@code true} if the method is of the form.
+     */
+    private static boolean isMethodGetPath(String methodName) {
+<span class="fc bfc" id="L400" title="All 2 branches covered.">        return METHOD_GET_PATH.equals(methodName)</span>
+<span class="fc bfc" id="L401" title="All 2 branches covered.">                || &quot;getNonCompilablePath&quot;.equals(methodName)</span>
+<span class="fc bfc" id="L402" title="All 2 branches covered.">                || &quot;getUriString&quot;.equals(methodName)</span>
+<span class="fc bfc" id="L403" title="All 2 branches covered.">                || &quot;getResourcePath&quot;.equals(methodName);</span>
+    }
+
+    @Override
+    public void leaveToken(DetailAST ast) {
+<span class="fc bfc" id="L408" title="All 2 branches covered.">        if (ast == methodAst) {</span>
+<span class="fc bfc" id="L409" title="All 2 branches covered.">            if (foundVerify) {</span>
+<span class="fc bfc" id="L410" title="All 2 branches covered.">                if (checkConfigNames.isEmpty()) {</span>
+<span class="fc" id="L411">                    violations.put(ast, MSG_KEY_CONFIG_NOT_FOUND);</span>
+                }
+
+<span class="fc bfc" id="L414" title="All 2 branches covered.">                for (Map.Entry&lt;DetailAST, String&gt; entry : violations.entrySet()) {</span>
+<span class="fc" id="L415">                    log(entry.getKey(), entry.getValue());</span>
+                }
+            }
+
+<span class="fc" id="L419">            resetInternalFields();</span>
+        }
+<span class="fc" id="L421">    }</span>
+
+    /** Resets the internal fields when a new file/method is to be processed. */
+    private void resetInternalFields() {
+<span class="fc" id="L425">        methodAst = null;</span>
+<span class="fc" id="L426">        fileVariableNames.clear();</span>
+<span class="fc" id="L427">        checkConfigNames.clear();</span>
+<span class="fc" id="L428">        foundVerify = false;</span>
+<span class="fc" id="L429">        violations.clear();</span>
+<span class="fc" id="L430">    }</span>
+
+}
+</pre><div class="footer"><span class="right">Created with <a href="http://www.eclemma.org/jacoco">JaCoCo</a> 0.7.1.201405082137</span></div></body></html>
