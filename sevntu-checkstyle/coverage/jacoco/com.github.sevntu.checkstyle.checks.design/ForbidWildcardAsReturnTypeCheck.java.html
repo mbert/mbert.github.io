@@ -1,4 +1,4 @@
-<?xml version="1.0" encoding="UTF-8"?><!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Strict//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-strict.dtd"><html xmlns="http://www.w3.org/1999/xhtml" lang="en"><head><meta http-equiv="Content-Type" content="text/html;charset=UTF-8"/><link rel="stylesheet" href="../resources/report.css" type="text/css"/><link rel="shortcut icon" href="../resources/report.gif" type="image/gif"/><title>ForbidWildcardAsReturnTypeCheck.java</title><link rel="stylesheet" href="../resources/prettify.css" type="text/css"/><script type="text/javascript" src="../resources/prettify.js"></script></head><body onload="window['PR_TAB_WIDTH']=4;prettyPrint()"><div class="breadcrumb" id="breadcrumb"><span class="info"><a href="../.sessions.html" class="el_session">Sessions</a></span><a href="../index.html" class="el_report">sevntu-checks</a> &gt; <a href="index.source.html" class="el_package">com.github.sevntu.checkstyle.checks.design</a> &gt; <span class="el_source">ForbidWildcardAsReturnTypeCheck.java</span></div><h1>ForbidWildcardAsReturnTypeCheck.java</h1><pre class="source lang-java linenums">////////////////////////////////////////////////////////////////////////////////
+<?xml version="1.0" encoding="UTF-8"?><!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Strict//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-strict.dtd"><html xmlns="http://www.w3.org/1999/xhtml" lang="en"><head><meta http-equiv="Content-Type" content="text/html;charset=UTF-8"/><link rel="stylesheet" href="../.resources/report.css" type="text/css"/><link rel="shortcut icon" href="../.resources/report.gif" type="image/gif"/><title>ForbidWildcardAsReturnTypeCheck.java</title><link rel="stylesheet" href="../.resources/prettify.css" type="text/css"/><script type="text/javascript" src="../.resources/prettify.js"></script></head><body onload="window['PR_TAB_WIDTH']=4;prettyPrint()"><div class="breadcrumb" id="breadcrumb"><span class="info"><a href="../.sessions.html" class="el_session">Sessions</a></span><a href="../index.html" class="el_report">sevntu-checks</a> &gt; <a href="index.source.html" class="el_package">com.github.sevntu.checkstyle.checks.design</a> &gt; <span class="el_source">ForbidWildcardAsReturnTypeCheck.java</span></div><h1>ForbidWildcardAsReturnTypeCheck.java</h1><pre class="source lang-java linenums">////////////////////////////////////////////////////////////////////////////////
 // checkstyle: Checks Java source code for adherence to a set of rules.
 // Copyright (C) 2001-2019 the original author or authors.
 //
@@ -25,7 +25,6 @@ import java.util.List;
 import java.util.Set;
 import java.util.regex.Pattern;
 
-import antlr.collections.AST;
 import com.puppycrawl.tools.checkstyle.api.AbstractCheck;
 import com.puppycrawl.tools.checkstyle.api.DetailAST;
 import com.puppycrawl.tools.checkstyle.api.TokenTypes;
@@ -67,7 +66,7 @@ import com.puppycrawl.tools.checkstyle.utils.AnnotationUtil;
  * @author &lt;a href='mailto:barataliba@gmail.com'&gt;Baratali Izmailov&lt;/a&gt;
  * @since 1.9.0
  */
-<span class="fc" id="L70">public class ForbidWildcardAsReturnTypeCheck extends AbstractCheck {</span>
+<span class="fc" id="L69">public class ForbidWildcardAsReturnTypeCheck extends AbstractCheck {</span>
 
     /**
      * Key for error message.
@@ -99,19 +98,19 @@ import com.puppycrawl.tools.checkstyle.utils.AnnotationUtil;
     /**
      * Empty array of DetailAST.
      */
-<span class="fc" id="L102">    private static final DetailAST[] EMPTY_DETAILAST_ARRAY = new DetailAST[0];</span>
+<span class="fc" id="L101">    private static final DetailAST[] EMPTY_DETAILAST_ARRAY = new DetailAST[0];</span>
     /**
      * Check methods with 'public' modifier.
      */
-<span class="fc" id="L106">    private boolean checkPublicMethods = true;</span>
+<span class="fc" id="L105">    private boolean checkPublicMethods = true;</span>
     /**
      * Check methods with 'protected' modifier.
      */
-<span class="fc" id="L110">    private boolean checkProtectedMethods = true;</span>
+<span class="fc" id="L109">    private boolean checkProtectedMethods = true;</span>
     /**
      * Check methods with 'package' modifier.
      */
-<span class="fc" id="L114">    private boolean checkPackageMethods = true;</span>
+<span class="fc" id="L113">    private boolean checkPackageMethods = true;</span>
     /**
      * Check methods with 'private' modifier.
      */
@@ -135,7 +134,7 @@ import com.puppycrawl.tools.checkstyle.utils.AnnotationUtil;
     /**
      * Ignore regexp for return type class names.
      */
-<span class="fc" id="L138">    private Pattern returnTypeClassNamesIgnoreRegex = Pattern.compile(</span>
+<span class="fc" id="L137">    private Pattern returnTypeClassNamesIgnoreRegex = Pattern.compile(</span>
             &quot;^(Comparator|Comparable)$&quot;);
 
     /**
@@ -143,110 +142,110 @@ import com.puppycrawl.tools.checkstyle.utils.AnnotationUtil;
      * @param checkPublicMethods New value for the field.
      */
     public void setCheckPublicMethods(boolean checkPublicMethods) {
-<span class="fc" id="L146">        this.checkPublicMethods = checkPublicMethods;</span>
-<span class="fc" id="L147">    }</span>
+<span class="fc" id="L145">        this.checkPublicMethods = checkPublicMethods;</span>
+<span class="fc" id="L146">    }</span>
 
     /**
      * Setter for checkProtectedMethods.
      * @param checkProtectedMethods New value for the field.
      */
     public void setCheckProtectedMethods(boolean checkProtectedMethods) {
-<span class="fc" id="L154">        this.checkProtectedMethods = checkProtectedMethods;</span>
-<span class="fc" id="L155">    }</span>
+<span class="fc" id="L153">        this.checkProtectedMethods = checkProtectedMethods;</span>
+<span class="fc" id="L154">    }</span>
 
     /**
      * Setter for checkPackageMethods.
      * @param checkPackageMethods New value for the field.
      */
     public void setCheckPackageMethods(boolean checkPackageMethods) {
-<span class="fc" id="L162">        this.checkPackageMethods = checkPackageMethods;</span>
-<span class="fc" id="L163">    }</span>
+<span class="fc" id="L161">        this.checkPackageMethods = checkPackageMethods;</span>
+<span class="fc" id="L162">    }</span>
 
     /**
      * Setter for checkPrivateMethods.
      * @param checkPrivateMethods New value for the field.
      */
     public void setCheckPrivateMethods(boolean checkPrivateMethods) {
-<span class="fc" id="L170">        this.checkPrivateMethods = checkPrivateMethods;</span>
-<span class="fc" id="L171">    }</span>
+<span class="fc" id="L169">        this.checkPrivateMethods = checkPrivateMethods;</span>
+<span class="fc" id="L170">    }</span>
 
     /**
      * Setter for checkOverrideMethods.
      * @param checkOverrideMethods New value for the field.
      */
     public void setCheckOverrideMethods(boolean checkOverrideMethods) {
-<span class="fc" id="L178">        this.checkOverrideMethods = checkOverrideMethods;</span>
-<span class="fc" id="L179">    }</span>
+<span class="fc" id="L177">        this.checkOverrideMethods = checkOverrideMethods;</span>
+<span class="fc" id="L178">    }</span>
 
     /**
      * Setter for checkDeprecatedMethods.
      * @param checkDeprecatedMethods New value for the field.
      */
     public void setCheckDeprecatedMethods(boolean checkDeprecatedMethods) {
-<span class="fc" id="L186">        this.checkDeprecatedMethods = checkDeprecatedMethods;</span>
-<span class="fc" id="L187">    }</span>
+<span class="fc" id="L185">        this.checkDeprecatedMethods = checkDeprecatedMethods;</span>
+<span class="fc" id="L186">    }</span>
 
     /**
      * Setter for allowReturnWildcardWithSuper.
      * @param allowReturnWildcardWithSuper New value for the field.
      */
     public void setAllowReturnWildcardWithSuper(boolean allowReturnWildcardWithSuper) {
-<span class="fc" id="L194">        this.allowReturnWildcardWithSuper = allowReturnWildcardWithSuper;</span>
-<span class="fc" id="L195">    }</span>
+<span class="fc" id="L193">        this.allowReturnWildcardWithSuper = allowReturnWildcardWithSuper;</span>
+<span class="fc" id="L194">    }</span>
 
     /**
      * Setter for allowReturnWildcardWithExtends.
      * @param allowReturnWildcardWithExtends New value for the field.
      */
     public void setAllowReturnWildcardWithExtends(boolean allowReturnWildcardWithExtends) {
-<span class="fc" id="L202">        this.allowReturnWildcardWithExtends = allowReturnWildcardWithExtends;</span>
-<span class="fc" id="L203">    }</span>
+<span class="fc" id="L201">        this.allowReturnWildcardWithExtends = allowReturnWildcardWithExtends;</span>
+<span class="fc" id="L202">    }</span>
 
     /**
      * Setter for returnTypeClassNamesIgnoreRegex.
      * @param returnTypeClassNamesIgnoreRegex New value for the field.
      */
     public void setReturnTypeClassNamesIgnoreRegex(String returnTypeClassNamesIgnoreRegex) {
-<span class="fc" id="L210">        this.returnTypeClassNamesIgnoreRegex = Pattern.compile(</span>
+<span class="fc" id="L209">        this.returnTypeClassNamesIgnoreRegex = Pattern.compile(</span>
                 returnTypeClassNamesIgnoreRegex);
-<span class="fc" id="L212">    }</span>
+<span class="fc" id="L211">    }</span>
 
     @Override
     public int[] getDefaultTokens() {
-<span class="fc" id="L216">        return new int[] {</span>
+<span class="fc" id="L215">        return new int[] {</span>
             TokenTypes.METHOD_DEF,
         };
     }
 
     @Override
     public int[] getAcceptableTokens() {
-<span class="fc" id="L223">        return getDefaultTokens();</span>
+<span class="fc" id="L222">        return getDefaultTokens();</span>
     }
 
     @Override
     public int[] getRequiredTokens() {
-<span class="fc" id="L228">        return getDefaultTokens();</span>
+<span class="fc" id="L227">        return getDefaultTokens();</span>
     }
 
     @Override
     public void visitToken(DetailAST methodDefAst) {
-<span class="fc" id="L233">        final String methodScope = getVisibilityScope(methodDefAst);</span>
-<span class="fc bfc" id="L234" title="All 4 branches covered.">        if (isCheckableMethodScope(methodScope)</span>
+<span class="fc" id="L232">        final String methodScope = getVisibilityScope(methodDefAst);</span>
+<span class="fc bfc" id="L233" title="All 4 branches covered.">        if (isCheckableMethodScope(methodScope)</span>
                 &amp;&amp; (checkOverrideMethods
-<span class="fc bfc" id="L236" title="All 2 branches covered.">                        || !AnnotationUtil.containsAnnotation(methodDefAst, OVERRIDE)</span>
-<span class="fc bfc" id="L237" title="All 4 branches covered.">                            &amp;&amp; !AnnotationUtil.containsAnnotation(methodDefAst, FQ_OVERRIDE))</span>
+<span class="fc bfc" id="L235" title="All 2 branches covered.">                        || !AnnotationUtil.containsAnnotation(methodDefAst, OVERRIDE)</span>
+<span class="fc bfc" id="L236" title="All 4 branches covered.">                            &amp;&amp; !AnnotationUtil.containsAnnotation(methodDefAst, FQ_OVERRIDE))</span>
                 &amp;&amp; (checkDeprecatedMethods
-<span class="fc bfc" id="L239" title="All 2 branches covered.">                        || !AnnotationUtil.containsAnnotation(methodDefAst, DEPRECATED)</span>
-<span class="fc bfc" id="L240" title="All 2 branches covered.">                            &amp;&amp; !AnnotationUtil.containsAnnotation(methodDefAst,</span>
+<span class="fc bfc" id="L238" title="All 2 branches covered.">                        || !AnnotationUtil.containsAnnotation(methodDefAst, DEPRECATED)</span>
+<span class="fc bfc" id="L239" title="All 2 branches covered.">                            &amp;&amp; !AnnotationUtil.containsAnnotation(methodDefAst,</span>
                                 FQ_DEPRECATED))) {
-<span class="fc" id="L242">            final List&lt;DetailAST&gt; wildcardTypeArguments =</span>
-<span class="fc" id="L243">                    getWildcardArgumentsAsMethodReturnType(methodDefAst);</span>
-<span class="fc bfc" id="L244" title="All 2 branches covered.">            if (!wildcardTypeArguments.isEmpty()</span>
-<span class="fc bfc" id="L245" title="All 2 branches covered.">                    &amp;&amp; !isIgnoreCase(methodDefAst, wildcardTypeArguments)) {</span>
-<span class="fc" id="L246">                log(methodDefAst, MSG_KEY);</span>
+<span class="fc" id="L241">            final List&lt;DetailAST&gt; wildcardTypeArguments =</span>
+<span class="fc" id="L242">                    getWildcardArgumentsAsMethodReturnType(methodDefAst);</span>
+<span class="fc bfc" id="L243" title="All 2 branches covered.">            if (!wildcardTypeArguments.isEmpty()</span>
+<span class="fc bfc" id="L244" title="All 2 branches covered.">                    &amp;&amp; !isIgnoreCase(methodDefAst, wildcardTypeArguments)) {</span>
+<span class="fc" id="L245">                log(methodDefAst, MSG_KEY);</span>
             }
         }
-<span class="fc" id="L249">    }</span>
+<span class="fc" id="L248">    }</span>
 
     /**
      * Checks if the method scope is defined as one of the types to check.
@@ -254,10 +253,10 @@ import com.puppycrawl.tools.checkstyle.utils.AnnotationUtil;
      * @return {@code true} if the method should be checked.
      */
     private boolean isCheckableMethodScope(String methodScope) {
-<span class="fc bfc" id="L257" title="All 6 branches covered.">        return checkPublicMethods &amp;&amp; &quot;public&quot;.equals(methodScope)</span>
-<span class="fc bfc" id="L258" title="All 4 branches covered.">                || checkPrivateMethods &amp;&amp; &quot;private&quot;.equals(methodScope)</span>
-<span class="fc bfc" id="L259" title="All 4 branches covered.">                || checkProtectedMethods &amp;&amp; &quot;protected&quot;.equals(methodScope)</span>
-<span class="fc bfc" id="L260" title="All 2 branches covered.">                || checkPackageMethods &amp;&amp; &quot;package&quot;.equals(methodScope);</span>
+<span class="fc bfc" id="L256" title="All 6 branches covered.">        return checkPublicMethods &amp;&amp; &quot;public&quot;.equals(methodScope)</span>
+<span class="fc bfc" id="L257" title="All 4 branches covered.">                || checkPrivateMethods &amp;&amp; &quot;private&quot;.equals(methodScope)</span>
+<span class="fc bfc" id="L258" title="All 4 branches covered.">                || checkProtectedMethods &amp;&amp; &quot;protected&quot;.equals(methodScope)</span>
+<span class="fc bfc" id="L259" title="All 2 branches covered.">                || checkPackageMethods &amp;&amp; &quot;package&quot;.equals(methodScope);</span>
     }
 
     /**
@@ -266,22 +265,22 @@ import com.puppycrawl.tools.checkstyle.utils.AnnotationUtil;
      * @return one of &quot;public&quot;, &quot;private&quot;, &quot;protected&quot;, &quot;package&quot;
      */
     private static String getVisibilityScope(DetailAST methodDefAst) {
-<span class="fc" id="L269">        String result = &quot;package&quot;;</span>
-<span class="fc bfc" id="L270" title="All 2 branches covered.">        if (isInsideInterfaceDefinition(methodDefAst)) {</span>
-<span class="fc" id="L271">            result = &quot;public&quot;;</span>
+<span class="fc" id="L268">        String result = &quot;package&quot;;</span>
+<span class="fc bfc" id="L269" title="All 2 branches covered.">        if (isInsideInterfaceDefinition(methodDefAst)) {</span>
+<span class="fc" id="L270">            result = &quot;public&quot;;</span>
         }
         else {
-<span class="fc" id="L274">            final String[] visibilityScopeModifiers = {&quot;public&quot;, &quot;private&quot;,</span>
+<span class="fc" id="L273">            final String[] visibilityScopeModifiers = {&quot;public&quot;, &quot;private&quot;,</span>
                 &quot;protected&quot;, };
-<span class="fc" id="L276">            final Set&lt;String&gt; methodModifiers = getModifiers(methodDefAst);</span>
-<span class="fc bfc" id="L277" title="All 2 branches covered.">            for (final String modifier : visibilityScopeModifiers) {</span>
-<span class="fc bfc" id="L278" title="All 2 branches covered.">                if (methodModifiers.contains(modifier)) {</span>
-<span class="fc" id="L279">                    result = modifier;</span>
-<span class="fc" id="L280">                    break;</span>
+<span class="fc" id="L275">            final Set&lt;String&gt; methodModifiers = getModifiers(methodDefAst);</span>
+<span class="fc bfc" id="L276" title="All 2 branches covered.">            for (final String modifier : visibilityScopeModifiers) {</span>
+<span class="fc bfc" id="L277" title="All 2 branches covered.">                if (methodModifiers.contains(modifier)) {</span>
+<span class="fc" id="L278">                    result = modifier;</span>
+<span class="fc" id="L279">                    break;</span>
                 }
             }
         }
-<span class="fc" id="L284">        return result;</span>
+<span class="fc" id="L283">        return result;</span>
     }
 
     /**
@@ -290,13 +289,13 @@ import com.puppycrawl.tools.checkstyle.utils.AnnotationUtil;
      * @return true if method definition is inside interface definition.
      */
     private static boolean isInsideInterfaceDefinition(DetailAST methodDefAst) {
-<span class="fc" id="L293">        boolean result = false;</span>
-<span class="fc" id="L294">        final DetailAST objBlock = methodDefAst.getParent();</span>
-<span class="fc" id="L295">        final DetailAST interfaceDef = objBlock.getParent();</span>
-<span class="fc bfc" id="L296" title="All 2 branches covered.">        if (interfaceDef.getType() == TokenTypes.INTERFACE_DEF) {</span>
-<span class="fc" id="L297">            result = true;</span>
+<span class="fc" id="L292">        boolean result = false;</span>
+<span class="fc" id="L293">        final DetailAST objBlock = methodDefAst.getParent();</span>
+<span class="fc" id="L294">        final DetailAST interfaceDef = objBlock.getParent();</span>
+<span class="fc bfc" id="L295" title="All 2 branches covered.">        if (interfaceDef.getType() == TokenTypes.INTERFACE_DEF) {</span>
+<span class="fc" id="L296">            result = true;</span>
         }
-<span class="fc" id="L299">        return result;</span>
+<span class="fc" id="L298">        return result;</span>
     }
 
     /**
@@ -305,14 +304,14 @@ import com.puppycrawl.tools.checkstyle.utils.AnnotationUtil;
      * @return the set of modifier Strings for aMethodDefAST
      */
     private static Set&lt;String&gt; getModifiers(DetailAST methodDefAst) {
-<span class="fc" id="L308">        final AST modifiersAst = methodDefAst.getFirstChild();</span>
-<span class="fc" id="L309">        final Set&lt;String&gt; modifiersSet = new HashSet&lt;&gt;();</span>
-<span class="fc" id="L310">        AST modifierAst = modifiersAst.getFirstChild();</span>
-<span class="fc bfc" id="L311" title="All 2 branches covered.">        while (modifierAst != null) {</span>
-<span class="fc" id="L312">            modifiersSet.add(modifierAst.getText());</span>
-<span class="fc" id="L313">            modifierAst = modifierAst.getNextSibling();</span>
+<span class="fc" id="L307">        final DetailAST modifiersAst = methodDefAst.getFirstChild();</span>
+<span class="fc" id="L308">        final Set&lt;String&gt; modifiersSet = new HashSet&lt;&gt;();</span>
+<span class="fc" id="L309">        DetailAST modifierAst = modifiersAst.getFirstChild();</span>
+<span class="fc bfc" id="L310" title="All 2 branches covered.">        while (modifierAst != null) {</span>
+<span class="fc" id="L311">            modifiersSet.add(modifierAst.getText());</span>
+<span class="fc" id="L312">            modifierAst = modifierAst.getNextSibling();</span>
         }
-<span class="fc" id="L315">        return modifiersSet;</span>
+<span class="fc" id="L314">        return modifiersSet;</span>
     }
 
     /**
@@ -322,8 +321,8 @@ import com.puppycrawl.tools.checkstyle.utils.AnnotationUtil;
      * @return identifier of aAST, null if AST does not have identifier.
      */
     private static String getIdentifier(final DetailAST ast) {
-<span class="fc" id="L325">        final DetailAST identifier = ast.findFirstToken(TokenTypes.IDENT);</span>
-<span class="fc" id="L326">        return identifier.getText();</span>
+<span class="fc" id="L324">        final DetailAST identifier = ast.findFirstToken(TokenTypes.IDENT);</span>
+<span class="fc" id="L325">        return identifier.getText();</span>
     }
 
     /**
@@ -333,17 +332,17 @@ import com.puppycrawl.tools.checkstyle.utils.AnnotationUtil;
      * @return list of arguments which have wildcard.
      */
     private static List&lt;DetailAST&gt; getWildcardArgumentsAsMethodReturnType(DetailAST methodDefAst) {
-<span class="fc" id="L336">        final List&lt;DetailAST&gt; result = new LinkedList&lt;&gt;();</span>
-<span class="fc" id="L337">        final DetailAST methodTypeAst =</span>
-<span class="fc" id="L338">                methodDefAst.findFirstToken(TokenTypes.TYPE);</span>
-<span class="fc" id="L339">        final DetailAST[] methodTypeArgumentTokens =</span>
-<span class="fc" id="L340">                getGenericTypeArguments(methodTypeAst);</span>
-<span class="fc bfc" id="L341" title="All 2 branches covered.">        for (DetailAST typeArgumentAst: methodTypeArgumentTokens) {</span>
-<span class="fc bfc" id="L342" title="All 2 branches covered.">            if (hasChildToken(typeArgumentAst, TokenTypes.WILDCARD_TYPE)) {</span>
-<span class="fc" id="L343">                result.add(typeArgumentAst);</span>
+<span class="fc" id="L335">        final List&lt;DetailAST&gt; result = new LinkedList&lt;&gt;();</span>
+<span class="fc" id="L336">        final DetailAST methodTypeAst =</span>
+<span class="fc" id="L337">                methodDefAst.findFirstToken(TokenTypes.TYPE);</span>
+<span class="fc" id="L338">        final DetailAST[] methodTypeArgumentTokens =</span>
+<span class="fc" id="L339">                getGenericTypeArguments(methodTypeAst);</span>
+<span class="fc bfc" id="L340" title="All 2 branches covered.">        for (DetailAST typeArgumentAst: methodTypeArgumentTokens) {</span>
+<span class="fc bfc" id="L341" title="All 2 branches covered.">            if (hasChildToken(typeArgumentAst, TokenTypes.WILDCARD_TYPE)) {</span>
+<span class="fc" id="L342">                result.add(typeArgumentAst);</span>
             }
         }
-<span class="fc" id="L346">        return result;</span>
+<span class="fc" id="L345">        return result;</span>
     }
 
     /**
@@ -353,25 +352,25 @@ import com.puppycrawl.tools.checkstyle.utils.AnnotationUtil;
      * @return array of type arguments.
      */
     private static DetailAST[] getGenericTypeArguments(DetailAST typeAst) {
-<span class="fc" id="L356">        DetailAST[] result = EMPTY_DETAILAST_ARRAY;</span>
-<span class="fc bfc" id="L357" title="All 2 branches covered.">        if (hasChildToken(typeAst, TokenTypes.TYPE_ARGUMENTS)) {</span>
-<span class="fc" id="L358">            final DetailAST typeArguments = typeAst</span>
-<span class="fc" id="L359">                    .findFirstToken(TokenTypes.TYPE_ARGUMENTS);</span>
-<span class="fc" id="L360">            final int argumentsCount = typeArguments</span>
-<span class="fc" id="L361">                    .getChildCount(TokenTypes.TYPE_ARGUMENT);</span>
-<span class="fc" id="L362">            result = new DetailAST[argumentsCount];</span>
-<span class="fc" id="L363">            DetailAST firstTypeArgument = typeArguments</span>
-<span class="fc" id="L364">                    .findFirstToken(TokenTypes.TYPE_ARGUMENT);</span>
-<span class="fc" id="L365">            int counter = 0;</span>
-<span class="fc bfc" id="L366" title="All 2 branches covered.">            while (firstTypeArgument != null) {</span>
-<span class="fc bfc" id="L367" title="All 2 branches covered.">                if (firstTypeArgument.getType() == TokenTypes.TYPE_ARGUMENT) {</span>
-<span class="fc" id="L368">                    result[counter] = firstTypeArgument;</span>
-<span class="fc" id="L369">                    counter++;</span>
+<span class="fc" id="L355">        DetailAST[] result = EMPTY_DETAILAST_ARRAY;</span>
+<span class="fc bfc" id="L356" title="All 2 branches covered.">        if (hasChildToken(typeAst, TokenTypes.TYPE_ARGUMENTS)) {</span>
+<span class="fc" id="L357">            final DetailAST typeArguments = typeAst</span>
+<span class="fc" id="L358">                    .findFirstToken(TokenTypes.TYPE_ARGUMENTS);</span>
+<span class="fc" id="L359">            final int argumentsCount = typeArguments</span>
+<span class="fc" id="L360">                    .getChildCount(TokenTypes.TYPE_ARGUMENT);</span>
+<span class="fc" id="L361">            result = new DetailAST[argumentsCount];</span>
+<span class="fc" id="L362">            DetailAST firstTypeArgument = typeArguments</span>
+<span class="fc" id="L363">                    .findFirstToken(TokenTypes.TYPE_ARGUMENT);</span>
+<span class="fc" id="L364">            int counter = 0;</span>
+<span class="fc bfc" id="L365" title="All 2 branches covered.">            while (firstTypeArgument != null) {</span>
+<span class="fc bfc" id="L366" title="All 2 branches covered.">                if (firstTypeArgument.getType() == TokenTypes.TYPE_ARGUMENT) {</span>
+<span class="fc" id="L367">                    result[counter] = firstTypeArgument;</span>
+<span class="fc" id="L368">                    counter++;</span>
                 }
-<span class="fc" id="L371">                firstTypeArgument = firstTypeArgument.getNextSibling();</span>
+<span class="fc" id="L370">                firstTypeArgument = firstTypeArgument.getNextSibling();</span>
             }
         }
-<span class="fc" id="L374">        return result;</span>
+<span class="fc" id="L373">        return result;</span>
     }
 
     /**
@@ -383,7 +382,7 @@ import com.puppycrawl.tools.checkstyle.utils.AnnotationUtil;
      * @return true if aAST has token of given type, or false otherwise.
      */
     private static boolean hasChildToken(DetailAST ast, int tokenType) {
-<span class="fc bfc" id="L386" title="All 2 branches covered.">        return ast.findFirstToken(tokenType) != null;</span>
+<span class="fc bfc" id="L385" title="All 2 branches covered.">        return ast.findFirstToken(tokenType) != null;</span>
     }
 
     /**
@@ -395,37 +394,37 @@ import com.puppycrawl.tools.checkstyle.utils.AnnotationUtil;
      */
     private boolean isIgnoreCase(DetailAST methodDefAst,
             List&lt;DetailAST&gt; wildcardTypeArguments) {
-<span class="fc" id="L398">        boolean result = false;</span>
-<span class="fc bfc" id="L399" title="All 2 branches covered.">        if (matchesIgnoreClassNames(methodDefAst)) {</span>
-<span class="fc" id="L400">            result = true;</span>
+<span class="fc" id="L397">        boolean result = false;</span>
+<span class="fc bfc" id="L398" title="All 2 branches covered.">        if (matchesIgnoreClassNames(methodDefAst)) {</span>
+<span class="fc" id="L399">            result = true;</span>
         }
         else {
-<span class="fc" id="L403">            final boolean hasExtendsWildcardAsReturnType =</span>
-<span class="fc" id="L404">                    hasBoundedWildcardAsReturnType(wildcardTypeArguments,</span>
+<span class="fc" id="L402">            final boolean hasExtendsWildcardAsReturnType =</span>
+<span class="fc" id="L403">                    hasBoundedWildcardAsReturnType(wildcardTypeArguments,</span>
                             WILDCARD_EXTENDS_IDENT);
-<span class="fc" id="L406">            final boolean hasSuperWildcardAsReturnType =</span>
-<span class="fc" id="L407">                    hasBoundedWildcardAsReturnType(wildcardTypeArguments,</span>
+<span class="fc" id="L405">            final boolean hasSuperWildcardAsReturnType =</span>
+<span class="fc" id="L406">                    hasBoundedWildcardAsReturnType(wildcardTypeArguments,</span>
                             WILDCARD_SUPER_IDENT);
-<span class="fc bfc" id="L409" title="All 4 branches covered.">            final boolean hasOnlyExtendsWildcardAsReturnType =</span>
+<span class="fc bfc" id="L408" title="All 4 branches covered.">            final boolean hasOnlyExtendsWildcardAsReturnType =</span>
                     hasExtendsWildcardAsReturnType
                     &amp;&amp; !hasSuperWildcardAsReturnType;
-<span class="fc bfc" id="L412" title="All 4 branches covered.">            final boolean hasOnlySuperWildcardAsReturnType =</span>
+<span class="fc bfc" id="L411" title="All 4 branches covered.">            final boolean hasOnlySuperWildcardAsReturnType =</span>
                     hasSuperWildcardAsReturnType
                     &amp;&amp; !hasExtendsWildcardAsReturnType;
-<span class="fc bfc" id="L415" title="All 4 branches covered.">            final boolean hasBoundedWildcardAsReturnType =</span>
+<span class="fc bfc" id="L414" title="All 4 branches covered.">            final boolean hasBoundedWildcardAsReturnType =</span>
                     hasExtendsWildcardAsReturnType
                     || hasSuperWildcardAsReturnType;
-<span class="fc bfc" id="L418" title="All 4 branches covered.">            final boolean isAllowedBoundedWildcards =</span>
+<span class="fc bfc" id="L417" title="All 4 branches covered.">            final boolean isAllowedBoundedWildcards =</span>
                     allowReturnWildcardWithExtends
                     &amp;&amp; allowReturnWildcardWithSuper;
-<span class="fc bfc" id="L421" title="All 12 branches covered.">            result = isAllowedBoundedWildcards</span>
+<span class="fc bfc" id="L420" title="All 12 branches covered.">            result = isAllowedBoundedWildcards</span>
                             &amp;&amp; hasBoundedWildcardAsReturnType
                     || allowReturnWildcardWithExtends
                             &amp;&amp; hasOnlyExtendsWildcardAsReturnType
                     || allowReturnWildcardWithSuper
                             &amp;&amp; hasOnlySuperWildcardAsReturnType;
         }
-<span class="fc" id="L428">        return result;</span>
+<span class="fc" id="L427">        return result;</span>
     }
 
     /**
@@ -435,11 +434,11 @@ import com.puppycrawl.tools.checkstyle.utils.AnnotationUtil;
      *      false otherwise.
      */
     private boolean matchesIgnoreClassNames(DetailAST methodDefAst) {
-<span class="fc" id="L438">        final DetailAST methodTypeAst =</span>
-<span class="fc" id="L439">                methodDefAst.findFirstToken(TokenTypes.TYPE);</span>
-<span class="fc" id="L440">        final String typeIdentifier = getIdentifier(methodTypeAst);</span>
-<span class="fc" id="L441">        return returnTypeClassNamesIgnoreRegex</span>
-<span class="fc" id="L442">                .matcher(typeIdentifier).matches();</span>
+<span class="fc" id="L437">        final DetailAST methodTypeAst =</span>
+<span class="fc" id="L438">                methodDefAst.findFirstToken(TokenTypes.TYPE);</span>
+<span class="fc" id="L439">        final String typeIdentifier = getIdentifier(methodTypeAst);</span>
+<span class="fc" id="L440">        return returnTypeClassNamesIgnoreRegex</span>
+<span class="fc" id="L441">                .matcher(typeIdentifier).matches();</span>
     }
 
     /**
@@ -450,14 +449,14 @@ import com.puppycrawl.tools.checkstyle.utils.AnnotationUtil;
      */
     private static boolean hasBoundedWildcardAsReturnType(
             final List&lt;DetailAST&gt; typeArgumentsList, int boundedWildcardType) {
-<span class="fc" id="L453">        boolean result = false;</span>
-<span class="fc bfc" id="L454" title="All 2 branches covered.">        for (DetailAST typeArgumentAst: typeArgumentsList) {</span>
-<span class="fc bfc" id="L455" title="All 2 branches covered.">            if (hasChildToken(typeArgumentAst, boundedWildcardType)) {</span>
-<span class="fc" id="L456">                result = true;</span>
-<span class="fc" id="L457">                break;</span>
+<span class="fc" id="L452">        boolean result = false;</span>
+<span class="fc bfc" id="L453" title="All 2 branches covered.">        for (DetailAST typeArgumentAst: typeArgumentsList) {</span>
+<span class="fc bfc" id="L454" title="All 2 branches covered.">            if (hasChildToken(typeArgumentAst, boundedWildcardType)) {</span>
+<span class="fc" id="L455">                result = true;</span>
+<span class="fc" id="L456">                break;</span>
             }
-<span class="fc" id="L459">        }</span>
-<span class="fc" id="L460">        return result;</span>
+<span class="fc" id="L458">        }</span>
+<span class="fc" id="L459">        return result;</span>
     }
 
 }

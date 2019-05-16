@@ -1,4 +1,4 @@
-<?xml version="1.0" encoding="UTF-8"?><!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Strict//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-strict.dtd"><html xmlns="http://www.w3.org/1999/xhtml" lang="en"><head><meta http-equiv="Content-Type" content="text/html;charset=UTF-8"/><link rel="stylesheet" href="../resources/report.css" type="text/css"/><link rel="shortcut icon" href="../resources/report.gif" type="image/gif"/><title>Jsr305AnnotationsCheck.java</title><link rel="stylesheet" href="../resources/prettify.css" type="text/css"/><script type="text/javascript" src="../resources/prettify.js"></script></head><body onload="window['PR_TAB_WIDTH']=4;prettyPrint()"><div class="breadcrumb" id="breadcrumb"><span class="info"><a href="../.sessions.html" class="el_session">Sessions</a></span><a href="../index.html" class="el_report">sevntu-checks</a> &gt; <a href="index.source.html" class="el_package">com.github.sevntu.checkstyle.checks.coding</a> &gt; <span class="el_source">Jsr305AnnotationsCheck.java</span></div><h1>Jsr305AnnotationsCheck.java</h1><pre class="source lang-java linenums">////////////////////////////////////////////////////////////////////////////////
+<?xml version="1.0" encoding="UTF-8"?><!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Strict//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-strict.dtd"><html xmlns="http://www.w3.org/1999/xhtml" lang="en"><head><meta http-equiv="Content-Type" content="text/html;charset=UTF-8"/><link rel="stylesheet" href="../.resources/report.css" type="text/css"/><link rel="shortcut icon" href="../.resources/report.gif" type="image/gif"/><title>Jsr305AnnotationsCheck.java</title><link rel="stylesheet" href="../.resources/prettify.css" type="text/css"/><script type="text/javascript" src="../.resources/prettify.js"></script></head><body onload="window['PR_TAB_WIDTH']=4;prettyPrint()"><div class="breadcrumb" id="breadcrumb"><span class="info"><a href="../.sessions.html" class="el_session">Sessions</a></span><a href="../index.html" class="el_report">sevntu-checks</a> &gt; <a href="index.source.html" class="el_package">com.github.sevntu.checkstyle.checks.coding</a> &gt; <span class="el_source">Jsr305AnnotationsCheck.java</span></div><h1>Jsr305AnnotationsCheck.java</h1><pre class="source lang-java linenums">////////////////////////////////////////////////////////////////////////////////
 // checkstyle: Checks Java source code for adherence to a set of rules.
 // Copyright (C) 2001-2019 the original author or authors.
 //
@@ -81,8 +81,90 @@ import com.puppycrawl.tools.checkstyle.api.TokenTypes;
  * &lt;dd&gt;Annotating parameters &quot;@Nonnull&quot; in overridden methods is flagged as an error. When setting
  * this property to true, this error will be ignored (useful for upgrading).&lt;/dd&gt;
  * &lt;/dl&gt;
+ * &lt;p&gt;
+ * Example code:
+ * &lt;/p&gt;
+ * &lt;p&gt;
+ * Configure the check so that it scans the packages of the classes we want to run this on:
+ * &lt;/p&gt;
+ *
+ * &lt;pre&gt;
+ * &amp;lt;module name=&amp;quot;Jsr305Annotations&amp;quot;&amp;gt;
+ *   &amp;lt;property name=&amp;quot;packages&amp;quot; value=&amp;quot;org,com&amp;quot;/&amp;gt;
+ *   &amp;lt;/module&amp;gt;
+ * &lt;/pre&gt;
+ *
+ *
+ * &lt;pre&gt;
+ * // Example 1: a class without any class-level annotations
+ * class Class1 {
+ *     &amp;#64;CheckForNull // Violation: obj2 not annotated!
+ *     String method1(@Nullable Object obj1, Object obj2) {
+ *         return &quot;&quot;;
+ *     }
+ *
+ *     // Violation: return value not annotated
+ *     String method2() {
+ *         return &quot;&quot;;
+ *     }
+ * }
+ *
+ * // Example 2: a class with class-level annotations for parameters
+ * &amp;#64;ParametersAreNonnullByDefault
+ * class Class2 {
+ *     &amp;#64;CheckForNull // Legal
+ *     String method1(Object obj1, Object obj2) {
+ *         return &quot;&quot;;
+ *     }
+ *
+ *     &amp;#64;Nonnull // Legal
+ *     String method2(Object obj1, @Nullable Object obj2) {
+ *         return &quot;&quot;;
+ *     }
+ *
+ *     &amp;#64;Nonnull // Violation, redefinition of obj2's nullness
+ *     String method3(Object obj1, @Nonnull Object obj2) {
+ *         return &quot;&quot;;
+ *     }
+ *
+ *     // Violation: return value not annotated
+ *     String method4() {
+ *         return &quot;&quot;;
+ *     }
+ * }
+ *
+ * // Example 3: a class overriding some methods
+ * class Class3 implements Interface1 {
+ *     &amp;#64;Override // Legal
+ *     public Object method1(Object obj1, Object obj2) {
+ *         return &quot;&quot;;
+ *     }
+ *
+ *     &amp;#64;Override
+ *     &amp;#64;Nonnull // Legal, return value becomes less &quot;nullable&quot;
+ *     public Object method2(Object obj1, Object obj2) {
+ *         return &quot;&quot;;
+ *     }
+ *
+ *     &amp;#64;Override // Violation: Setting a parameter to non-null in an overridden method
+ *     public Object method3(@Nonnull Object obj1, Object obj2) {
+ *         return &quot;&quot;;
+ *     }
+ *
+ *     &amp;#64;Override // Legal: parameter obj2 becomes more &quot;nullable&quot;
+ *     public Object method4(Object obj1, @Nullable Object obj2) {
+ *         return &quot;&quot;;
+ *     }
+ *
+ *     &amp;#64;Override
+ *     &amp;#64;CheckForNull // Violation: return value becomes more &quot;nullable&quot;
+ *     public Object method5() {
+ *         return &quot;&quot;;
+ *     }
+ * }
+ * &lt;/pre&gt;
  */
-<span class="fc" id="L85">public class Jsr305AnnotationsCheck extends AbstractCheck {</span>
+<span class="fc" id="L167">public class Jsr305AnnotationsCheck extends AbstractCheck {</span>
 
     /** Key for error message. */
     public static final String MSG_ILLEGAL_CLASS_LEVEL_ANNOTATION =
@@ -190,31 +272,31 @@ import com.puppycrawl.tools.checkstyle.api.TokenTypes;
     /**
      * Class NullnessAnnotation. The annotations we consider as &quot;nullness-relevant&quot;.
      */
-<span class="pc" id="L193">    protected enum NullnessAnnotation {</span>
+<span class="pc" id="L275">    protected enum NullnessAnnotation {</span>
 
         /** Override. */
-<span class="fc" id="L196">        OVERRIDE(&quot;Override&quot;, &quot;java.lang&quot;),</span>
+<span class="fc" id="L278">        OVERRIDE(&quot;Override&quot;, &quot;java.lang&quot;),</span>
         /** CheckForNull. */
-<span class="fc" id="L198">        CHECK_FOR_NULL(&quot;CheckForNull&quot;, PKG_JAVAX_ANNOTATION),</span>
+<span class="fc" id="L280">        CHECK_FOR_NULL(&quot;CheckForNull&quot;, PKG_JAVAX_ANNOTATION),</span>
         /** Nullable. */
-<span class="fc" id="L200">        NULLABLE(&quot;Nullable&quot;, PKG_JAVAX_ANNOTATION),</span>
+<span class="fc" id="L282">        NULLABLE(&quot;Nullable&quot;, PKG_JAVAX_ANNOTATION),</span>
         /** Nonnull. */
-<span class="fc" id="L202">        NONNULL(&quot;Nonnull&quot;, PKG_JAVAX_ANNOTATION),</span>
+<span class="fc" id="L284">        NONNULL(&quot;Nonnull&quot;, PKG_JAVAX_ANNOTATION),</span>
         /** CheckReturnValue. */
-<span class="fc" id="L204">        CHECK_RETURN_VALUE(&quot;CheckReturnValue&quot;, PKG_JAVAX_ANNOTATION),</span>
+<span class="fc" id="L286">        CHECK_RETURN_VALUE(&quot;CheckReturnValue&quot;, PKG_JAVAX_ANNOTATION),</span>
         /** ParametersAreNonnullByDefault. */
-<span class="fc" id="L206">        PARAMETERS_ARE_NONNULL_BY_DEFAULT(&quot;ParametersAreNonnullByDefault&quot;, PKG_JAVAX_ANNOTATION),</span>
+<span class="fc" id="L288">        PARAMETERS_ARE_NONNULL_BY_DEFAULT(&quot;ParametersAreNonnullByDefault&quot;, PKG_JAVAX_ANNOTATION),</span>
         /** ParametersAreNullableByDefault. */
-<span class="fc" id="L208">        PARAMETERS_ARE_NULLABLE_BY_DEFAULT(&quot;ParametersAreNullableByDefault&quot;, PKG_JAVAX_ANNOTATION),</span>
+<span class="fc" id="L290">        PARAMETERS_ARE_NULLABLE_BY_DEFAULT(&quot;ParametersAreNullableByDefault&quot;, PKG_JAVAX_ANNOTATION),</span>
         /** ReturnValuesAreNonnullByDefault. */
-<span class="fc" id="L210">        RETURN_VALUES_ARE_NONNULL_BY_DEFAULT(&quot;ReturnValuesAreNonnullByDefault&quot;,</span>
+<span class="fc" id="L292">        RETURN_VALUES_ARE_NONNULL_BY_DEFAULT(&quot;ReturnValuesAreNonnullByDefault&quot;,</span>
                 &quot;edu.umd.cs.findbugs.annotations&quot;);
 
         /** The annotation's name. */
-        private final String theAnnotationName;
+        private final String annotationName;
 
         /** The annotation's fully qualified class name. */
-        private final String theFqcn;
+        private final String fullyQualifiedClassName;
 
         /**
          * Constructor.
@@ -223,19 +305,19 @@ import com.puppycrawl.tools.checkstyle.api.TokenTypes;
          * @param packageName
          *        the package name
          */
-<span class="fc" id="L226">        NullnessAnnotation(final String annotationName, final String packageName) {</span>
-<span class="fc" id="L227">            this.theAnnotationName = annotationName;</span>
-<span class="fc" id="L228">            this.theFqcn = packageName + &quot;.&quot; + annotationName;</span>
-<span class="fc" id="L229">        }</span>
+<span class="fc" id="L308">        NullnessAnnotation(final String annotationName, final String packageName) {</span>
+<span class="fc" id="L309">            this.annotationName = annotationName;</span>
+<span class="fc" id="L310">            this.fullyQualifiedClassName = packageName + &quot;.&quot; + annotationName;</span>
+<span class="fc" id="L311">        }</span>
 
     }
 
     /** The map of annotations against their respective names. */
     private static final Map&lt;String, NullnessAnnotation&gt; STRING2ANNOTATION =
-<span class="fc" id="L235">            createString2AnnotationMap();</span>
+<span class="fc" id="L317">            createString2AnnotationMap();</span>
 
     /** The modifiers of interest. */
-<span class="fc" id="L238">    private static final int[] DEFAULT_MODIFIERS = {</span>
+<span class="fc" id="L320">    private static final int[] DEFAULT_MODIFIERS = {</span>
         TokenTypes.PARAMETER_DEF,
         TokenTypes.METHOD_DEF,
         TokenTypes.PACKAGE_DEF,
@@ -246,9 +328,9 @@ import com.puppycrawl.tools.checkstyle.api.TokenTypes;
     };
 
     /** Parameter: packages to check. */
-<span class="fc" id="L249">    private String[] packages = new String[0];</span>
+<span class="fc" id="L331">    private String[] packages = new String[0];</span>
     /** Parameter: packages to exclude from checking. */
-<span class="fc" id="L251">    private String[] excludePackages = new String[0];</span>
+<span class="fc" id="L333">    private String[] excludePackages = new String[0];</span>
     /** Parameter: overriding return value annotations allowed. */
     private boolean allowOverridingReturnValue;
     /** Parameter: overriding parameter annotations allowed. */
@@ -259,32 +341,32 @@ import com.puppycrawl.tools.checkstyle.api.TokenTypes;
 
     @Override
     public final int[] getDefaultTokens() {
-<span class="fc" id="L262">        return getAcceptableTokens();</span>
+<span class="fc" id="L344">        return getAcceptableTokens();</span>
     }
 
     @Override
     public final int[] getRequiredTokens() {
-<span class="fc" id="L267">        return new int[0];</span>
+<span class="fc" id="L349">        return new int[0];</span>
     }
 
     @Override
     public final int[] getAcceptableTokens() {
-<span class="fc" id="L272">        return DEFAULT_MODIFIERS.clone();</span>
+<span class="fc" id="L354">        return DEFAULT_MODIFIERS.clone();</span>
     }
 
     @Override
     public final void visitToken(final DetailAST ast) {
-<span class="fc bfc" id="L277" title="All 2 branches covered.">        if (ast.getType() == TokenTypes.PACKAGE_DEF) {</span>
-<span class="fc" id="L278">            final DetailAST nameAST = ast.getLastChild().getPreviousSibling();</span>
-<span class="fc" id="L279">            packageExcluded = isPackageExcluded(FullIdent.createFullIdent(nameAST));</span>
-<span class="fc" id="L280">        }</span>
-<span class="fc bfc" id="L281" title="All 2 branches covered.">        else if (!packageExcluded) {</span>
-<span class="fc" id="L282">            final AbstractJsr305Handler handler = handleDefinition(ast);</span>
-<span class="fc bfc" id="L283" title="All 2 branches covered.">            if (handler != null) {</span>
-<span class="fc" id="L284">                handler.check();</span>
+<span class="fc bfc" id="L359" title="All 2 branches covered.">        if (ast.getType() == TokenTypes.PACKAGE_DEF) {</span>
+<span class="fc" id="L360">            final DetailAST nameAST = ast.getLastChild().getPreviousSibling();</span>
+<span class="fc" id="L361">            packageExcluded = isPackageExcluded(FullIdent.createFullIdent(nameAST));</span>
+<span class="fc" id="L362">        }</span>
+<span class="fc bfc" id="L363" title="All 2 branches covered.">        else if (!packageExcluded) {</span>
+<span class="fc" id="L364">            final AbstractJsr305Handler handler = handleDefinition(ast);</span>
+<span class="fc bfc" id="L365" title="All 2 branches covered.">            if (handler != null) {</span>
+<span class="fc" id="L366">                handler.check();</span>
             }
         }
-<span class="fc" id="L287">    }</span>
+<span class="fc" id="L369">    }</span>
 
     /**
      * Sets the included packages parameter.
@@ -292,22 +374,22 @@ import com.puppycrawl.tools.checkstyle.api.TokenTypes;
      *        the package names, comma separated
      */
     public void setPackages(final String... packageNames) {
-<span class="fc" id="L295">        packages = transformToUnique(packageNames);</span>
-<span class="fc" id="L296">    }</span>
+<span class="fc" id="L377">        packages = transformToUnique(packageNames);</span>
+<span class="fc" id="L378">    }</span>
 
     /**
      * Maps annotations to their respective names.
      * @return the map
      */
     private static Map&lt;String, NullnessAnnotation&gt; createString2AnnotationMap() {
-<span class="fc" id="L303">        final Map&lt;String, NullnessAnnotation&gt; result = new HashMap&lt;&gt;();</span>
+<span class="fc" id="L385">        final Map&lt;String, NullnessAnnotation&gt; result = new HashMap&lt;&gt;();</span>
 
-<span class="fc bfc" id="L305" title="All 2 branches covered.">        for (final NullnessAnnotation annotation : NullnessAnnotation.values()) {</span>
-<span class="fc" id="L306">            result.put(annotation.theAnnotationName, annotation);</span>
-<span class="fc" id="L307">            result.put(annotation.theFqcn, annotation);</span>
+<span class="fc bfc" id="L387" title="All 2 branches covered.">        for (final NullnessAnnotation annotation : NullnessAnnotation.values()) {</span>
+<span class="fc" id="L388">            result.put(annotation.annotationName, annotation);</span>
+<span class="fc" id="L389">            result.put(annotation.fullyQualifiedClassName, annotation);</span>
         }
 
-<span class="fc" id="L310">        return Collections.unmodifiableMap(result);</span>
+<span class="fc" id="L392">        return Collections.unmodifiableMap(result);</span>
     }
 
     /**
@@ -316,8 +398,8 @@ import com.puppycrawl.tools.checkstyle.api.TokenTypes;
      *        the package names, comma separated
      */
     public void setExcludePackages(final String... packageNames) {
-<span class="fc" id="L319">        excludePackages = transformToUnique(packageNames);</span>
-<span class="fc" id="L320">    }</span>
+<span class="fc" id="L401">        excludePackages = transformToUnique(packageNames);</span>
+<span class="fc" id="L402">    }</span>
 
     /**
      * Removes duplicates from an array of strings.
@@ -326,8 +408,8 @@ import com.puppycrawl.tools.checkstyle.api.TokenTypes;
      * @return a new, duplicate-free array
      */
     private static String[] transformToUnique(final String... input) {
-<span class="fc" id="L329">        final Set&lt;String&gt; inputSet = new HashSet&lt;&gt;(Arrays.asList(input));</span>
-<span class="fc" id="L330">        return inputSet.toArray(new String[0]);</span>
+<span class="fc" id="L411">        final Set&lt;String&gt; inputSet = new HashSet&lt;&gt;(Arrays.asList(input));</span>
+<span class="fc" id="L412">        return inputSet.toArray(new String[0]);</span>
     }
 
     /**
@@ -337,26 +419,26 @@ import com.puppycrawl.tools.checkstyle.api.TokenTypes;
      * @return true if yes
      */
     protected boolean isPackageExcluded(final FullIdent fullIdent) {
-<span class="fc" id="L340">        Boolean result = null;</span>
-<span class="fc" id="L341">        final String packageName = fullIdent.getText();</span>
-<span class="fc bfc" id="L342" title="All 2 branches covered.">        for (final String excludesPackageName : excludePackages) {</span>
-<span class="fc bfc" id="L343" title="All 2 branches covered.">            if (packageName.startsWith(excludesPackageName)) {</span>
-<span class="fc" id="L344">                result = true;</span>
-<span class="fc" id="L345">                break;</span>
+<span class="fc" id="L422">        Boolean result = null;</span>
+<span class="fc" id="L423">        final String packageName = fullIdent.getText();</span>
+<span class="fc bfc" id="L424" title="All 2 branches covered.">        for (final String excludesPackageName : excludePackages) {</span>
+<span class="fc bfc" id="L425" title="All 2 branches covered.">            if (packageName.startsWith(excludesPackageName)) {</span>
+<span class="fc" id="L426">                result = true;</span>
+<span class="fc" id="L427">                break;</span>
             }
         }
-<span class="fc bfc" id="L348" title="All 2 branches covered.">        if (result == null) {</span>
-<span class="fc bfc" id="L349" title="All 2 branches covered.">            for (final String includePackageName : packages) {</span>
-<span class="fc bfc" id="L350" title="All 2 branches covered.">                if (packageName.startsWith(includePackageName)) {</span>
-<span class="fc" id="L351">                    result = false;</span>
-<span class="fc" id="L352">                    break;</span>
+<span class="fc bfc" id="L430" title="All 2 branches covered.">        if (result == null) {</span>
+<span class="fc bfc" id="L431" title="All 2 branches covered.">            for (final String includePackageName : packages) {</span>
+<span class="fc bfc" id="L432" title="All 2 branches covered.">                if (packageName.startsWith(includePackageName)) {</span>
+<span class="fc" id="L433">                    result = false;</span>
+<span class="fc" id="L434">                    break;</span>
                 }
             }
         }
-<span class="fc bfc" id="L356" title="All 2 branches covered.">        if (result == null) {</span>
-<span class="fc" id="L357">            result = true;</span>
+<span class="fc bfc" id="L438" title="All 2 branches covered.">        if (result == null) {</span>
+<span class="fc" id="L439">            result = true;</span>
         }
-<span class="fc" id="L359">        return result;</span>
+<span class="fc" id="L441">        return result;</span>
     }
 
     /**
@@ -368,32 +450,32 @@ import com.puppycrawl.tools.checkstyle.api.TokenTypes;
     protected AbstractJsr305Handler handleDefinition(final DetailAST ast) {
 
         // no definition in catch clause
-<span class="fc" id="L371">        final DetailAST parent = ast.getParent();</span>
-<span class="fc" id="L372">        AbstractJsr305Handler result = null;</span>
-<span class="fc bfc" id="L373" title="All 4 branches covered.">        if (parent == null || parent.getType() != TokenTypes.LITERAL_CATCH) {</span>
+<span class="fc" id="L453">        final DetailAST parent = ast.getParent();</span>
+<span class="fc" id="L454">        AbstractJsr305Handler result = null;</span>
+<span class="fc bfc" id="L455" title="All 4 branches covered.">        if (parent == null || parent.getType() != TokenTypes.LITERAL_CATCH) {</span>
             // search modifiers
-<span class="fc" id="L375">            final int type = ast.getType();</span>
-<span class="pc bpc" id="L376" title="1 of 5 branches missed.">            switch (type) {</span>
+<span class="fc" id="L457">            final int type = ast.getType();</span>
+<span class="pc bpc" id="L458" title="1 of 5 branches missed.">            switch (type) {</span>
                 case TokenTypes.METHOD_DEF:
-<span class="fc" id="L378">                    result = new MethodJsr305Handler(ast);</span>
-<span class="fc" id="L379">                    break;</span>
+<span class="fc" id="L460">                    result = new MethodJsr305Handler(ast);</span>
+<span class="fc" id="L461">                    break;</span>
                 case TokenTypes.CTOR_DEF:
-<span class="fc" id="L381">                    result = new ConstructorJsr305Handler(ast);</span>
-<span class="fc" id="L382">                    break;</span>
+<span class="fc" id="L463">                    result = new ConstructorJsr305Handler(ast);</span>
+<span class="fc" id="L464">                    break;</span>
                 case TokenTypes.PARAMETER_DEF:
-<span class="fc" id="L384">                    result = new ParameterJsr305Handler(ast);</span>
-<span class="fc" id="L385">                    break;</span>
+<span class="fc" id="L466">                    result = new ParameterJsr305Handler(ast);</span>
+<span class="fc" id="L467">                    break;</span>
                 case TokenTypes.CLASS_DEF:
                 case TokenTypes.INTERFACE_DEF:
                 case TokenTypes.ENUM_DEF:
-<span class="fc" id="L389">                    result = new ClassJsr305Handler(ast);</span>
-<span class="fc" id="L390">                    break;</span>
+<span class="fc" id="L471">                    result = new ClassJsr305Handler(ast);</span>
+<span class="fc" id="L472">                    break;</span>
                 default:
-<span class="nc" id="L392">                    SevntuUtil.reportInvalidToken(ast.getType());</span>
+<span class="nc" id="L474">                    SevntuUtil.reportInvalidToken(ast.getType());</span>
                     break;
             }
         }
-<span class="fc" id="L396">        return result;</span>
+<span class="fc" id="L478">        return result;</span>
     }
 
     /**
@@ -402,8 +484,8 @@ import com.puppycrawl.tools.checkstyle.api.TokenTypes;
      *        true if yes
      */
     public void setAllowOverridingReturnValue(final boolean newAllowOverridingReturnValue) {
-<span class="fc" id="L405">        this.allowOverridingReturnValue = newAllowOverridingReturnValue;</span>
-<span class="fc" id="L406">    }</span>
+<span class="fc" id="L487">        this.allowOverridingReturnValue = newAllowOverridingReturnValue;</span>
+<span class="fc" id="L488">    }</span>
 
     /**
      * Sets the parameter for allowing overriding parameters.
@@ -411,8 +493,44 @@ import com.puppycrawl.tools.checkstyle.api.TokenTypes;
      *        true if yes
      */
     public void setAllowOverridingParameter(final boolean newAllowOverridingParameter) {
-<span class="fc" id="L414">        this.allowOverridingParameter = newAllowOverridingParameter;</span>
-<span class="fc" id="L415">    }</span>
+<span class="fc" id="L496">        this.allowOverridingParameter = newAllowOverridingParameter;</span>
+<span class="fc" id="L497">    }</span>
+
+    /**
+     * Find the nullness annotations.
+     * @param ast
+     *        the ast
+     * @return the annotations.
+     */
+    private static Set&lt;NullnessAnnotation&gt; findAnnotations(final DetailAST ast) {
+<span class="fc" id="L506">        final Set&lt;NullnessAnnotation&gt; result = new HashSet&lt;&gt;();</span>
+
+<span class="fc" id="L508">        final DetailAST modifiers = ast.findFirstToken(TokenTypes.MODIFIERS);</span>
+<span class="fc bfc" id="L509" title="All 2 branches covered.">        for (AST child = modifiers.getFirstChild(); child != null; child = child.getNextSibling()) {</span>
+<span class="fc bfc" id="L510" title="All 2 branches covered.">            if (child.getType() == TokenTypes.ANNOTATION) {</span>
+<span class="fc" id="L511">                addNextNullnessAnnotation(result, (DetailAST) child);</span>
+            }
+        }
+
+<span class="fc" id="L515">        return result;</span>
+    }
+
+    /**
+     * Adds the nullness annotation from the argument's first token if any.
+     * @param result
+     *        the result
+     * @param ast
+     *        the ast
+     */
+    private static void addNextNullnessAnnotation(final Set&lt;NullnessAnnotation&gt; result,
+            DetailAST ast) {
+<span class="fc" id="L527">        final DetailAST identifier = ast.findFirstToken(TokenTypes.IDENT);</span>
+<span class="fc" id="L528">        final String annotationName = identifier.getText();</span>
+<span class="fc" id="L529">        final NullnessAnnotation annotation = STRING2ANNOTATION.get(annotationName);</span>
+<span class="fc bfc" id="L530" title="All 2 branches covered.">        if (annotation != null) {</span>
+<span class="fc" id="L531">            result.add(annotation);</span>
+        }
+<span class="fc" id="L533">    }</span>
 
     /**
      * Class ClassJsr305Handler. Checks a class.
@@ -424,22 +542,22 @@ import com.puppycrawl.tools.checkstyle.api.TokenTypes;
          * @param ast
          *        the ast
          */
-<span class="fc" id="L427">        protected ClassJsr305Handler(final DetailAST ast) {</span>
-<span class="fc" id="L428">            super(ast);</span>
-<span class="fc" id="L429">        }</span>
+<span class="fc" id="L545">        protected ClassJsr305Handler(final DetailAST ast) {</span>
+<span class="fc" id="L546">            super(ast);</span>
+<span class="fc" id="L547">        }</span>
 
         /**
          * Run the actual check.
          */
         @Override
         protected void runcheck() {
-<span class="fc" id="L436">            checkContainsAny(MSG_ILLEGAL_CLASS_LEVEL_ANNOTATION,</span>
+<span class="fc" id="L554">            checkContainsAny(MSG_ILLEGAL_CLASS_LEVEL_ANNOTATION,</span>
                     NullnessAnnotation.CHECK_FOR_NULL, NullnessAnnotation.CHECK_RETURN_VALUE,
                     NullnessAnnotation.NONNULL, NullnessAnnotation.NULLABLE);
-<span class="fc" id="L439">            checkContainsAll(MSG_CONTRADICTING_CLASS_LEVEL_ANNOTATIONS,</span>
+<span class="fc" id="L557">            checkContainsAll(MSG_CONTRADICTING_CLASS_LEVEL_ANNOTATIONS,</span>
                     NullnessAnnotation.PARAMETERS_ARE_NONNULL_BY_DEFAULT,
                     NullnessAnnotation.PARAMETERS_ARE_NULLABLE_BY_DEFAULT);
-<span class="fc" id="L442">        }</span>
+<span class="fc" id="L560">        }</span>
 
     }
 
@@ -453,64 +571,64 @@ import com.puppycrawl.tools.checkstyle.api.TokenTypes;
          * @param ast
          *        the ast
          */
-<span class="fc" id="L456">        protected ParameterJsr305Handler(final DetailAST ast) {</span>
-<span class="fc" id="L457">            super(ast);</span>
-<span class="fc" id="L458">        }</span>
+<span class="fc" id="L574">        protected ParameterJsr305Handler(final DetailAST ast) {</span>
+<span class="fc" id="L575">            super(ast);</span>
+<span class="fc" id="L576">        }</span>
 
         /**
          * Run the actual check.
          */
         @Override
         protected void runcheck() {
-<span class="fc" id="L465">            checkContainsAny(MSG_PARAM_DEFINITIONS_WITH_CHECK,</span>
+<span class="fc" id="L583">            checkContainsAny(MSG_PARAM_DEFINITIONS_WITH_CHECK,</span>
                     NullnessAnnotation.CHECK_FOR_NULL, NullnessAnnotation.CHECK_RETURN_VALUE);
-<span class="fc" id="L467">            checkContainsAny(MSG_PARAM_DEFINITION_WITH_OVERRIDE,</span>
+<span class="fc" id="L585">            checkContainsAny(MSG_PARAM_DEFINITION_WITH_OVERRIDE,</span>
                     NullnessAnnotation.OVERRIDE);
-<span class="fc" id="L469">            checkContainsAny(MSG_PARAM_DEFINITION_WITH_NONNULL_BY_DEFAULT,</span>
+<span class="fc" id="L587">            checkContainsAny(MSG_PARAM_DEFINITION_WITH_NONNULL_BY_DEFAULT,</span>
                     NullnessAnnotation.PARAMETERS_ARE_NONNULL_BY_DEFAULT);
-<span class="fc" id="L471">            checkContainsAny(MSG_PARAM_DEFINITION_WITH_NULLABLE_BY_DEFAULT,</span>
+<span class="fc" id="L589">            checkContainsAny(MSG_PARAM_DEFINITION_WITH_NULLABLE_BY_DEFAULT,</span>
                     NullnessAnnotation.PARAMETERS_ARE_NULLABLE_BY_DEFAULT);
-<span class="fc" id="L473">            checkContainsAny(MSG_PARAM_DEFINITION_WITH_RETURN_DEFAULT,</span>
+<span class="fc" id="L591">            checkContainsAny(MSG_PARAM_DEFINITION_WITH_RETURN_DEFAULT,</span>
                     NullnessAnnotation.RETURN_VALUES_ARE_NONNULL_BY_DEFAULT);
-<span class="fc" id="L475">            checkContainsAll(MSG_PARAM_NONNULL_AND_NULLABLE,</span>
+<span class="fc" id="L593">            checkContainsAll(MSG_PARAM_NONNULL_AND_NULLABLE,</span>
                     NullnessAnnotation.NONNULL, NullnessAnnotation.NULLABLE);
 
-<span class="fc bfc" id="L478" title="All 2 branches covered.">            if (isPrimitiveType()) {</span>
-<span class="fc" id="L479">                checkContainsAny(MSG_PRIMITIVES_WITH_NULLNESS_ANNOTATION,</span>
+<span class="fc bfc" id="L596" title="All 2 branches covered.">            if (isPrimitiveType()) {</span>
+<span class="fc" id="L597">                checkContainsAny(MSG_PRIMITIVES_WITH_NULLNESS_ANNOTATION,</span>
                         NullnessAnnotation.CHECK_FOR_NULL, NullnessAnnotation.NONNULL,
                         NullnessAnnotation.NULLABLE);
             }
             else {
-<span class="fc" id="L484">                final NullnessAnnotation firstAncestorAnnotation =</span>
-<span class="fc" id="L485">                        getParentMethodOrClassAnnotation(</span>
+<span class="fc" id="L602">                final NullnessAnnotation firstAncestorAnnotation =</span>
+<span class="fc" id="L603">                        getParentMethodOrClassAnnotation(</span>
                                     NullnessAnnotation.PARAMETERS_ARE_NONNULL_BY_DEFAULT,
                                     NullnessAnnotation.PARAMETERS_ARE_NULLABLE_BY_DEFAULT);
-<span class="fc" id="L488">                final boolean isMethodOverridden = isMethodOverridden();</span>
-<span class="fc bfc" id="L489" title="All 2 branches covered.">                final boolean parametersAreNonnullByDefault = firstAncestorAnnotation</span>
+<span class="fc" id="L606">                final boolean isMethodOverridden = isMethodOverridden();</span>
+<span class="fc bfc" id="L607" title="All 2 branches covered.">                final boolean parametersAreNonnullByDefault = firstAncestorAnnotation</span>
                         == NullnessAnnotation.PARAMETERS_ARE_NONNULL_BY_DEFAULT;
-<span class="fc bfc" id="L491" title="All 2 branches covered.">                final boolean parametersAreNullableByDefault = firstAncestorAnnotation</span>
+<span class="fc bfc" id="L609" title="All 2 branches covered.">                final boolean parametersAreNullableByDefault = firstAncestorAnnotation</span>
                         == NullnessAnnotation.PARAMETERS_ARE_NULLABLE_BY_DEFAULT;
 
-<span class="fc bfc" id="L494" title="All 4 branches covered.">                if (isMethodOverridden &amp;&amp; !allowOverridingParameter) {</span>
-<span class="fc" id="L495">                    checkContainsAny(MSG_OVERRIDDEN_WITH_INCREASED_CONSTRAINT,</span>
+<span class="fc bfc" id="L612" title="All 4 branches covered.">                if (isMethodOverridden &amp;&amp; !allowOverridingParameter) {</span>
+<span class="fc" id="L613">                    checkContainsAny(MSG_OVERRIDDEN_WITH_INCREASED_CONSTRAINT,</span>
                             NullnessAnnotation.NONNULL);
                 }
-<span class="fc bfc" id="L498" title="All 2 branches covered.">                if (parametersAreNonnullByDefault) {</span>
-<span class="fc" id="L499">                    checkContainsAny(MSG_REDUNDANT_NONNULL_PARAM_ANNOTATION,</span>
+<span class="fc bfc" id="L616" title="All 2 branches covered.">                if (parametersAreNonnullByDefault) {</span>
+<span class="fc" id="L617">                    checkContainsAny(MSG_REDUNDANT_NONNULL_PARAM_ANNOTATION,</span>
                             NullnessAnnotation.NONNULL);
                 }
-<span class="fc bfc" id="L502" title="All 2 branches covered.">                if (parametersAreNullableByDefault) {</span>
-<span class="fc" id="L503">                    checkContainsAny(MSG_REDUNDANT_NULLABLE_PARAM_ANNOTATION,</span>
+<span class="fc bfc" id="L620" title="All 2 branches covered.">                if (parametersAreNullableByDefault) {</span>
+<span class="fc" id="L621">                    checkContainsAny(MSG_REDUNDANT_NULLABLE_PARAM_ANNOTATION,</span>
                             NullnessAnnotation.NULLABLE);
                 }
 
-<span class="fc bfc" id="L507" title="All 6 branches covered.">                if (!isMethodOverridden &amp;&amp; !parametersAreNonnullByDefault</span>
+<span class="fc bfc" id="L625" title="All 6 branches covered.">                if (!isMethodOverridden &amp;&amp; !parametersAreNonnullByDefault</span>
                         &amp;&amp; !parametersAreNullableByDefault) {
-<span class="fc" id="L509">                    checkContainsNone(MSG_PARAMETER_WITHOUT_NULLNESS_ANNOTATION,</span>
+<span class="fc" id="L627">                    checkContainsNone(MSG_PARAMETER_WITHOUT_NULLNESS_ANNOTATION,</span>
                             NullnessAnnotation.NONNULL, NullnessAnnotation.NULLABLE);
                 }
             }
-<span class="fc" id="L513">        }</span>
+<span class="fc" id="L631">        }</span>
     }
 
     /**
@@ -523,20 +641,20 @@ import com.puppycrawl.tools.checkstyle.api.TokenTypes;
          * @param ast
          *        the ast
          */
-<span class="fc" id="L526">        protected AbstractMethodJsr305Handler(final DetailAST ast) {</span>
-<span class="fc" id="L527">            super(ast);</span>
-<span class="fc" id="L528">        }</span>
+<span class="fc" id="L644">        protected AbstractMethodJsr305Handler(final DetailAST ast) {</span>
+<span class="fc" id="L645">            super(ast);</span>
+<span class="fc" id="L646">        }</span>
 
         /**
          * Run the actual check.
          */
         @Override
         protected void runcheck() {
-<span class="fc" id="L535">            checkContainsAll(MSG_CONTRADICTING_CLASS_LEVEL_ANNOTATIONS,</span>
+<span class="fc" id="L653">            checkContainsAll(MSG_CONTRADICTING_CLASS_LEVEL_ANNOTATIONS,</span>
                     NullnessAnnotation.PARAMETERS_ARE_NONNULL_BY_DEFAULT,
                     NullnessAnnotation.PARAMETERS_ARE_NULLABLE_BY_DEFAULT);
-<span class="fc" id="L538">            runReturnAnnotationCheck();</span>
-<span class="fc" id="L539">        }</span>
+<span class="fc" id="L656">            runReturnAnnotationCheck();</span>
+<span class="fc" id="L657">        }</span>
 
         /**
          * Run annotation check for return.
@@ -555,67 +673,67 @@ import com.puppycrawl.tools.checkstyle.api.TokenTypes;
          * @param ast
          *        the ast
          */
-<span class="fc" id="L558">        protected MethodJsr305Handler(final DetailAST ast) {</span>
-<span class="fc" id="L559">            super(ast);</span>
-<span class="fc" id="L560">        }</span>
+<span class="fc" id="L676">        protected MethodJsr305Handler(final DetailAST ast) {</span>
+<span class="fc" id="L677">            super(ast);</span>
+<span class="fc" id="L678">        }</span>
 
         /**
          * Run annotation check for return.
          */
         @Override
         protected void runReturnAnnotationCheck() {
-<span class="fc" id="L567">            checkContainsAny(MSG_RETURN_VALUE_WITH_NONNULL_BY_DEFAULT,</span>
+<span class="fc" id="L685">            checkContainsAny(MSG_RETURN_VALUE_WITH_NONNULL_BY_DEFAULT,</span>
                     NullnessAnnotation.RETURN_VALUES_ARE_NONNULL_BY_DEFAULT);
-<span class="fc" id="L569">            checkContainsAny(MSG_RETURN_VALUE_WITH_NULLABLE,</span>
+<span class="fc" id="L687">            checkContainsAny(MSG_RETURN_VALUE_WITH_NULLABLE,</span>
                     NullnessAnnotation.NULLABLE);
-<span class="fc" id="L571">            checkContainsAll(MSG_CONTRADICTING_RETURN_VALUE_ANNOTATIONS, NullnessAnnotation.NONNULL,</span>
+<span class="fc" id="L689">            checkContainsAll(MSG_CONTRADICTING_RETURN_VALUE_ANNOTATIONS, NullnessAnnotation.NONNULL,</span>
                     NullnessAnnotation.CHECK_FOR_NULL);
-<span class="fc" id="L573">            checkContainsAll(MSG_OVERRIDDEN_METHOD_WITH_CHECK_RETURN_VALUE,</span>
+<span class="fc" id="L691">            checkContainsAll(MSG_OVERRIDDEN_METHOD_WITH_CHECK_RETURN_VALUE,</span>
                     NullnessAnnotation.CHECK_RETURN_VALUE, NullnessAnnotation.OVERRIDE);
-<span class="fc" id="L575">            checkRedundancyDueToClassLevelAnnotation(MSG_REDUNDANT_NONNULL_BY_DEFAULT_ANNOTATION,</span>
+<span class="fc" id="L693">            checkRedundancyDueToClassLevelAnnotation(MSG_REDUNDANT_NONNULL_BY_DEFAULT_ANNOTATION,</span>
                     NullnessAnnotation.PARAMETERS_ARE_NONNULL_BY_DEFAULT);
-<span class="fc" id="L577">            checkRedundancyDueToClassLevelAnnotation(MSG_REDUNDANT_NULLABLE_BY_DEFAULT_ANNOTATION,</span>
+<span class="fc" id="L695">            checkRedundancyDueToClassLevelAnnotation(MSG_REDUNDANT_NULLABLE_BY_DEFAULT_ANNOTATION,</span>
                     NullnessAnnotation.PARAMETERS_ARE_NULLABLE_BY_DEFAULT);
 
-<span class="fc bfc" id="L580" title="All 2 branches covered.">            if (isVoid()) {</span>
-<span class="fc" id="L581">                checkContainsAny(MSG_VOID_WITH_CHECK_RETURN_VALUE_ANNOTATION,</span>
+<span class="fc bfc" id="L698" title="All 2 branches covered.">            if (isVoid()) {</span>
+<span class="fc" id="L699">                checkContainsAny(MSG_VOID_WITH_CHECK_RETURN_VALUE_ANNOTATION,</span>
                         NullnessAnnotation.CHECK_RETURN_VALUE);
             }
-<span class="fc bfc" id="L584" title="All 2 branches covered.">            if (isPrimitiveType()) {</span>
-<span class="fc" id="L585">                checkContainsAny(MSG_PRIMITIVES_WITH_NULLNESS_ANNOTATION,</span>
+<span class="fc bfc" id="L702" title="All 2 branches covered.">            if (isPrimitiveType()) {</span>
+<span class="fc" id="L703">                checkContainsAny(MSG_PRIMITIVES_WITH_NULLNESS_ANNOTATION,</span>
                         NullnessAnnotation.CHECK_FOR_NULL, NullnessAnnotation.NONNULL,
                         NullnessAnnotation.NULLABLE);
             }
             else {
-<span class="fc" id="L590">                final NullnessAnnotation annotation = getParentMethodOrClassAnnotation(</span>
+<span class="fc" id="L708">                final NullnessAnnotation annotation = getParentMethodOrClassAnnotation(</span>
                         NullnessAnnotation.RETURN_VALUES_ARE_NONNULL_BY_DEFAULT);
-<span class="fc bfc" id="L592" title="All 2 branches covered.">                final boolean returnValuesAreNonnullByDefault = annotation</span>
+<span class="fc bfc" id="L710" title="All 2 branches covered.">                final boolean returnValuesAreNonnullByDefault = annotation</span>
                         == NullnessAnnotation.RETURN_VALUES_ARE_NONNULL_BY_DEFAULT;
-<span class="fc" id="L594">                final boolean isMethodOverridden = isMethodOverridden();</span>
+<span class="fc" id="L712">                final boolean isMethodOverridden = isMethodOverridden();</span>
 
-<span class="fc bfc" id="L596" title="All 2 branches covered.">                if (returnValuesAreNonnullByDefault) {</span>
-<span class="fc bfc" id="L597" title="All 2 branches covered.">                    if (!isMethodOverridden) {</span>
-<span class="fc" id="L598">                        checkContainsAny(MSG_REDUNDANT_NONNULL_RETURN_ANNOTATION,</span>
+<span class="fc bfc" id="L714" title="All 2 branches covered.">                if (returnValuesAreNonnullByDefault) {</span>
+<span class="fc bfc" id="L715" title="All 2 branches covered.">                    if (!isMethodOverridden) {</span>
+<span class="fc" id="L716">                        checkContainsAny(MSG_REDUNDANT_NONNULL_RETURN_ANNOTATION,</span>
                                 NullnessAnnotation.NONNULL);
                     }
                 }
                 else {
-<span class="fc" id="L603">                    checkContainsNone(MSG_RETURN_WITHOUT_NULLNESS_ANNOTATION,</span>
+<span class="fc" id="L721">                    checkContainsNone(MSG_RETURN_WITHOUT_NULLNESS_ANNOTATION,</span>
                             NullnessAnnotation.CHECK_FOR_NULL, NullnessAnnotation.NONNULL,
                             NullnessAnnotation.OVERRIDE);
                 }
 
-<span class="fc bfc" id="L608" title="All 4 branches covered.">                if (isMethodOverridden &amp;&amp; !allowOverridingReturnValue) {</span>
-<span class="fc" id="L609">                    checkContainsAny(MSG_OVERRIDDEN_METHODS_ALLOW_ONLY_NONNULL,</span>
+<span class="fc bfc" id="L726" title="All 4 branches covered.">                if (isMethodOverridden &amp;&amp; !allowOverridingReturnValue) {</span>
+<span class="fc" id="L727">                    checkContainsAny(MSG_OVERRIDDEN_METHODS_ALLOW_ONLY_NONNULL,</span>
                             NullnessAnnotation.CHECK_FOR_NULL, NullnessAnnotation.NULLABLE);
                 }
 
-<span class="fc bfc" id="L613" title="All 2 branches covered.">                if (isMethodOverridden) {</span>
-<span class="fc" id="L614">                    checkContainsAny(MSG_NEED_TO_INHERIT_PARAM_ANNOTATIONS,</span>
+<span class="fc bfc" id="L731" title="All 2 branches covered.">                if (isMethodOverridden) {</span>
+<span class="fc" id="L732">                    checkContainsAny(MSG_NEED_TO_INHERIT_PARAM_ANNOTATIONS,</span>
                             NullnessAnnotation.PARAMETERS_ARE_NONNULL_BY_DEFAULT);
                 }
             }
-<span class="fc" id="L618">        }</span>
+<span class="fc" id="L736">        }</span>
 
     }
 
@@ -629,20 +747,20 @@ import com.puppycrawl.tools.checkstyle.api.TokenTypes;
          * @param ast
          *        the ast
          */
-<span class="fc" id="L632">        protected ConstructorJsr305Handler(final DetailAST ast) {</span>
-<span class="fc" id="L633">            super(ast);</span>
-<span class="fc" id="L634">        }</span>
+<span class="fc" id="L750">        protected ConstructorJsr305Handler(final DetailAST ast) {</span>
+<span class="fc" id="L751">            super(ast);</span>
+<span class="fc" id="L752">        }</span>
 
         /**
          * Check for return type nullness annotations (which are illegal).
          */
         @Override
         protected void runReturnAnnotationCheck() {
-<span class="fc" id="L641">            checkContainsAny(MSG_CONSTRUCTOR_WITH_RETURN_ANNOTATION,</span>
+<span class="fc" id="L759">            checkContainsAny(MSG_CONSTRUCTOR_WITH_RETURN_ANNOTATION,</span>
                     NullnessAnnotation.CHECK_FOR_NULL, NullnessAnnotation.CHECK_RETURN_VALUE,
                     NullnessAnnotation.NONNULL, NullnessAnnotation.NULLABLE,
                     NullnessAnnotation.OVERRIDE);
-<span class="fc" id="L645">        }</span>
+<span class="fc" id="L763">        }</span>
 
     }
 
@@ -655,27 +773,27 @@ import com.puppycrawl.tools.checkstyle.api.TokenTypes;
         /** Has an error been found. */
         private boolean errorFound;
         /** The found annotations. */
-        private final Set&lt;NullnessAnnotation&gt; theAnnotations;
+        private final Set&lt;NullnessAnnotation&gt; annotations;
         /** The ast. */
-        private final DetailAST theAst;
+        private final DetailAST ast;
 
         /**
          * Construtor.
          * @param ast
          *        the ast
          */
-<span class="fc" id="L667">        protected AbstractJsr305Handler(final DetailAST ast) {</span>
-<span class="fc" id="L668">            theAst = ast;</span>
-<span class="fc" id="L669">            errorFound = false;</span>
-<span class="fc" id="L670">            theAnnotations = findAnnotation();</span>
-<span class="fc" id="L671">        }</span>
+<span class="fc" id="L785">        protected AbstractJsr305Handler(final DetailAST ast) {</span>
+<span class="fc" id="L786">            this.ast = ast;</span>
+<span class="fc" id="L787">            this.errorFound = false;</span>
+<span class="fc" id="L788">            annotations = findAnnotation();</span>
+<span class="fc" id="L789">        }</span>
 
         /**
          * Run the actual check.
          */
         public final void check() {
-<span class="fc" id="L677">            runcheck();</span>
-<span class="fc" id="L678">        }</span>
+<span class="fc" id="L795">            runcheck();</span>
+<span class="fc" id="L796">        }</span>
 
         /**
          * Run the actual check.
@@ -686,114 +804,114 @@ import com.puppycrawl.tools.checkstyle.api.TokenTypes;
          * Emits an error if any of the given annotations are found.
          * @param msg
          *        the error message to emit
-         * @param annotations
+         * @param search
          *        the annotations to look for
          */
-        protected void checkContainsAny(final String msg, final NullnessAnnotation... annotations) {
-<span class="fc bfc" id="L693" title="All 4 branches covered.">            if (!errorFound &amp;&amp; containsAny(annotations)) {</span>
-<span class="fc" id="L694">                error(msg);</span>
+        protected void checkContainsAny(final String msg, final NullnessAnnotation... search) {
+<span class="fc bfc" id="L811" title="All 4 branches covered.">            if (!errorFound &amp;&amp; containsAny(search)) {</span>
+<span class="fc" id="L812">                error(msg);</span>
             }
-<span class="fc" id="L696">        }</span>
+<span class="fc" id="L814">        }</span>
 
         /**
          * Check whether any of the given annotations are found.
-         * @param annotations
+         * @param search
          *        the annotations to look for
          * @return true if yes
          */
-        protected boolean containsAny(final NullnessAnnotation... annotations) {
-<span class="fc" id="L705">            Boolean result = null;</span>
-<span class="fc bfc" id="L706" title="All 2 branches covered.">            if (theAnnotations.isEmpty()) {</span>
-<span class="fc" id="L707">                result = false;</span>
+        protected boolean containsAny(final NullnessAnnotation... search) {
+<span class="fc" id="L823">            Boolean result = null;</span>
+<span class="fc bfc" id="L824" title="All 2 branches covered.">            if (this.annotations.isEmpty()) {</span>
+<span class="fc" id="L825">                result = false;</span>
             }
             else {
-<span class="fc bfc" id="L710" title="All 2 branches covered.">                for (final NullnessAnnotation obj : annotations) {</span>
-<span class="fc bfc" id="L711" title="All 2 branches covered.">                    if (theAnnotations.contains(obj)) {</span>
-<span class="fc" id="L712">                        result = true;</span>
-<span class="fc" id="L713">                        break;</span>
+<span class="fc bfc" id="L828" title="All 2 branches covered.">                for (final NullnessAnnotation obj : search) {</span>
+<span class="fc bfc" id="L829" title="All 2 branches covered.">                    if (this.annotations.contains(obj)) {</span>
+<span class="fc" id="L830">                        result = true;</span>
+<span class="fc" id="L831">                        break;</span>
                     }
                 }
             }
-<span class="fc bfc" id="L717" title="All 2 branches covered.">            if (result == null) {</span>
-<span class="fc" id="L718">                result = false;</span>
+<span class="fc bfc" id="L835" title="All 2 branches covered.">            if (result == null) {</span>
+<span class="fc" id="L836">                result = false;</span>
             }
-<span class="fc" id="L720">            return result;</span>
+<span class="fc" id="L838">            return result;</span>
         }
 
         /**
          * Emits an error if all given annotations are found.
          * @param msg
          *        the error message to emit
-         * @param annotations
+         * @param search
          *        the annotations to look for
          */
-        protected void checkContainsAll(final String msg, final NullnessAnnotation... annotations) {
-<span class="fc bfc" id="L731" title="All 4 branches covered.">            if (!errorFound &amp;&amp; containsAll(annotations)) {</span>
-<span class="fc" id="L732">                error(msg);</span>
+        protected void checkContainsAll(final String msg, final NullnessAnnotation... search) {
+<span class="fc bfc" id="L849" title="All 4 branches covered.">            if (!errorFound &amp;&amp; containsAll(search)) {</span>
+<span class="fc" id="L850">                error(msg);</span>
             }
-<span class="fc" id="L734">        }</span>
+<span class="fc" id="L852">        }</span>
 
         /**
          * Emits an error if both this and the parent class have redundant nullness annotations.
          * @param msg
          *        the error message to emit
-         * @param annotations
+         * @param search
          *        the annotations to look for
          */
         protected void checkRedundancyDueToClassLevelAnnotation(final String msg,
-                final NullnessAnnotation... annotations) {
-<span class="fc bfc" id="L745" title="All 2 branches covered.">            if (!errorFound) {</span>
-<span class="fc bfc" id="L746" title="All 2 branches covered.">                for (final NullnessAnnotation nullnessAnnotation : annotations) {</span>
-<span class="fc" id="L747">                    final boolean thisIsAnnotated = theAnnotations.contains(nullnessAnnotation);</span>
-<span class="fc" id="L748">                    final boolean parentIsAnnotated =</span>
-<span class="fc bfc" id="L749" title="All 2 branches covered.">                            getParentMethodOrClassAnnotation(nullnessAnnotation) != null;</span>
-<span class="fc bfc" id="L750" title="All 4 branches covered.">                    if (thisIsAnnotated &amp;&amp; parentIsAnnotated) {</span>
-<span class="fc" id="L751">                        error(msg);</span>
-<span class="fc" id="L752">                        break;</span>
+                final NullnessAnnotation... search) {
+<span class="fc bfc" id="L863" title="All 2 branches covered.">            if (!errorFound) {</span>
+<span class="fc bfc" id="L864" title="All 2 branches covered.">                for (final NullnessAnnotation nullnessAnnotation : search) {</span>
+<span class="fc" id="L865">                    final boolean thisIsAnnotated = this.annotations.contains(nullnessAnnotation);</span>
+<span class="fc" id="L866">                    final boolean parentIsAnnotated =</span>
+<span class="fc bfc" id="L867" title="All 2 branches covered.">                            getParentMethodOrClassAnnotation(nullnessAnnotation) != null;</span>
+<span class="fc bfc" id="L868" title="All 4 branches covered.">                    if (thisIsAnnotated &amp;&amp; parentIsAnnotated) {</span>
+<span class="fc" id="L869">                        error(msg);</span>
+<span class="fc" id="L870">                        break;</span>
                     }
                 }
             }
-<span class="fc" id="L756">        }</span>
+<span class="fc" id="L874">        }</span>
 
         /**
          * Check whether all the given annotations are present.
-         * @param annotations
+         * @param search
          *        the annotations to look for
          * @return true if yes
          */
-        protected boolean containsAll(final NullnessAnnotation... annotations) {
-<span class="fc" id="L765">            Boolean result = null;</span>
-<span class="fc bfc" id="L766" title="All 2 branches covered.">            if (theAnnotations.isEmpty()) {</span>
+        protected boolean containsAll(final NullnessAnnotation... search) {
+<span class="fc" id="L883">            Boolean result = null;</span>
+<span class="fc bfc" id="L884" title="All 2 branches covered.">            if (this.annotations.isEmpty()) {</span>
                 // an empty list of annotations can never contain all
-<span class="fc" id="L768">                result = false;</span>
+<span class="fc" id="L886">                result = false;</span>
             }
             else {
-<span class="fc bfc" id="L771" title="All 2 branches covered.">                for (final NullnessAnnotation obj : annotations) {</span>
-<span class="fc bfc" id="L772" title="All 2 branches covered.">                    if (!theAnnotations.contains(obj)) {</span>
-<span class="fc" id="L773">                        result = false;</span>
-<span class="fc" id="L774">                        break;</span>
+<span class="fc bfc" id="L889" title="All 2 branches covered.">                for (final NullnessAnnotation obj : search) {</span>
+<span class="fc bfc" id="L890" title="All 2 branches covered.">                    if (!this.annotations.contains(obj)) {</span>
+<span class="fc" id="L891">                        result = false;</span>
+<span class="fc" id="L892">                        break;</span>
                     }
                 }
             }
-<span class="fc bfc" id="L778" title="All 2 branches covered.">            if (result == null) {</span>
-<span class="fc" id="L779">                result = true;</span>
+<span class="fc bfc" id="L896" title="All 2 branches covered.">            if (result == null) {</span>
+<span class="fc" id="L897">                result = true;</span>
             }
-<span class="fc" id="L781">            return result;</span>
+<span class="fc" id="L899">            return result;</span>
         }
 
         /**
          * Make sure that none of the given annotations are present.
          * @param msg
          *        the error message to emit if one of the given annotations was found
-         * @param annotations
+         * @param search
          *        the annotations to look for
          */
         protected void checkContainsNone(final String msg,
-                final NullnessAnnotation... annotations) {
-<span class="fc bfc" id="L793" title="All 4 branches covered.">            if (!errorFound &amp;&amp; !containsAny(annotations)) {</span>
-<span class="fc" id="L794">                error(msg);</span>
+                final NullnessAnnotation... search) {
+<span class="fc bfc" id="L911" title="All 4 branches covered.">            if (!errorFound &amp;&amp; !containsAny(search)) {</span>
+<span class="fc" id="L912">                error(msg);</span>
             }
-<span class="fc" id="L796">        }</span>
+<span class="fc" id="L914">        }</span>
 
         /**
          * Logs an error.
@@ -802,8 +920,8 @@ import com.puppycrawl.tools.checkstyle.api.TokenTypes;
          *        the message
          */
         protected void reportError(final String msg) {
-<span class="fc" id="L805">            log(theAst, msg);</span>
-<span class="fc" id="L806">        }</span>
+<span class="fc" id="L923">            log(ast, msg);</span>
+<span class="fc" id="L924">        }</span>
 
         /**
          * Handle an error (log and set 'errorFound' to 'true').
@@ -812,20 +930,20 @@ import com.puppycrawl.tools.checkstyle.api.TokenTypes;
          *        the error message
          */
         protected void error(final String msg) {
-<span class="fc" id="L815">            reportError(msg);</span>
-<span class="fc" id="L816">            errorFound = true;</span>
-<span class="fc" id="L817">        }</span>
+<span class="fc" id="L933">            reportError(msg);</span>
+<span class="fc" id="L934">            errorFound = true;</span>
+<span class="fc" id="L935">        }</span>
 
         /**
          * Is the current symbol a primitive type.
          * @return true if yes
          */
         protected boolean isPrimitiveType() {
-<span class="fc" id="L824">            final DetailAST parameterType = theAst.findFirstToken(TokenTypes.TYPE);</span>
+<span class="fc" id="L942">            final DetailAST parameterType = ast.findFirstToken(TokenTypes.TYPE);</span>
             final boolean result;
-<span class="fc" id="L826">            final DetailAST identToken = parameterType.getFirstChild();</span>
+<span class="fc" id="L944">            final DetailAST identToken = parameterType.getFirstChild();</span>
 
-<span class="fc bfc" id="L828" title="All 2 branches covered.">            switch (identToken.getType()) {</span>
+<span class="fc bfc" id="L946" title="All 2 branches covered.">            switch (identToken.getType()) {</span>
                 case TokenTypes.LITERAL_BOOLEAN:
                 case TokenTypes.LITERAL_INT:
                 case TokenTypes.LITERAL_LONG:
@@ -835,12 +953,12 @@ import com.puppycrawl.tools.checkstyle.api.TokenTypes;
                 case TokenTypes.LITERAL_VOID:
                 case TokenTypes.LITERAL_DOUBLE:
                 case TokenTypes.LITERAL_FLOAT:
-<span class="fc bfc" id="L838" title="All 2 branches covered.">                    result = !isArrayOrElipsis(parameterType);</span>
-<span class="fc" id="L839">                    break;</span>
+<span class="fc bfc" id="L956" title="All 2 branches covered.">                    result = !isArrayOrElipsis(parameterType);</span>
+<span class="fc" id="L957">                    break;</span>
                 default:
-<span class="fc" id="L841">                    result = false;</span>
+<span class="fc" id="L959">                    result = false;</span>
             }
-<span class="fc" id="L843">            return result;</span>
+<span class="fc" id="L961">            return result;</span>
         }
 
         /**
@@ -850,17 +968,17 @@ import com.puppycrawl.tools.checkstyle.api.TokenTypes;
          * @return true if yes
          */
         protected boolean isArrayOrElipsis(final DetailAST identToken) {
-<span class="fc" id="L853">            final DetailAST next = identToken.getNextSibling();</span>
+<span class="fc" id="L971">            final DetailAST next = identToken.getNextSibling();</span>
             final boolean result;
-<span class="fc bfc" id="L855" title="All 2 branches covered.">            switch (next.getType()) {</span>
+<span class="fc bfc" id="L973" title="All 2 branches covered.">            switch (next.getType()) {</span>
                 case TokenTypes.ARRAY_DECLARATOR:
                 case TokenTypes.ELLIPSIS:
-<span class="fc" id="L858">                    result = true;</span>
-<span class="fc" id="L859">                    break;</span>
+<span class="fc" id="L976">                    result = true;</span>
+<span class="fc" id="L977">                    break;</span>
                 default:
-<span class="fc" id="L861">                    result = false;</span>
+<span class="fc" id="L979">                    result = false;</span>
             }
-<span class="fc" id="L863">            return result;</span>
+<span class="fc" id="L981">            return result;</span>
         }
 
         /**
@@ -868,11 +986,11 @@ import com.puppycrawl.tools.checkstyle.api.TokenTypes;
          * @return true if yes
          */
         protected boolean isVoid() {
-<span class="fc" id="L871">            final DetailAST parameterType = theAst.findFirstToken(TokenTypes.TYPE);</span>
+<span class="fc" id="L989">            final DetailAST parameterType = ast.findFirstToken(TokenTypes.TYPE);</span>
             final boolean result;
-<span class="fc" id="L873">            final DetailAST identToken = parameterType.getFirstChild();</span>
-<span class="fc bfc" id="L874" title="All 2 branches covered.">            result = identToken.getType() == TokenTypes.LITERAL_VOID;</span>
-<span class="fc" id="L875">            return result;</span>
+<span class="fc" id="L991">            final DetailAST identToken = parameterType.getFirstChild();</span>
+<span class="fc bfc" id="L992" title="All 2 branches covered.">            result = identToken.getType() == TokenTypes.LITERAL_VOID;</span>
+<span class="fc" id="L993">            return result;</span>
         }
 
         /**
@@ -880,45 +998,8 @@ import com.puppycrawl.tools.checkstyle.api.TokenTypes;
          * @return the annotations.
          */
         private Set&lt;NullnessAnnotation&gt; findAnnotation() {
-<span class="fc" id="L883">            return findAnnotations(theAst);</span>
+<span class="fc" id="L1001">            return findAnnotations(ast);</span>
         }
-
-        /**
-         * Find the nullness annotations.
-         * @param ast
-         *        the ast
-         * @return the annotations.
-         */
-        private Set&lt;NullnessAnnotation&gt; findAnnotations(final DetailAST ast) {
-<span class="fc" id="L893">            final Set&lt;NullnessAnnotation&gt; result = new HashSet&lt;&gt;();</span>
-
-<span class="fc" id="L895">            final DetailAST modifiers = ast.findFirstToken(TokenTypes.MODIFIERS);</span>
-<span class="fc bfc" id="L896" title="All 2 branches covered.">            for (AST child = modifiers.getFirstChild(); child != null; child =</span>
-<span class="fc" id="L897">                    child.getNextSibling()) {</span>
-<span class="fc bfc" id="L898" title="All 2 branches covered.">                if (child.getType() == TokenTypes.ANNOTATION) {</span>
-<span class="fc" id="L899">                    addNextNullnessAnnotation(result, (DetailAST) child);</span>
-                }
-            }
-
-<span class="fc" id="L903">            return result;</span>
-        }
-
-        /**
-         * Adds the nullness annotation from the argument's first token if any.
-         * @param result
-         *        the result
-         * @param ast
-         *        the ast
-         */
-        protected final void addNextNullnessAnnotation(final Set&lt;NullnessAnnotation&gt; result,
-                DetailAST ast) {
-<span class="fc" id="L915">            final DetailAST identifier = ast.findFirstToken(TokenTypes.IDENT);</span>
-<span class="fc" id="L916">            final String annotationName = identifier.getText();</span>
-<span class="fc" id="L917">            final NullnessAnnotation annotation = STRING2ANNOTATION.get(annotationName);</span>
-<span class="fc bfc" id="L918" title="All 2 branches covered.">            if (annotation != null) {</span>
-<span class="fc" id="L919">                result.add(annotation);</span>
-            }
-<span class="fc" id="L921">        }</span>
 
         /**
          * Gets the nullness annotation for the parent method or class.
@@ -929,32 +1010,32 @@ import com.puppycrawl.tools.checkstyle.api.TokenTypes;
         protected NullnessAnnotation
                 getParentMethodOrClassAnnotation(final NullnessAnnotation... annotationsToLookFor) {
 
-<span class="fc" id="L932">            boolean finished = false;</span>
-<span class="fc" id="L933">            NullnessAnnotation result = null;</span>
-<span class="fc bfc" id="L934" title="All 4 branches covered.">            for (DetailAST current = theAst.getParent(); current != null &amp;&amp; !finished; current =</span>
-<span class="fc" id="L935">                    current.getParent()) {</span>
-<span class="fc" id="L936">                final int tokenType = current.getType();</span>
+<span class="fc" id="L1013">            boolean finished = false;</span>
+<span class="fc" id="L1014">            NullnessAnnotation result = null;</span>
+<span class="fc bfc" id="L1015" title="All 4 branches covered.">            for (DetailAST current = ast.getParent(); current != null &amp;&amp; !finished; current =</span>
+<span class="fc" id="L1016">                    current.getParent()) {</span>
+<span class="fc" id="L1017">                final int tokenType = current.getType();</span>
 
-<span class="fc bfc" id="L938" title="All 2 branches covered.">                if (isPossibleTokenTypeForNullnessAnnotations(tokenType)) {</span>
-<span class="fc" id="L939">                    final Set&lt;NullnessAnnotation&gt; foundAndLookedFor =</span>
-<span class="fc" id="L940">                            collectLookedForAnnotations(current, annotationsToLookFor);</span>
-<span class="fc bfc" id="L941" title="All 2 branches covered.">                    if (foundAndLookedFor.size() == 1) {</span>
-<span class="fc" id="L942">                        result = foundAndLookedFor.iterator().next();</span>
-<span class="fc" id="L943">                        finished = true;</span>
+<span class="fc bfc" id="L1019" title="All 2 branches covered.">                if (isPossibleTokenTypeForNullnessAnnotations(tokenType)) {</span>
+<span class="fc" id="L1020">                    final Set&lt;NullnessAnnotation&gt; foundAndLookedFor =</span>
+<span class="fc" id="L1021">                            collectLookedForAnnotations(current, annotationsToLookFor);</span>
+<span class="fc bfc" id="L1022" title="All 2 branches covered.">                    if (foundAndLookedFor.size() == 1) {</span>
+<span class="fc" id="L1023">                        result = foundAndLookedFor.iterator().next();</span>
+<span class="fc" id="L1024">                        finished = true;</span>
                     }
-<span class="fc bfc" id="L945" title="All 2 branches covered.">                    else if (!foundAndLookedFor.isEmpty()) {</span>
-<span class="fc" id="L946">                        finished = true;</span>
+<span class="fc bfc" id="L1026" title="All 2 branches covered.">                    else if (!foundAndLookedFor.isEmpty()) {</span>
+<span class="fc" id="L1027">                        finished = true;</span>
                     }
                 }
                 // break on inner and anonymous classes/interfaces, we can't
                 // handle inheritance correctly
-<span class="fc bfc" id="L951" title="All 8 branches covered.">                if (tokenType == TokenTypes.LITERAL_NEW || tokenType == TokenTypes.CLASS_DEF</span>
+<span class="fc bfc" id="L1032" title="All 8 branches covered.">                if (tokenType == TokenTypes.LITERAL_NEW || tokenType == TokenTypes.CLASS_DEF</span>
                         || tokenType == TokenTypes.INTERFACE_DEF
                         || tokenType == TokenTypes.ENUM_DEF) {
-<span class="fc" id="L954">                    finished = true;</span>
+<span class="fc" id="L1035">                    finished = true;</span>
                 }
             }
-<span class="fc" id="L957">            return result;</span>
+<span class="fc" id="L1038">            return result;</span>
         }
 
         /**
@@ -963,7 +1044,7 @@ import com.puppycrawl.tools.checkstyle.api.TokenTypes;
          * @return true if yes
          */
         private boolean isPossibleTokenTypeForNullnessAnnotations(final int tokenType) {
-<span class="fc bfc" id="L966" title="All 10 branches covered.">            return tokenType == TokenTypes.CLASS_DEF || tokenType == TokenTypes.INTERFACE_DEF</span>
+<span class="fc bfc" id="L1047" title="All 10 branches covered.">            return tokenType == TokenTypes.CLASS_DEF || tokenType == TokenTypes.INTERFACE_DEF</span>
                     || tokenType == TokenTypes.METHOD_DEF || tokenType == TokenTypes.CTOR_DEF
                     || tokenType == TokenTypes.ENUM_DEF;
         }
@@ -976,14 +1057,14 @@ import com.puppycrawl.tools.checkstyle.api.TokenTypes;
          */
         protected Set&lt;NullnessAnnotation&gt; collectLookedForAnnotations(DetailAST current,
                 final NullnessAnnotation... annotationsToLookFor) {
-<span class="fc" id="L979">            final Set&lt;NullnessAnnotation&gt; foundAnnotations = findAnnotations(current);</span>
-<span class="fc" id="L980">            final Set&lt;NullnessAnnotation&gt; foundAndLookedFor = new HashSet&lt;&gt;();</span>
-<span class="fc bfc" id="L981" title="All 2 branches covered.">            for (final NullnessAnnotation nullnessAnnotation : annotationsToLookFor) {</span>
-<span class="fc bfc" id="L982" title="All 2 branches covered.">                if (foundAnnotations.contains(nullnessAnnotation)) {</span>
-<span class="fc" id="L983">                    foundAndLookedFor.add(nullnessAnnotation);</span>
+<span class="fc" id="L1060">            final Set&lt;NullnessAnnotation&gt; foundAnnotations = findAnnotations(current);</span>
+<span class="fc" id="L1061">            final Set&lt;NullnessAnnotation&gt; foundAndLookedFor = new HashSet&lt;&gt;();</span>
+<span class="fc bfc" id="L1062" title="All 2 branches covered.">            for (final NullnessAnnotation nullnessAnnotation : annotationsToLookFor) {</span>
+<span class="fc bfc" id="L1063" title="All 2 branches covered.">                if (foundAnnotations.contains(nullnessAnnotation)) {</span>
+<span class="fc" id="L1064">                    foundAndLookedFor.add(nullnessAnnotation);</span>
                 }
             }
-<span class="fc" id="L986">            return foundAndLookedFor;</span>
+<span class="fc" id="L1067">            return foundAndLookedFor;</span>
         }
 
         /**
@@ -991,23 +1072,23 @@ import com.puppycrawl.tools.checkstyle.api.TokenTypes;
          * @return true if yes
          */
         protected boolean isMethodOverridden() {
-<span class="fc" id="L994">            DetailAST current = theAst;</span>
-<span class="fc" id="L995">            Boolean result = null;</span>
-<span class="fc bfc" id="L996" title="All 4 branches covered.">            for (; current != null &amp;&amp; result == null; current = current.getParent()) {</span>
-<span class="fc bfc" id="L997" title="All 3 branches covered.">                switch (current.getType()) {</span>
+<span class="fc" id="L1075">            DetailAST current = ast;</span>
+<span class="fc" id="L1076">            Boolean result = null;</span>
+<span class="fc bfc" id="L1077" title="All 4 branches covered.">            for (; current != null &amp;&amp; result == null; current = current.getParent()) {</span>
+<span class="fc bfc" id="L1078" title="All 3 branches covered.">                switch (current.getType()) {</span>
                     case TokenTypes.METHOD_DEF:
-<span class="fc" id="L999">                        result = findAnnotations(current).contains(NullnessAnnotation.OVERRIDE);</span>
-<span class="fc" id="L1000">                        break;</span>
+<span class="fc" id="L1080">                        result = findAnnotations(current).contains(NullnessAnnotation.OVERRIDE);</span>
+<span class="fc" id="L1081">                        break;</span>
                     case TokenTypes.LAMBDA:
-<span class="fc" id="L1002">                        result = true;</span>
-<span class="fc" id="L1003">                        break;</span>
+<span class="fc" id="L1083">                        result = true;</span>
+<span class="fc" id="L1084">                        break;</span>
                     default:
                 }
             }
-<span class="fc bfc" id="L1007" title="All 2 branches covered.">            if (result == null) {</span>
-<span class="fc" id="L1008">                result = false;</span>
+<span class="fc bfc" id="L1088" title="All 2 branches covered.">            if (result == null) {</span>
+<span class="fc" id="L1089">                result = false;</span>
             }
-<span class="fc" id="L1010">            return result;</span>
+<span class="fc" id="L1091">            return result;</span>
         }
 
     }
