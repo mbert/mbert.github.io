@@ -1,0 +1,129 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<checkstyle version="8.20-SNAPSHOT">
+<file name="/home/md/src/contribution/checkstyle-tester/repositories/jsr305-maven-plugin/src/test/java/jp/skypencil/jsr305/nullable/NullableByDefaultMethod.java">
+</file>
+<file name="/home/md/src/contribution/checkstyle-tester/repositories/jsr305-maven-plugin/src/test/java/jp/skypencil/jsr305/nullable/AbstractTest.java">
+</file>
+<file name="/home/md/src/contribution/checkstyle-tester/repositories/jsr305-maven-plugin/src/test/java/jp/skypencil/jsr305/nullable/NonnullByDefaultMethod.java">
+</file>
+<file name="/home/md/src/contribution/checkstyle-tester/repositories/jsr305-maven-plugin/src/test/java/jp/skypencil/jsr305/nullable/package_annotated_with_nonnull/OverWrittenByClass.java">
+</file>
+<file name="/home/md/src/contribution/checkstyle-tester/repositories/jsr305-maven-plugin/src/test/java/jp/skypencil/jsr305/nullable/package_annotated_with_nonnull/NonnullByDefaultPackage.java">
+</file>
+<file name="/home/md/src/contribution/checkstyle-tester/repositories/jsr305-maven-plugin/src/test/java/jp/skypencil/jsr305/nullable/package_annotated_with_nonnull/package-info.java">
+</file>
+<file name="/home/md/src/contribution/checkstyle-tester/repositories/jsr305-maven-plugin/src/test/java/jp/skypencil/jsr305/nullable/package_annotated_with_nonnull/OverWrittenByMethod.java">
+</file>
+<file name="/home/md/src/contribution/checkstyle-tester/repositories/jsr305-maven-plugin/src/test/java/jp/skypencil/jsr305/nullable/NullableByDefaultTest.java">
+</file>
+<file name="/home/md/src/contribution/checkstyle-tester/repositories/jsr305-maven-plugin/src/test/java/jp/skypencil/jsr305/nullable/NonnullByDefaultTest.java">
+</file>
+<file name="/home/md/src/contribution/checkstyle-tester/repositories/jsr305-maven-plugin/src/test/java/jp/skypencil/jsr305/nullable/OverWrittenByNullableClass.java">
+</file>
+<file name="/home/md/src/contribution/checkstyle-tester/repositories/jsr305-maven-plugin/src/test/java/jp/skypencil/jsr305/nullable/EmptyClass.java">
+</file>
+<file name="/home/md/src/contribution/checkstyle-tester/repositories/jsr305-maven-plugin/src/test/java/jp/skypencil/jsr305/nullable/BlackholeLog.java">
+</file>
+<file name="/home/md/src/contribution/checkstyle-tester/repositories/jsr305-maven-plugin/src/test/java/jp/skypencil/jsr305/nullable/PackageInfoVisitorTest.java">
+</file>
+<file name="/home/md/src/contribution/checkstyle-tester/repositories/jsr305-maven-plugin/src/test/java/jp/skypencil/jsr305/nullable/package_annotated_with_nullable/OverWrittenByClass.java">
+</file>
+<file name="/home/md/src/contribution/checkstyle-tester/repositories/jsr305-maven-plugin/src/test/java/jp/skypencil/jsr305/nullable/package_annotated_with_nullable/package-info.java">
+</file>
+<file name="/home/md/src/contribution/checkstyle-tester/repositories/jsr305-maven-plugin/src/test/java/jp/skypencil/jsr305/nullable/package_annotated_with_nullable/OverWrittenByMethod.java">
+</file>
+<file name="/home/md/src/contribution/checkstyle-tester/repositories/jsr305-maven-plugin/src/test/java/jp/skypencil/jsr305/nullable/package_annotated_with_nullable/NullableByDefaultPackage.java">
+</file>
+<file name="/home/md/src/contribution/checkstyle-tester/repositories/jsr305-maven-plugin/src/test/java/jp/skypencil/jsr305/nullable/OverWrittenByNonnullClass.java">
+</file>
+<file name="/home/md/src/contribution/checkstyle-tester/repositories/jsr305-maven-plugin/src/test/java/jp/skypencil/jsr305/nullable/EmptyStaticClass.java">
+</file>
+<file name="/home/md/src/contribution/checkstyle-tester/repositories/jsr305-maven-plugin/src/test/java/jp/skypencil/jsr305/nullable/NullCheckTest.java">
+</file>
+<file name="/home/md/src/contribution/checkstyle-tester/repositories/jsr305-maven-plugin/src/test/java/jp/skypencil/jsr305/nullable/NonnullByDefaultClass.java">
+</file>
+<file name="/home/md/src/contribution/checkstyle-tester/repositories/jsr305-maven-plugin/src/test/java/jp/skypencil/jsr305/nullable/NullableByDefaultClass.java">
+</file>
+<file name="/home/md/src/contribution/checkstyle-tester/repositories/jsr305-maven-plugin/src/test/java/jp/skypencil/jsr305/negative/LongNegativeCheckTest.java">
+</file>
+<file name="/home/md/src/contribution/checkstyle-tester/repositories/jsr305-maven-plugin/src/test/java/jp/skypencil/jsr305/negative/EmptyClass.java">
+</file>
+<file name="/home/md/src/contribution/checkstyle-tester/repositories/jsr305-maven-plugin/src/test/java/jp/skypencil/jsr305/negative/IntNegativeCheckTest.java">
+</file>
+<file name="/home/md/src/contribution/checkstyle-tester/repositories/jsr305-maven-plugin/src/test/java/jp/skypencil/jsr305/negative/BigDecimalNegativeCheckTest.java">
+</file>
+<file name="/home/md/src/contribution/checkstyle-tester/repositories/jsr305-maven-plugin/src/test/java/jp/skypencil/jsr305/negative/EmptyStaticClass.java">
+</file>
+<file name="/home/md/src/contribution/checkstyle-tester/repositories/jsr305-maven-plugin/src/test/java/jp/skypencil/jsr305/negative/DoubleNegativeCheckTest.java">
+</file>
+<file name="/home/md/src/contribution/checkstyle-tester/repositories/jsr305-maven-plugin/src/test/java/jp/skypencil/jsr305/negative/Interface.java">
+</file>
+<file name="/home/md/src/contribution/checkstyle-tester/repositories/jsr305-maven-plugin/src/test/java/jp/skypencil/jsr305/negative/ShortNegativeCheckTest.java">
+</file>
+<file name="/home/md/src/contribution/checkstyle-tester/repositories/jsr305-maven-plugin/src/test/java/jp/skypencil/jsr305/negative/AbstractClass.java">
+</file>
+<file name="/home/md/src/contribution/checkstyle-tester/repositories/jsr305-maven-plugin/src/test/java/jp/skypencil/jsr305/negative/CornerCaseTest.java">
+</file>
+<file name="/home/md/src/contribution/checkstyle-tester/repositories/jsr305-maven-plugin/src/test/java/jp/skypencil/jsr305/negative/ByteNegativeCheckTest.java">
+</file>
+<file name="/home/md/src/contribution/checkstyle-tester/repositories/jsr305-maven-plugin/src/test/java/jp/skypencil/jsr305/negative/NegativeCheckTest.java">
+</file>
+<file name="/home/md/src/contribution/checkstyle-tester/repositories/jsr305-maven-plugin/src/test/java/jp/skypencil/jsr305/negative/FloatNegativeCheckTest.java">
+</file>
+<file name="/home/md/src/contribution/checkstyle-tester/repositories/jsr305-maven-plugin/src/test/java/jp/skypencil/jsr305/OrdinalBuilderTest.java">
+</file>
+<file name="/home/md/src/contribution/checkstyle-tester/repositories/jsr305-maven-plugin/src/test/java/jp/skypencil/jsr305/regex/EmptyClass.java">
+</file>
+<file name="/home/md/src/contribution/checkstyle-tester/repositories/jsr305-maven-plugin/src/test/java/jp/skypencil/jsr305/regex/MatchesPatternTest.java">
+</file>
+<file name="/home/md/src/contribution/checkstyle-tester/repositories/jsr305-maven-plugin/src/test/java/jp/skypencil/jsr305/regex/EmptyStaticClass.java">
+</file>
+<file name="/home/md/src/contribution/checkstyle-tester/repositories/jsr305-maven-plugin/src/test/java/jp/skypencil/jsr305/regex/FlagTest.java">
+</file>
+<file name="/home/md/src/contribution/checkstyle-tester/repositories/jsr305-maven-plugin/src/main/java/jp/skypencil/jsr305/PackageInfo.java">
+</file>
+<file name="/home/md/src/contribution/checkstyle-tester/repositories/jsr305-maven-plugin/src/main/java/jp/skypencil/jsr305/nullable/NullCheckStrategyFactory.java">
+</file>
+<file name="/home/md/src/contribution/checkstyle-tester/repositories/jsr305-maven-plugin/src/main/java/jp/skypencil/jsr305/nullable/NullCheckLevel.java">
+</file>
+<file name="/home/md/src/contribution/checkstyle-tester/repositories/jsr305-maven-plugin/src/main/java/jp/skypencil/jsr305/nullable/PermissiveStrategyFactory.java">
+</file>
+<file name="/home/md/src/contribution/checkstyle-tester/repositories/jsr305-maven-plugin/src/main/java/jp/skypencil/jsr305/nullable/Setting.java">
+</file>
+<file name="/home/md/src/contribution/checkstyle-tester/repositories/jsr305-maven-plugin/src/main/java/jp/skypencil/jsr305/nullable/NullCheckMethodVisitor.java">
+</file>
+<file name="/home/md/src/contribution/checkstyle-tester/repositories/jsr305-maven-plugin/src/main/java/jp/skypencil/jsr305/nullable/NullCheckStrategy.java">
+</file>
+<file name="/home/md/src/contribution/checkstyle-tester/repositories/jsr305-maven-plugin/src/main/java/jp/skypencil/jsr305/nullable/StrictStrategyFactory.java">
+</file>
+<file name="/home/md/src/contribution/checkstyle-tester/repositories/jsr305-maven-plugin/src/main/java/jp/skypencil/jsr305/MavenJSR305Mojo.java">
+</file>
+<file name="/home/md/src/contribution/checkstyle-tester/repositories/jsr305-maven-plugin/src/main/java/jp/skypencil/jsr305/Scope.java">
+</file>
+<file name="/home/md/src/contribution/checkstyle-tester/repositories/jsr305-maven-plugin/src/main/java/jp/skypencil/jsr305/OrdinalBuilder.java">
+</file>
+<file name="/home/md/src/contribution/checkstyle-tester/repositories/jsr305-maven-plugin/src/main/java/jp/skypencil/jsr305/MavenJSR305ClassVisitor.java">
+</file>
+<file name="/home/md/src/contribution/checkstyle-tester/repositories/jsr305-maven-plugin/src/main/java/jp/skypencil/jsr305/negative/NegativeCheckStrategy.java">
+</file>
+<file name="/home/md/src/contribution/checkstyle-tester/repositories/jsr305-maven-plugin/src/main/java/jp/skypencil/jsr305/negative/PermissiveStrategyFactory.java">
+</file>
+<file name="/home/md/src/contribution/checkstyle-tester/repositories/jsr305-maven-plugin/src/main/java/jp/skypencil/jsr305/negative/NegativeCheckLevel.java">
+</file>
+<file name="/home/md/src/contribution/checkstyle-tester/repositories/jsr305-maven-plugin/src/main/java/jp/skypencil/jsr305/negative/NegativeCheckMethodVisitor.java">
+</file>
+<file name="/home/md/src/contribution/checkstyle-tester/repositories/jsr305-maven-plugin/src/main/java/jp/skypencil/jsr305/negative/NegativeCheckStrategyFactory.java">
+</file>
+<file name="/home/md/src/contribution/checkstyle-tester/repositories/jsr305-maven-plugin/src/main/java/jp/skypencil/jsr305/negative/Setting.java">
+</file>
+<file name="/home/md/src/contribution/checkstyle-tester/repositories/jsr305-maven-plugin/src/main/java/jp/skypencil/jsr305/MavenJSR305PackageVisitor.java">
+</file>
+<file name="/home/md/src/contribution/checkstyle-tester/repositories/jsr305-maven-plugin/src/main/java/jp/skypencil/jsr305/PackageInfoVisitor.java">
+</file>
+<file name="/home/md/src/contribution/checkstyle-tester/repositories/jsr305-maven-plugin/src/main/java/jp/skypencil/jsr305/regex/MatchesPatternMethodVisitor.java">
+</file>
+<file name="/home/md/src/contribution/checkstyle-tester/repositories/jsr305-maven-plugin/src/main/java/jp/skypencil/jsr305/regex/MatchesPatternAnnotationVisitor.java">
+</file>
+<file name="/home/md/src/contribution/checkstyle-tester/repositories/jsr305-maven-plugin/src/main/java/jp/skypencil/jsr305/regex/Setting.java">
+</file>
+</checkstyle>

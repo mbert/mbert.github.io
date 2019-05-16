@@ -1,0 +1,94 @@
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd">
+<html xmlns="http://www.w3.org/1999/xhtml" xml:lang="en" lang="en">
+<head><meta http-equiv="content-type" content="text/html; charset=UTF-8" />
+<title>LogConfigurationCheck xref</title>
+<link type="text/css" rel="stylesheet" href="../stylesheet.css" />
+</head>
+<body>
+<div id="overview"><a href="../../../../../../../../apidocs//LogConfigurationCheck.html">View Javadoc</a></div><pre>
+<a class="jxr_linenumber" name="L1" href="#L1">1</a>   <strong class="jxr_keyword">import</strong> org.apache.logging.log4j.core.config.builder.api.ConfigurationBuilderFactory;
+<a class="jxr_linenumber" name="L2" href="#L2">2</a>   <strong class="jxr_keyword">import</strong> org.apache.logging.log4j.core.LoggerContext;
+<a class="jxr_linenumber" name="L3" href="#L3">3</a>   <strong class="jxr_keyword">import</strong> org.apache.logging.log4j.core.Filter;
+<a class="jxr_linenumber" name="L4" href="#L4">4</a>   <strong class="jxr_keyword">import</strong> org.apache.logging.log4j.core.config.LoggerConfig;
+<a class="jxr_linenumber" name="L5" href="#L5">5</a>   <strong class="jxr_keyword">import</strong> org.apache.logging.log4j.core.config.Configurator;
+<a class="jxr_linenumber" name="L6" href="#L6">6</a>   <strong class="jxr_keyword">import</strong> org.apache.logging.log4j.core.config.Configuration;
+<a class="jxr_linenumber" name="L7" href="#L7">7</a>   <strong class="jxr_keyword">import</strong> org.apache.logging.log4j.core.config.ConfigurationSource;
+<a class="jxr_linenumber" name="L8" href="#L8">8</a>   <strong class="jxr_keyword">import</strong> org.apache.logging.log4j.core.config.ConfigurationFactory;
+<a class="jxr_linenumber" name="L9" href="#L9">9</a>   
+<a class="jxr_linenumber" name="L10" href="#L10">10</a>  <strong class="jxr_keyword">class</strong> <a href="..//LogConfigurationCheck.html">Log4J2</a> {
+<a class="jxr_linenumber" name="L11" href="#L11">11</a>  
+<a class="jxr_linenumber" name="L12" href="#L12">12</a>    <em class="jxr_comment">// Questionable: creating a new custom configuration</em>
+<a class="jxr_linenumber" name="L13" href="#L13">13</a>    <strong class="jxr_keyword">public</strong> <strong class="jxr_keyword">class</strong> <a href="..//LogConfigurationCheck.html">CustomConfigFactory</a> <strong class="jxr_keyword">extends</strong> ConfigurationFactory { <em class="jxr_comment">// Noncompliant [[sc=44;ec=64]] {{Make sure that this logger's configuration is safe.}}</em>
+<a class="jxr_linenumber" name="L14" href="#L14">14</a>    }
+<a class="jxr_linenumber" name="L15" href="#L15">15</a>    <strong class="jxr_keyword">void</strong> fun() {
+<a class="jxr_linenumber" name="L16" href="#L16">16</a>  <em class="jxr_comment">// Questionable: creating a new custom configuration</em>
+<a class="jxr_linenumber" name="L17" href="#L17">17</a>      ConfigurationBuilderFactory.newConfigurationBuilder(); <em class="jxr_comment">// Noncompliant [[sc=5;ec=58]] {{Make sure that this logger's configuration is safe.}}</em>
+<a class="jxr_linenumber" name="L18" href="#L18">18</a>  
+<a class="jxr_linenumber" name="L19" href="#L19">19</a>      <em class="jxr_comment">// Questionable: setting loggers level can result in writing sensitive information in production</em>
+<a class="jxr_linenumber" name="L20" href="#L20">20</a>      Configurator.setAllLevels(<span class="jxr_string">"com.example"</span>, org.apache.logging.log4j.Level.DEBUG); <em class="jxr_comment">// Noncompliant</em>
+<a class="jxr_linenumber" name="L21" href="#L21">21</a>      Configurator.setLevel(<span class="jxr_string">"com.example"</span>, org.apache.logging.log4j.Level.DEBUG); <em class="jxr_comment">// Noncompliant</em>
+<a class="jxr_linenumber" name="L22" href="#L22">22</a>      java.util.Map&lt;String,org.apache.logging.log4j.Level&gt; levelMap;
+<a class="jxr_linenumber" name="L23" href="#L23">23</a>      Configurator.setLevel(levelMap); <em class="jxr_comment">// Noncompliant</em>
+<a class="jxr_linenumber" name="L24" href="#L24">24</a>      Configurator.setRootLevel(org.apache.logging.log4j.Level.DEBUG); <em class="jxr_comment">// Noncompliant</em>
+<a class="jxr_linenumber" name="L25" href="#L25">25</a>  
+<a class="jxr_linenumber" name="L26" href="#L26">26</a>      Configuration config;
+<a class="jxr_linenumber" name="L27" href="#L27">27</a>      <em class="jxr_comment">// Questionable: this modifies the configuration</em>
+<a class="jxr_linenumber" name="L28" href="#L28">28</a>      org.apache.logging.log4j.core.Appender appender;
+<a class="jxr_linenumber" name="L29" href="#L29">29</a>      config.addAppender(appender);  <em class="jxr_comment">// Noncompliant</em>
+<a class="jxr_linenumber" name="L30" href="#L30">30</a>  
+<a class="jxr_linenumber" name="L31" href="#L31">31</a>      java.net.URI uri;
+<a class="jxr_linenumber" name="L32" href="#L32">32</a>      LoggerContext context;
+<a class="jxr_linenumber" name="L33" href="#L33">33</a>      context.setConfigLocation(uri);  <em class="jxr_comment">// Noncompliant</em>
+<a class="jxr_linenumber" name="L34" href="#L34">34</a>  
+<a class="jxr_linenumber" name="L35" href="#L35">35</a>      java.io.InputStream stream;
+<a class="jxr_linenumber" name="L36" href="#L36">36</a>      java.io.File file;
+<a class="jxr_linenumber" name="L37" href="#L37">37</a>      java.net.URL url;
+<a class="jxr_linenumber" name="L38" href="#L38">38</a>      java.lang.ClassLoader loader;
+<a class="jxr_linenumber" name="L39" href="#L39">39</a>  
+<a class="jxr_linenumber" name="L40" href="#L40">40</a>      <em class="jxr_comment">// Questionable: Load the configuration from a stream or file</em>
+<a class="jxr_linenumber" name="L41" href="#L41">41</a>      <strong class="jxr_keyword">new</strong> ConfigurationSource(stream); <em class="jxr_comment">// Noncompliant</em>
+<a class="jxr_linenumber" name="L42" href="#L42">42</a>      <strong class="jxr_keyword">new</strong> ConfigurationSource(stream, file);<em class="jxr_comment">// Noncompliant</em>
+<a class="jxr_linenumber" name="L43" href="#L43">43</a>      <strong class="jxr_keyword">new</strong> ConfigurationSource(stream, url);<em class="jxr_comment">// Noncompliant</em>
+<a class="jxr_linenumber" name="L44" href="#L44">44</a>      ConfigurationSource.fromResource(<span class="jxr_string">"source"</span>, loader);<em class="jxr_comment">// Noncompliant</em>
+<a class="jxr_linenumber" name="L45" href="#L45">45</a>      ConfigurationSource.fromUri(uri);<em class="jxr_comment">// Noncompliant</em>
+<a class="jxr_linenumber" name="L46" href="#L46">46</a>  
+<a class="jxr_linenumber" name="L47" href="#L47">47</a>      org.apache.logging.log4j.Level level;
+<a class="jxr_linenumber" name="L48" href="#L48">48</a>      Filter filter;
+<a class="jxr_linenumber" name="L49" href="#L49">49</a>      LoggerConfig loggerConfig = config.getRootLogger();
+<a class="jxr_linenumber" name="L50" href="#L50">50</a>      loggerConfig.addAppender(appender, level, filter); <em class="jxr_comment">// Noncompliant</em>
+<a class="jxr_linenumber" name="L51" href="#L51">51</a>      loggerConfig.setLevel(level); <em class="jxr_comment">// Noncompliant</em>
+<a class="jxr_linenumber" name="L52" href="#L52">52</a>  
+<a class="jxr_linenumber" name="L53" href="#L53">53</a>    }
+<a class="jxr_linenumber" name="L54" href="#L54">54</a>  }
+<a class="jxr_linenumber" name="L55" href="#L55">55</a>  
+<a class="jxr_linenumber" name="L56" href="#L56">56</a>  <strong class="jxr_keyword">class</strong> <a href="..//LogConfigurationCheck.html">JavaLogging</a> {
+<a class="jxr_linenumber" name="L57" href="#L57">57</a>    <em class="jxr_comment">// === java.util.logging ===</em>
+<a class="jxr_linenumber" name="L58" href="#L58">58</a>    <strong class="jxr_keyword">void</strong> fun(java.io.InputStream is) {
+<a class="jxr_linenumber" name="L59" href="#L59">59</a>      java.util.logging.LogManager logManager;
+<a class="jxr_linenumber" name="L60" href="#L60">60</a>      logManager.readConfiguration(is); <em class="jxr_comment">// Noncompliant</em>
+<a class="jxr_linenumber" name="L61" href="#L61">61</a>  
+<a class="jxr_linenumber" name="L62" href="#L62">62</a>      java.util.logging.Logger logger;
+<a class="jxr_linenumber" name="L63" href="#L63">63</a>      logger.setLevel(java.util.logging.Level.FINEST); <em class="jxr_comment">// Noncompliant</em>
+<a class="jxr_linenumber" name="L64" href="#L64">64</a>      java.util.logging.Handler handler;
+<a class="jxr_linenumber" name="L65" href="#L65">65</a>      logger.addHandler(handler); <em class="jxr_comment">// Noncompliant</em>
+<a class="jxr_linenumber" name="L66" href="#L66">66</a>    }
+<a class="jxr_linenumber" name="L67" href="#L67">67</a>  }
+<a class="jxr_linenumber" name="L68" href="#L68">68</a>  
+<a class="jxr_linenumber" name="L69" href="#L69">69</a>  <strong class="jxr_keyword">class</strong> <a href="..//LogConfigurationCheck.html">LogBack</a> {
+<a class="jxr_linenumber" name="L70" href="#L70">70</a>    <strong class="jxr_keyword">void</strong> fun() {
+<a class="jxr_linenumber" name="L71" href="#L71">71</a>      <em class="jxr_comment">// === Logback ===</em>
+<a class="jxr_linenumber" name="L72" href="#L72">72</a>      System.setProperty(ch.qos.logback.classic.util.ContextInitializer.CONFIG_FILE_PROPERTY, <span class="jxr_string">"config.xml"</span>); <em class="jxr_comment">// Noncompliant</em>
+<a class="jxr_linenumber" name="L73" href="#L73">73</a>      System.setProperty(<span class="jxr_string">"someotherproperty"</span>, <span class="jxr_string">"config.xml"</span>);
+<a class="jxr_linenumber" name="L74" href="#L74">74</a>      ch.qos.logback.classic.joran.JoranConfigurator configurator = <strong class="jxr_keyword">new</strong> ch.qos.logback.classic.joran.JoranConfigurator(); <em class="jxr_comment">// Noncompliant</em>
+<a class="jxr_linenumber" name="L75" href="#L75">75</a>  
+<a class="jxr_linenumber" name="L76" href="#L76">76</a>      ch.qos.logback.classic.Logger logger;
+<a class="jxr_linenumber" name="L77" href="#L77">77</a>      ch.qos.logback.core.FileAppender fileAppender;
+<a class="jxr_linenumber" name="L78" href="#L78">78</a>      logger.addAppender(fileAppender); <em class="jxr_comment">// Noncompliant</em>
+<a class="jxr_linenumber" name="L79" href="#L79">79</a>      logger.setLevel(ch.qos.logback.classic.Level.DEBUG); <em class="jxr_comment">// Noncompliant</em>
+<a class="jxr_linenumber" name="L80" href="#L80">80</a>    }
+<a class="jxr_linenumber" name="L81" href="#L81">81</a>  }
+</pre>
+<hr/>
+<div id="footer">Copyright &#169; 2019. All rights reserved.</div>
+</body>
+</html>

@@ -1,0 +1,36 @@
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd">
+<html xmlns="http://www.w3.org/1999/xhtml" xml:lang="en" lang="en">
+<head><meta http-equiv="content-type" content="text/html; charset=UTF-8" />
+<title>PopulateBeansCheck xref</title>
+<link type="text/css" rel="stylesheet" href="../stylesheet.css" />
+</head>
+<body>
+<div id="overview"><a href="../../../../../../../apidocs//PopulateBeansCheck.html">View Javadoc</a></div><pre>
+<a class="jxr_linenumber" name="L1" href="#L1">1</a>   <strong class="jxr_keyword">import</strong> org.apache.commons.beanutils.BeanUtils;
+<a class="jxr_linenumber" name="L2" href="#L2">2</a>   <strong class="jxr_keyword">import</strong> org.apache.commons.beanutils.BeanUtilsBean;
+<a class="jxr_linenumber" name="L3" href="#L3">3</a>   <strong class="jxr_keyword">import</strong> org.springframework.beans.PropertyAccessor;
+<a class="jxr_linenumber" name="L4" href="#L4">4</a>   
+<a class="jxr_linenumber" name="L5" href="#L5">5</a>   <strong class="jxr_keyword">class</strong> <a href="..//PopulateBeansCheck.html">Company</a> {
+<a class="jxr_linenumber" name="L6" href="#L6">6</a>     String name;
+<a class="jxr_linenumber" name="L7" href="#L7">7</a>     <strong class="jxr_keyword">void</strong> fun(PropertyAccessor pa){
+<a class="jxr_linenumber" name="L8" href="#L8">8</a>       <a href="..//PopulateBeansCheck.html">Company</a> bean = <strong class="jxr_keyword">new</strong> <a href="..//PopulateBeansCheck.html">Company</a>();
+<a class="jxr_linenumber" name="L9" href="#L9">9</a>       java.util.Map&lt;String, Object&gt; map = <strong class="jxr_keyword">new</strong> java.util.HashMap();
+<a class="jxr_linenumber" name="L10" href="#L10">10</a>      Enumeration names = request.getParameterNames();
+<a class="jxr_linenumber" name="L11" href="#L11">11</a>      <strong class="jxr_keyword">while</strong> (names.hasMoreElements()) {
+<a class="jxr_linenumber" name="L12" href="#L12">12</a>        String name = (String) names.nextElement();
+<a class="jxr_linenumber" name="L13" href="#L13">13</a>        map.put(name, request.getParameterValues(name));
+<a class="jxr_linenumber" name="L14" href="#L14">14</a>      }
+<a class="jxr_linenumber" name="L15" href="#L15">15</a>      BeanUtils.populate(bean, map); <em class="jxr_comment">// Noncompliant {{Make sure that setting JavaBean properties is safe here.}}</em>
+<a class="jxr_linenumber" name="L16" href="#L16">16</a>      BeanUtils.setProperty(bean, <span class="jxr_string">"name"</span>, <span class="jxr_string">"value"</span>); <em class="jxr_comment">// Noncompliant {{Make sure that setting JavaBean properties is safe here.}}</em>
+<a class="jxr_linenumber" name="L17" href="#L17">17</a>      BeanUtilsBean.populate(bean, map); <em class="jxr_comment">// Noncompliant {{Make sure that setting JavaBean properties is safe here.}}</em>
+<a class="jxr_linenumber" name="L18" href="#L18">18</a>      BeanUtilsBean bub = <strong class="jxr_keyword">new</strong> BeanUtilsBean();
+<a class="jxr_linenumber" name="L19" href="#L19">19</a>      bub.setProperty(bean, <span class="jxr_string">"name"</span>, <span class="jxr_string">"value"</span>); <em class="jxr_comment">// Noncompliant {{Make sure that setting JavaBean properties is safe here.}}</em>
+<a class="jxr_linenumber" name="L20" href="#L20">20</a>      pa.setPropertyValue(<span class="jxr_string">"name"</span>, bean); <em class="jxr_comment">// Noncompliant {{Make sure that setting JavaBean properties is safe here.}}</em>
+<a class="jxr_linenumber" name="L21" href="#L21">21</a>      pa.setPropertyValues(map); <em class="jxr_comment">// Noncompliant {{Make sure that setting JavaBean properties is safe here.}}</em>
+<a class="jxr_linenumber" name="L22" href="#L22">22</a>    }
+<a class="jxr_linenumber" name="L23" href="#L23">23</a>  }
+</pre>
+<hr/>
+<div id="footer">Copyright &#169; 2019. All rights reserved.</div>
+</body>
+</html>
